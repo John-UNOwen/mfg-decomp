@@ -276,10 +276,12 @@ internal sealed class MatchEngine
         var wall = Mahjong.BuildWall136(rng);
         if (Program.TestTePai is { Length: 13 } testTe && match.KyokuCompleted == 0 && match.DealerSeat == 0)
         {
-            // Test deal: seat 0 takes the requested kinds (first free copy each) at the
-            // front of the wall layout; the rest keeps its shuffled order so all the
-            // generic slicing below still conserves every tile. The first draw is moved
-            // to the win kind so the dealer can tsumo on draw one.
+            // Test deal: the chosen seat takes the requested kinds (first free copy each);
+            // the rest keeps its shuffled order so all the generic slicing below still
+            // conserves every tile. The win kind is moved to that seat's first draw
+            // (draw index == seat, since seat 0 draws first). Seat 0 proves the client's
+            // agari window; a CPU seat proves the engine settles agari live.
+            int testSeat = Math.Clamp(Program.TestSeat, 0, 3);
             var rest = new List<int>(wall);
             var hand = new List<int>();
             foreach (int kind in testTe)
@@ -290,11 +292,14 @@ internal sealed class MatchEngine
             }
             if (Program.TestWinKind >= 0)
             {
-                int win = rest.FindIndex(39, rest.Count - 39, p => Mahjong.KindOfPai(p) == Program.TestWinKind);
-                if (win > 39) (rest[39], rest[win]) = (rest[win], rest[39]);
+                int target = 39 + testSeat;                        // rest[target] == DrawTiles[testSeat]
+                int win = rest.FindIndex(target, rest.Count - target, p => Mahjong.KindOfPai(p) == Program.TestWinKind);
+                if (win > target) (rest[target], rest[win]) = (rest[win], rest[target]);
             }
-            wall = hand.OrderBy(p => p).ToList();
-            wall.AddRange(rest);
+            int at = 13 * testSeat;                                // hand lands in the seat's deal slot
+            wall = new List<int>(rest.Take(at));
+            wall.AddRange(hand.OrderBy(p => p));
+            wall.AddRange(rest.Skip(at));
         }
         int pos = 0;
         foreach (var seat in match.Seats)

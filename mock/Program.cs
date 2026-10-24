@@ -34,6 +34,7 @@ internal static class Program
     // MFG_TEST_WIN forces the first kyoku-1 draw to that kind (deal stays conserved).
     internal static readonly int[] TestTePai = ParseKindList(Environment.GetEnvironmentVariable("MFG_TEST_TEPAI"));
     internal static readonly int TestWinKind = int.TryParse(Environment.GetEnvironmentVariable("MFG_TEST_WIN"), out int wk) ? wk : -1;
+    internal static readonly int TestSeat = int.TryParse(Environment.GetEnvironmentVariable("MFG_TEST_SEAT"), out int ts) ? ts : 0;
     private static int[] ParseKindList(string s) =>
         string.IsNullOrEmpty(s) ? null : s.Split(',').Select(int.Parse).ToArray();
     private static long SeqCounter;

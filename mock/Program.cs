@@ -35,6 +35,13 @@ internal static class Program
     internal static readonly int[] TestTePai = ParseKindList(Environment.GetEnvironmentVariable("MFG_TEST_TEPAI"));
     internal static readonly int TestWinKind = int.TryParse(Environment.GetEnvironmentVariable("MFG_TEST_WIN"), out int wk) ? wk : -1;
     internal static readonly int TestSeat = int.TryParse(Environment.GetEnvironmentVariable("MFG_TEST_SEAT"), out int ts) ? ts : 0;
+    // Forwarding mode: with MFG_UPSTREAM=http://host[:port] set, every request is relayed verbatim
+    // to that front server (e.g. the publicly hosted provider) and the response passed back.
+    // The local engine and spec templates stay unused. The listener keeps doing what the client
+    // needs locally: proxy-hop request shapes, CONNECT+TLS, logging, and Host header rewriting.
+    private static readonly string Upstream = Environment.GetEnvironmentVariable("MFG_UPSTREAM") ?? "";
+    private static readonly System.Net.Http.HttpClient UpstreamClient =
+        new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
     private static int[] ParseKindList(string s) =>
         string.IsNullOrEmpty(s) ? null : s.Split(',').Select(int.Parse).ToArray();
     private static long SeqCounter;
@@ -189,6 +196,11 @@ internal static class Program
 
         string specName = Route(target);
         long seq = Interlocked.Increment(ref SeqCounter);
+        if (Upstream.Length > 0)
+        {
+            ForwardUpstream(stream, method, target, headers, rawBody, seq, host);
+            return;
+        }
         // Match-aware endpoints override their spec file as long as the session has a live match;
         // everything else (and every request without a session) keeps the canned template path.
         string xml = Engine.Handle(specName, body, spec => FillTemplate(LoadSpec(spec), seq, body))
@@ -211,6 +223,55 @@ internal static class Program
     }
 
     // ---------------- routing ----------------
+
+    // Relay one request to MFG_UPSTREAM and pass the reply through. Host header comes from the
+    // upstream URL (vhost-correct); the local mock hop stays invisible to the client.
+    private static void ForwardUpstream(Stream stream, string method, string target, Dictionary<string, string> headers, byte[] body, long seq, string host)
+    {
+        int status = 502;
+        byte[] payload = Array.Empty<byte>();
+        string ctype = "text/plain; charset=utf-8";
+        try
+        {
+            string path = target;
+            int scheme = path.IndexOf("://", StringComparison.Ordinal);
+            if (scheme >= 0)
+            {
+                int slash = path.IndexOf('/', scheme + 3);
+                path = slash < 0 ? "/" : path.Substring(slash);
+            }
+            var req = new System.Net.Http.HttpRequestMessage(new System.Net.Http.HttpMethod(method), Upstream.TrimEnd('/') + path);
+            if (body.Length > 0)
+            {
+                var content = new System.Net.Http.ByteArrayContent(body);
+                if (headers.TryGetValue("Content-Type", out string ct)) content.Headers.TryAddWithoutValidation("Content-Type", ct);
+                req.Content = content;
+            }
+            var resp = UpstreamClient.SendAsync(req).GetAwaiter().GetResult();
+            status = (int)resp.StatusCode;
+            if (resp.Content != null)
+            {
+                payload = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                if (resp.Content.Headers.ContentType != null) ctype = resp.Content.Headers.ContentType.ToString();
+            }
+        }
+        catch (Exception e)
+        {
+            Log("UPSTREAM_ERR seq=" + seq + " target=" + target + " err=" + e.Message);
+        }
+        var head = new StringBuilder();
+        head.Append("HTTP/1.1 ").Append(status.ToString(CultureInfo.InvariantCulture));
+        head.Append(status == 200 ? " OK\r\n" : " Bad Gateway\r\n");
+        head.Append("Content-Type: ").Append(ctype).Append("\r\n");
+        head.Append("Content-Length: ").Append(payload.Length.ToString(CultureInfo.InvariantCulture)).Append("\r\n");
+        head.Append("Connection: close\r\n\r\n");
+        byte[] headBytes = Encoding.ASCII.GetBytes(head.ToString());
+        stream.Write(headBytes, 0, headBytes.Length);
+        stream.Write(payload, 0, payload.Length);
+        stream.Flush();
+        Log("UPSTREAM seq=" + seq + " " + method + " host=" + host + " target=" + target +
+            " status=" + status + " bytes=" + payload.Length + " body=" + body);
+    }
 
     // /aog/<endpoint> -> <endpoint>; also matches a bare /<endpoint>, a /<endpoint>/ form,
     // and endpoints hidden inside a path segment (reconnect posts .../aog<gserv_url>reconnect/...).

@@ -61,6 +61,19 @@ Verified against the live client in one session each:
   mod keeps a finalizer diag: `[S3DIAG] ... players=4 nokori=...`), and the decompile shows
   the client's seat table is populated before processing - root cause open.
 
+## Addendum 2026-10-24 (later): same loop against the publicly hosted provider
+
+Per owner, v1 gameplay runs on the community server rather than our own. The identical guest flow
+(hosts pin unchanged) plus the mock in forwarding mode (`MFG_UPSTREAM=http:// <provider-host>`, commit
+d8cb710: 8080 hop, Host rewrite for the vhost, per-request log) completed a full 4-player tonnan on
+ <provider-host>: entry_game, 305 ggets, 71 gposts, four kyoku settled by their engine (CPU-filled
+table with named opponents, renchan included), end_game, junmei and result screens accepted
+(fan/affinity persisted server-side), zero client exceptions, every hop status 200. Screenshots:
+`out/s3/pub_*.png` (flow), `live_*.png` and `live2_*.png` (mid-kyoku at east-2, result panel).
+Guest identity there is a fresh auto-created profile per launch (no card in KONAMINET mode);
+persistent test identity should use arcade mode with the lab card. Self-hosted RyuNET remains
+verified as the fallback (docs/18).
+
 ## Repro
 
 `MockServer selftest` (in-process, no client). Live: KB runbook

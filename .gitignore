@@ -15,3 +15,10 @@ mods/**/bin/
 mods/**/obj/
 *.log.txt.bak
 s2-local.txt
+
+build/reftype/
+build/reftype-bcl/
+build/reftype-rebuilt/
+build/asmdef-probe/bin/
+build/asmdef-probe/obj/
+build/asmdef-probe/logs/

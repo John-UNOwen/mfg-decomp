@@ -14,3 +14,4 @@ mods/obj/
 mods/**/bin/
 mods/**/obj/
 *.log.txt.bak
+s2-local.txt

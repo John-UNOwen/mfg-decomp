@@ -1,0 +1,16 @@
+<!-- mock: parsed by MFG.GameRequest/GChat.cs OnParse -> MFG.Taikyoku/StampData.cs Parse (chat/d entries) -->
+<!-- {{seq}} becomes the stamp sequence id (d[@idx], read with AttributeValueInt64) so ids never repeat between polls -->
+<!-- d attributes idx/mid/pindex/time and children name/contents/param are all deref'd unguarded (StampData.cs:29-38) -->
+<!-- contents is Enum.TryParse<ItemID>; "0" (= ItemID.None) means no table sticker -->
+<!-- TODO: confirm time is java epoch millis (AttributeValueJavaCurrentTimeMillsToDateTime) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <chat>
+    <d idx="{{seq}}" mid="1000001" pindex="0" time="1767225600000">
+      <name>Mock Player</name>
+      <contents>0</contents>
+      <param />
+    </d>
+  </chat>
+</res>

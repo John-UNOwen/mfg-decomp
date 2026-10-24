@@ -1,0 +1,10 @@
+<!-- mock: parsed by MFG.GameRequest/ReqDrawGacha.cs OnParse -->
+<!-- request: web_id, area_id, pcuid, gacha_name, times, jongstone=1, use_ticket=false -->
+<!-- TODO: confirm transaction_id format (opaque token vs numeric string); it is only copied to Result.TransactionID and fed back to /get_gacha_result, so any non-empty value works -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <transaction_info>
+    <transaction_id>1000001</transaction_id>
+  </transaction_info>
+</res>

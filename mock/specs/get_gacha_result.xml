@@ -1,0 +1,15 @@
+<!-- mock: parsed by MFG.GameRequest/ReqGachaResult.cs OnParse -->
+<!-- request: web_id, area_id, pcuid, transaction_id, times, isUseTicket=True -->
+<!-- TODO: confirm character_id / unique_id semantics (both are read then discarded by `_ =`; CutinItemInfo is default-constructed, so Result.CustomizeItems only carries list length) -->
+<!-- NOTE: character_id and unique_id are hard requirements once <lottery_result><data> exists - a missing child is a NullReferenceException, which the NeedNotNodeNotFoundException catch does NOT swallow (PushRequest error screen) -->
+<!-- NOTE: AcquiredGiftCount / PrevGiftCount / AfterGiftCount are never parsed by this class, so no gift node is modelled -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <lottery_result>
+    <data>
+      <character_id>1</character_id>
+      <unique_id>1000001</unique_id>
+    </data>
+  </lottery_result>
+</res>

@@ -1,0 +1,16 @@
+<!-- mock: parsed by MFG.GameRequest/PresentDone.cs OnParse (data body via PresentDone.PresentInfo.Parse) -->
+<!-- TODO: confirm id must equal a PresentID held in GameDataManager.PresentBox (PresentBoxGameData.Apply matches on it, else the data element is skipped) -->
+<!-- TODO: confirm polarity of success: OnParse reads content/amount only when success is nonzero, but PresentBoxGameData.Apply logs "server acquire failed" when IsSuccess is true (recovered decompile looks inverted) -->
+<!-- TODO: confirm content/amount are ignored downstream (Apply only sets IsReceived), so placeholder text/count is safe -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <present>
+    <data>
+      <id>1</id>
+      <success>1</success>
+      <content>mock present</content>
+      <amount>1</amount>
+    </data>
+  </present>
+</res>

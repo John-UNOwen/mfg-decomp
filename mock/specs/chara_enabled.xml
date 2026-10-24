@@ -1,0 +1,9 @@
+<!-- mock: parsed by MFG.GameRequest/CharaEnabledSend.cs OnParse -->
+<!-- TODO: confirm end_date text format - parsed by DateTime.TryParse with JST implied; only used to build a ja-JP notice string -->
+<!-- TODO: confirm is_gacha_enabled vocabulary (ValueBool: 0 = false, nonzero = true); 1 keeps the pickup-gacha notice path active -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <is_gacha_enabled>1</is_gacha_enabled>
+  <end_date>2099-12-31 23:59:59</end_date>
+</res>

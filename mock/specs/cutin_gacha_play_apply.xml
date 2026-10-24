@@ -1,0 +1,12 @@
+<!-- mock: parsed by MFG.GameRequest/CutinGachaPlayApply.cs OnParse -->
+<!-- request: web_id, area_id, pcuid, request_id (ulong) -->
+<!-- TODO: confirm what request_id means in the response of this endpoint (the same ulong is also the request parameter); digits only, ValueUInt64 -->
+<!-- NOTE: is_success and request_id are chained Element() hops, so both are required whenever <gacha_apply> is present -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <gacha_apply>
+    <is_success>1</is_success>
+    <request_id>1</request_id>
+  </gacha_apply>
+</res>

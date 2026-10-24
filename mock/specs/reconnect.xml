@@ -1,0 +1,27 @@
+<!-- mock: parsed by MFG.GameRequest/Reconnect.cs OnParse (delegates to MFG.Taikyoku/EntryTakuInfo.cs Parse) -->
+<!-- TODO: confirm gserv_url shape - it is concatenated after DefaultGameServerUrlFront + gserv_id + "." + DefaultGameServerUrlTail ("https://stg-aog" + "01" + ".s.konaminet.jp/aog") and must end with "/", so a path fragment is assumed here -->
+<!-- TODO: confirm limit-time units (seconds) and that next_sno=0 is valid for a fresh table -->
+<!-- NOTE session_id is not read by EntryTakuInfo.Parse even though the field exists -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <entry>
+    <gserv_id>1</gserv_id>
+    <tid>1001</tid>
+    <pindex>0</pindex>
+    <next_sno>0</next_sno>
+    <last_cyoukou_num>3</last_cyoukou_num>
+    <cyoukou_num>3</cyoukou_num>
+    <ste_oya1_limit_time>5</ste_oya1_limit_time>
+    <ste_limit_time>5</ste_limit_time>
+    <ste_reechi1_limit_time>5</ste_reechi1_limit_time>
+    <naki_limit_time>5</naki_limit_time>
+    <agari_limit_time>5</agari_limit_time>
+    <naki_choice_limit_time>5</naki_choice_limit_time>
+    <reechi_choice_limit_time>5</reechi_choice_limit_time>
+    <last_cyoukou_limit_time>30</last_cyoukou_limit_time>
+    <last_time>180</last_time>
+    <gserv_url>/game/1/</gserv_url>
+    <pay_mode>0</pay_mode>
+  </entry>
+</res>

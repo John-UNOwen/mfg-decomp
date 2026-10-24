@@ -1,0 +1,17 @@
+<!-- mock: parsed by MFG.GameRequest/EndShow.cs OnParse (delegates to MFG.GameData/ShowResultInfo.cs Parse) -->
+<!-- showresult is required (MustNeedElement); every child below is read with ?. so each is individually optional -->
+<!-- TODO: confirm card_effect_percent / item_effect_percent are percent-over-100 (code computes value * 0.01 + 1) -->
+<!-- TODO: confirm contribute_percent scale (value * 0.01; 100 = rate 1.0) and get_point = acquired popularity exp -->
+<!-- SKIPPED old / new (touched by no-op Element() calls in the decompile, presumably PlayerGameData snapshots; nothing is stored) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <showresult>
+    <voltage>1200</voltage>
+    <contribute_percent>100</contribute_percent>
+    <card_effect_percent>0</card_effect_percent>
+    <item_effect_percent>0</item_effect_percent>
+    <bonus>0</bonus>
+    <get_point>120</get_point>
+  </showresult>
+</res>

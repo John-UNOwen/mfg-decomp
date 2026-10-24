@@ -1,0 +1,6 @@
+<!-- mock: parsed by MFG.GameRequest/ClientStateWrite.cs OnParse (base status only; ResultData has no fields) -->
+<!-- posts kind=<section>&data=<url escaped base64 of JsonUtility.ToJson(section)>; the ack carries nothing back -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

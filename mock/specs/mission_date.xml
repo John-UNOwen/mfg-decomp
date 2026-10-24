@@ -1,0 +1,10 @@
+<!-- mock: parsed by MFG.GameRequest/MissionDate.cs OnParse (kind="missions" -> MissionStatus.LoadFromJson -> MissionData.OnAfterDeserialize) -->
+<!-- TODO: confirm info_data@kind="missions" body is base64(UTF-8 JSON) of {"list":[{"category","active","begin","end","param"}]} (MissionStatus/MissionData [SerializeField] private field names, lowercase) -->
+<!-- TODO: confirm category string must be a MFG.Types.Mission.Category member name (Enum.TryParse; None/0 entries are ignored by MissionStatus.OnAfterDeserialize); "Player" used here -->
+<!-- TODO: confirm begin/end string format is anything DateTime.TryParse accepts (DateTimeOffsetManager.GetJSTFromString; unparseable -> MinValue/MaxValue); "yyyy/MM/dd HH:mm:ss" used here -->
+<!-- TODO: confirm param is "key=value,key=value"; only key read in decompiled code is item_expire (MFG.Types.Mission/CategoryItem.cs) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <info_data kind="missions">eyJsaXN0IjpbeyJjYXRlZ29yeSI6IlBsYXllciIsImFjdGl2ZSI6dHJ1ZSwiYmVnaW4iOiIyMDI2LTAxLTAxIDAwOjAwOjAwIiwiZW5kIjoiMjAyNi0xMi0zMSAyMzo1OTo1OSIsInBhcmFtIjoiaXRlbV9leHBpcmU9MjAyNi0xMi0zMSAyMzo1OTo1OSJ9XX0=</info_data>
+</res>

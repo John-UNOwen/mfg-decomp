@@ -1,0 +1,12 @@
+<!-- mock: parsed by MFG.GameRequest/Login.cs OnParse (auth > session_id) -->
+<!-- {{user_id}} is replaced with the user_id value from the posted body (Login.cs:20 posts user_id=<DataID>) -->
+<!-- session_id becomes Account.AppSessionID (GameDataManager.cs:140) and is posted as pcuid everywhere after login -->
+<!-- TODO: confirm other auth children the real AOG returns; only session_id is read here -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <auth>
+    <session_id>mock_pcuid_{{user_id}}</session_id>
+    <user_id>{{user_id}}</user_id>
+  </auth>
+</res>

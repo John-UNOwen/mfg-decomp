@@ -1,0 +1,24 @@
+<!-- mock: parsed by MFG.GameRequest/DojoGetStatus.cs OnParse (slot body via DojoGetStatus.SlotInfo.Parse) -->
+<!-- TODO: confirm server returns DojoFlow.DojoSlotNum (4) slot elements in idx order: DojoFlow.Slot_Init indexes Result.SlotInfos[i] for i=0..3 on every unlocked slot -->
+<!-- TODO: confirm start_time/next_time are unix SECONDS (ValueUInt64ToDateTime converts UTC to Tokyo Standard Time); values here = 2026-01-01 00:00:00 JST and +300s -->
+<!-- TODO: confirm character_obj id syntax (CharaTypeExtentions: OID_CHARACTER_<n> with n = (int)CharaType + 1; unparseable value falls back to Chara01) -->
+<!-- TODO: confirm all_souls == DojoFlow.DojoSpiritStockMax (3) and reserve_souls semantics (reserve_souls == 3 -> DojoFlow SlotStatus.Finish; has_next 0 -> SlotInfo.IsSpiritFull) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <dojo>
+    <slot_nr>4</slot_nr>
+    <slot idx="0">
+      <available>1</available>
+      <character_obj>OID_CHARACTER_1</character_obj>
+      <start_time>1767193200</start_time>
+      <next_time>1767193500</next_time>
+      <has_next>1</has_next>
+      <reserve_souls>1</reserve_souls>
+      <all_souls>3</all_souls>
+    </slot>
+    <slot idx="1"><available>0</available></slot>
+    <slot idx="2"><available>0</available></slot>
+    <slot idx="3"><available>0</available></slot>
+  </dojo>
+</res>

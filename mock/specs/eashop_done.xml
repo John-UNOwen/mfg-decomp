@@ -1,0 +1,5 @@
+<!-- mock: parsed by MFG.GameRequest/CoopDone.cs OnParse (base OnParse only; ResultData reads no nodes; send path is /eashop_done) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

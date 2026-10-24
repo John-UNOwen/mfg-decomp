@@ -1,0 +1,44 @@
+<!-- mock: parsed by MFG.GameRequest/GachaInfoRequest.cs OnParse (gacha_schedule body via MFG.GameData.GachaInfoGameData.Parse) -->
+<!-- request: web_id, area_id, pcuid, api_ver=2 -->
+<!-- TODO: confirm id 2 = GachaSeriesName.PickupPine (GachaSeriesServerInfo.ExtraMaster = GachaExtraMasters.Find(name == (GachaSeriesName)SeriesID)); an id with no entry there NREs later on ExtraMaster/PickupKind -->
+<!-- TODO: confirm series_type vocabulary (Enum.TryParse over GachaSeriesType names: None|Limited|Pickup|Normal|Unlock|Music) and chara vocabulary (Enum.TryParse over CharaType names, Chara01 = 0) -->
+<!-- TODO: confirm items/item object-id syntax (CutinItemMaster.GetItemID matches Item.ObjectID; unknown ids are dropped, not fatal) -->
+<!-- TODO: confirm pickup_rate n/r/sr/ur units (int / 10f -> ProbabilityTable percentage points) -->
+<!-- TODO: confirm start_date/end_date text format (DateTime.TryParse, JST implied; GachaSelectFlow sorts on GetJSTFromString(start_date)) -->
+<!-- NOTE: every node below <info> is reached through chained .Element() hops, but GachaInfoGameData wraps each info in a catch-all, so a missing/malformed node drops that whole series instead of raising an API error -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <gacha_schedule>
+    <info>
+      <id>2</id>
+      <label>Pickup Gacha Mock</label>
+      <ticket_nr>0</ticket_nr>
+      <now_active>1</now_active>
+      <force_active>0</force_active>
+      <series_type>Pickup</series_type>
+      <items>
+        <item>OID_01AgariA01</item>
+      </items>
+      <pickup_charas>
+        <chara>Chara01</chara>
+      </pickup_charas>
+      <pickup_items>
+        <item>OID_01AgariA01</item>
+      </pickup_items>
+      <limited_pickup_items>
+        <item>OID_01AgariSR01</item>
+      </limited_pickup_items>
+      <exchange_items>
+        <item>OID_01AgariR01</item>
+      </exchange_items>
+      <pickup_rate>
+        <normal><n>70</n><r>20</r><sr>9</sr><ur>1</ur></normal>
+        <pickup><n>70</n><r>20</r><sr>9</sr><ur>1</ur></pickup>
+        <limited><n>70</n><r>20</r><sr>9</sr><ur>1</ur></limited>
+      </pickup_rate>
+      <start_date>2026-01-01 00:00:00</start_date>
+      <end_date>2099-12-31 23:59:59</end_date>
+    </info>
+  </gacha_schedule>
+</res>

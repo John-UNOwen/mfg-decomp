@@ -1,0 +1,5 @@
+<!-- mock: parsed by MFG.GameRequest/Logout.cs OnParse (base status code only; no payload nodes are read) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

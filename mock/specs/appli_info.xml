@@ -1,0 +1,12 @@
+<!-- mock: parsed by MFG.GameRequest/AppliInfo.cs OnParse (expire_seconds uint + info_data base64 JSON) -->
+<!-- info_data kind="pro_stats" -> ProStats.LoadFromJson: {"now_pro_stats":false,"ProStayDatas":[]} -->
+<!-- info_data kind="events" -> GameEventStatus.LoadFromJson: {"list":[]} (OnAfterDeserialize seeds every GameEventType inactive) -->
+<!-- other kinds are only logged ("no load process"); unknown kind attr is harmless -->
+<!-- TODO: confirm expire_seconds is a TTL in seconds (uint; GameControlInfo/MissionSchedule caches) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <expire_seconds>3600</expire_seconds>
+  <info_data kind="pro_stats">eyJub3dfcHJvX3N0YXRzIjpmYWxzZSwiUHJvU3RheURhdGFzIjpbXX0=</info_data>
+  <info_data kind="events">eyJsaXN0IjpbXX0=</info_data>
+</res>

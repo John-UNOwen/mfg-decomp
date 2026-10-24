@@ -1,0 +1,23 @@
+<!-- mock: parsed by MFG.GameRequest/CutinGachaPlayDraw.cs OnParse (gacha_draw body via CutinGachaPlayDraw.GachaResult.Parse) -->
+<!-- request: web_id, area_id, pcuid, gacha_id, play_count, is_ticket, gift_config, enable_charas (comma joined CharaType ints), debug_param=None -->
+<!-- NOTE: is_success and request_id are read before the is_success branch, so both are required whenever <gacha_draw> is present; oid and gift_type are required for every gain_items/item, gift is required on the success path -->
+<!-- TODO: confirm gift_type vocabulary (cast of ValueInt to MFG.Types.GachaGiftType: 0 = IsNew, 1 = DuplicateGift, 2 = ConfigGift) -->
+<!-- TODO: confirm fight_spirits/item values are (int)CharaType (Chara01 = 0); the node is null-checked, so it may be omitted -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <gacha_draw>
+    <is_success>1</is_success>
+    <request_id>1</request_id>
+    <gain_items>
+      <item>
+        <oid>OID_01AgariSR01</oid>
+        <gift_type>0</gift_type>
+      </item>
+    </gain_items>
+    <gift>1</gift>
+    <fight_spirits>
+      <item>1</item>
+    </fight_spirits>
+  </gacha_draw>
+</res>

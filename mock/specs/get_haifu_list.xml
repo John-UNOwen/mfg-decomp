@@ -1,0 +1,30 @@
+<!-- mock: parsed by MFG.GameRequest/GetHaifuList.cs OnParse -->
+<!-- TODO: confirm the name of the entry element under haifu_list (parser walks haifu_list.Elements(), any child name is accepted; "haifu" is arbitrary) -->
+<!-- TODO: confirm end_date is unix seconds (converted to JST by HaifuIndexData.Parse) and the score/rank scale -->
+<!-- TODO: confirm whether copy_tid appears for copied tables only (it is read only when present) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <haifu_list>
+    <haifu>
+      <gmode>1</gmode>
+      <taku_class>1</taku_class>
+      <tid>1001</tid>
+      <copy_tid>1001</copy_tid>
+      <pindex>0</pindex>
+      <end_date>1750000000</end_date>
+      <name0>Ichido</name0>
+      <name1>Kyko</name1>
+      <name2>Rin</name2>
+      <name3>Momoko</name3>
+      <rank0>1</rank0>
+      <rank1>2</rank1>
+      <rank2>3</rank2>
+      <rank3>4</rank3>
+      <score0>30000</score0>
+      <score1>20000</score1>
+      <score2>10000</score2>
+      <score3>0</score3>
+    </haifu>
+  </haifu_list>
+</res>

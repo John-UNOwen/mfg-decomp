@@ -1,0 +1,25 @@
+<!-- mock: parsed by MFG.GameRequest/GGet.cs OnParse (game: all_ready, mwait -> MatchingData, taikyoku -> TaikyokuData; chat -> StampData) -->
+<!-- {{seq}} is replaced by a per-request counter so the fetch window advances on every poll -->
+<!-- TaikyokuData.Parse (MFG.Taikyoku/TaikyokuData.cs:23-59) derefs cell_info unguarded: taikyoku without cell_info NREs into the error screen -->
+<!-- count 0 means no cell_data_N node is looked up; a live server emits cell_data_<seqNo> with kind = RECEIVE_COMMAND_TYPE -->
+<!-- mwait: status/pnum/cpu_num are NeedNotElement inside a try that only swallows MustNeed, so all three must exist once mwait exists; epdata_N are optional -->
+<!-- TODO: confirm mwait status polarity (non zero => IsMatchingEnd in MatchingData.cs:31-32) and all_ready semantics -->
+<!-- SKIPPED-OPTIONAL: game/mwait/mend (matching end roster), epdata_N player blobs, taikyoku/pinfo_N, chat/d stamp entries -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <game>
+    <all_ready>1</all_ready>
+    <mwait>
+      <status>1</status>
+      <pnum>1</pnum>
+      <cpu_num>3</cpu_num>
+      <pindex>0</pindex>
+    </mwait>
+    <taikyoku>
+      <cell_info available="1">
+        <cell_sno start="{{seq}}" count="0" />
+      </cell_info>
+    </taikyoku>
+  </game>
+</res>

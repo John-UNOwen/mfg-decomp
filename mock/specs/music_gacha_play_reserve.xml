@@ -1,0 +1,11 @@
+<!-- mock: parsed by MFG.GameRequest/MusicGachaPlayReserve.cs OnParse -->
+<!-- request: web_id, area_id, pcuid, gacha_id, api_ver=2 -->
+<!-- NOTE: is_success and request_id are chained Element() hops, so both are required whenever <gacha_reserve> is present; request_id is ValueUInt64 (digits only, no sign) and is passed straight to /music_gacha_play -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <gacha_reserve>
+    <is_success>1</is_success>
+    <request_id>1</request_id>
+  </gacha_reserve>
+</res>

@@ -1,0 +1,28 @@
+<!-- mock: parsed by MFG.GameRequest/GetRecord.cs OnParse (player_record optional -> MFG.GameData/PlayerRecordGameData.cs Parse) -->
+<!-- with player_record present, every <info> must carry kind, rank_list, yakuman_num, histories (unguarded chained Element() in PlayerRecordInfo.cs:29-52) -->
+<!-- kind must name a RecordKind (Yonma|Sanma|Nima|Tournament|ScrambleMatch); histories/history children rank/score/is_yakuman/is_buttobi/date are unguarded too -->
+<!-- TODO: confirm Rank int vocabulary for histories/rank (cast to Rank enum) -->
+<!-- SKIPPED: total/g2_scramble and info/g2_scramble (SchoolID scramble win counts), filled <histories> rows -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <player_record>
+    <total />
+    <info>
+      <kind>Yonma</kind>
+      <rank_list>
+        <rank_count>0</rank_count>
+      </rank_list>
+      <yakuman_num>0</yakuman_num>
+      <histories>
+        <history>
+          <rank>1</rank>
+          <score>30000</score>
+          <is_yakuman>0</is_yakuman>
+          <is_buttobi>0</is_buttobi>
+          <date>2026-01-01 00:00:00</date>
+        </history>
+      </histories>
+    </info>
+  </player_record>
+</res>

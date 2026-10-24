@@ -1,0 +1,5 @@
+<!-- mock: parsed by MFG.GameRequest/ItemConsumeLog.cs (no OnParse override; base status code only) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

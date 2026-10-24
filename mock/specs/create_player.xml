@@ -1,0 +1,6 @@
+<!-- mock: parsed by MFG.GameRequest/CreatePlayer.cs OnParse (base status only; ResultData has no fields) -->
+<!-- posts web_id/area_id/user_id=<client minted guest id>&name=<player name>&guest=1 -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

@@ -1,0 +1,21 @@
+<!-- mock: parsed by MFG.GameRequest/DojoGainSoul.cs OnParse (slot body via DojoGetStatus.SlotInfo.Parse) -->
+<!-- TODO: confirm get_nr semantics (souls harvested in one crop; DojoFlow uses its own local stock count, so get_nr is informational here) -->
+<!-- TODO: confirm server restarts the slot after harvest: DojoFlow reads Result.SlotInfo.NextTime as the next lesson time, so slot stays available with fresh start_time/next_time (unix seconds, JST epoch 2026-01-01 01:00:00 and +300s) -->
+<!-- TODO: confirm all_souls == DojoFlow.DojoSpiritStockMax (3) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <dojo>
+    <slot_id>0</slot_id>
+    <get_nr>3</get_nr>
+    <slot idx="0">
+      <available>1</available>
+      <character_obj>OID_CHARACTER_1</character_obj>
+      <start_time>1767196800</start_time>
+      <next_time>1767197100</next_time>
+      <has_next>1</has_next>
+      <reserve_souls>0</reserve_souls>
+      <all_souls>3</all_souls>
+    </slot>
+  </dojo>
+</res>

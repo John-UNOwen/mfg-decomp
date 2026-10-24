@@ -1,0 +1,15 @@
+<!-- mock: parsed by MFG.GameRequest/OdekakeDone.cs OnParse (OdekakeInfo.Parse: state@kind + state/data base64 JSON) -->
+<!-- TODO: confirm id is the odekake/friend record id echoed back (MyRoomFlow.OdekakeDecide only consumes CharaData/Customize) -->
+<!-- TODO: confirm player_game JSON is a PlayerGameData payload; minimal object used here because PlayerGameData.Validate() pads CharaData for every CharaType, so GetCurrentChara() returns a defaulted CharaGameData (CostumeItemEquip non-null) -->
+<!-- TODO: confirm customize_item JSON is a CustomizeGameData payload; minimal object used because Validate()/AddNewCharacter() fills default items from master data -->
+<!-- TODO: confirm whether the odekake_done response really carries both state kinds or only player_game -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <odekake>
+    <id>900001</id>
+    <success>1</success>
+    <state kind="player_game"><data>eyJEYXRhVmVyc2lvbiI6MTQsIlBsYXllck5hbWUiOiJtb2NrIHBsYXllciIsIlNlbGVjdENoYXJhIjowLCJDaGFyYURhdGEiOltdfQ==</data></state>
+    <state kind="customize_item"><data>eyJEYXRhVmVyc2lvbiI6Mn0=</data></state>
+  </odekake>
+</res>

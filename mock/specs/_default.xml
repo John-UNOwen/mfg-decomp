@@ -1,0 +1,7 @@
+<!-- mock default: served for any endpoint without its own spec file -->
+<!-- serv_st is required: without it RequestApiBase.ParseResultStatusCode (RequestApiBase.cs:162) aborts the endpoint OnParse and the payload is never read -->
+<!-- code 0 is required: a body with no code node lands on the 630 default and throws NetworkResponseException -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

@@ -1,0 +1,28 @@
+<!-- mock: parsed by MFG.GameRequest/EntryGame.cs OnParse -> MFG.Taikyoku/EntryTakuInfo.cs Parse (all 17 entry children are MustNeedElement) -->
+<!-- preference_matching is an alternative response shape (EntryGame.cs:67-83); if present it short-circuits the entry branch -->
+<!-- tid / gserv_id / gserv_url / pindex feed every later gget, gpost, gchat, end_game call -->
+<!-- TODO: confirm limit-time units (seconds per action; placeholder values taken from arcade defaults) -->
+<!-- TODO: confirm gserv_url form - the real server returns a game-server path fragment ending in "/" -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <entry>
+    <gserv_id>1</gserv_id>
+    <tid>1</tid>
+    <pindex>0</pindex>
+    <next_sno>0</next_sno>
+    <last_cyoukou_num>3</last_cyoukou_num>
+    <cyoukou_num>3</cyoukou_num>
+    <ste_oya1_limit_time>5</ste_oya1_limit_time>
+    <ste_limit_time>5</ste_limit_time>
+    <ste_reechi1_limit_time>5</ste_reechi1_limit_time>
+    <naki_limit_time>5</naki_limit_time>
+    <agari_limit_time>5</agari_limit_time>
+    <naki_choice_limit_time>10</naki_choice_limit_time>
+    <reechi_choice_limit_time>10</reechi_choice_limit_time>
+    <last_cyoukou_limit_time>30</last_cyoukou_limit_time>
+    <last_time>300</last_time>
+    <gserv_url>game1/</gserv_url>
+    <pay_mode>0</pay_mode>
+  </entry>
+</res>

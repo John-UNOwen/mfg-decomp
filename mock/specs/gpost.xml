@@ -1,0 +1,23 @@
+<!-- mock: parsed by MFG.GameRequest/GPost.cs OnParse (game: mwait -> MatchingData, taikyoku -> TaikyokuData; recon -> TaikyokuStartInfo; chat -> StampData) -->
+<!-- {{seq}} is replaced by a per-request counter (an advancing command window after each accepted send) -->
+<!-- every hop here is Element() null-checked, so an empty <game/> would also be parse-safe; the cell window is kept to show the shape -->
+<!-- count 0 means no cell_data_N node is looked up; a live server emits cell_data_<seqNo> with kind = RECEIVE_COMMAND_TYPE -->
+<!-- TODO: confirm whether a gpost ack should mirror the gget cell window, and whether recon is needed for reconnects -->
+<!-- SKIPPED-OPTIONAL: recon (TaikyokuStartInfo.Parse blob), chat/d, mend roster, epdata_N, taikyoku/pinfo_N -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <game>
+    <mwait>
+      <status>1</status>
+      <pnum>1</pnum>
+      <cpu_num>3</cpu_num>
+      <pindex>0</pindex>
+    </mwait>
+    <taikyoku>
+      <cell_info available="1">
+        <cell_sno start="{{seq}}" count="0" />
+      </cell_info>
+    </taikyoku>
+  </game>
+</res>

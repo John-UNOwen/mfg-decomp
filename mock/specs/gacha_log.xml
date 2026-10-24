@@ -1,0 +1,6 @@
+<!-- mock: parsed by MFG.GameRequest/GachaLogSend.cs OnParse (base RequestApiBase.OnParse status code only; the class overrides OnCreateSendParameter only, so no payload node is read) -->
+<!-- request: web_id, area_id, pcuid, log=<uri-escaped base64 of JsonUtility.ToJson(GachaLogSend.GachaLog)> -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

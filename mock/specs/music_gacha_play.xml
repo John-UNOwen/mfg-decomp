@@ -1,0 +1,16 @@
+<!-- mock: parsed by MFG.GameRequest/MusicGachaPlayRequest.cs OnParse (gacha_result body via MusicGachaPlayRequest.GachaResult.Parse) -->
+<!-- request: web_id, area_id, pcuid, request_id (from /music_gacha_play_reserve), api_ver=2 -->
+<!-- TODO: confirm gain_items/item object-id syntax; MusicGachaPlay.cs takes GainItems[0] and resolves it via VoiceMaster/CustomizeItemMaster, so at least ONE item is needed downstream (GainItems[0] would throw IndexOutOfRange on an empty list) -->
+<!-- NOTE: is_success is read through a chained Element() hop, so it is required whenever <gacha_result> is present; 1 selects the success branch (gain_items + gift then become required) -->
+<!-- NOTE: fight_spirits is null-checked and omitted here (List<string> semantics for the music gacha are not determinable from the decompile) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <gacha_result>
+    <is_success>1</is_success>
+    <gain_items>
+      <item>OID_Voice_ReachCutin_3</item>
+    </gain_items>
+    <gift>0</gift>
+  </gacha_result>
+</res>

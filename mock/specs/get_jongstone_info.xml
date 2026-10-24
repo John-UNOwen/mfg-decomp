@@ -1,0 +1,12 @@
+<!-- mock: parsed by MFG.GameRequest/GetJongStoneInfo.cs OnParse -->
+<!-- request: version, pcuid, web_id, area_id -->
+<!-- NOTE: jongstone_info is NOT null-checked and free_point / record_point are chained Element() hops, so all three are required or PushRequest falls into its generic catch (error screen) -->
+<!-- TODO: confirm free_point / record_point meaning (free vs paid jong stone balance); 10 free keeps purchase paths usable, 0 is also parse-valid -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <jongstone_info>
+    <free_point>10</free_point>
+    <record_point>0</record_point>
+  </jongstone_info>
+</res>

@@ -1,0 +1,18 @@
+<!-- mock: parsed by MFG.GameRequest/AppliBoot.cs OnParse (ParseServerSetting + ParseBootMes) -->
+<!-- server_setting and boot_mes are each NeedNotElement; a missing one aborts the rest of this parse -->
+<!-- message is read twice: as text (boot_mes) and via ValueInt (update_required), so it has to stay numeric -->
+<!-- TODO: confirm reviewed_version semantics (update_recommended is true only when the text is "true") -->
+<!-- TODO: confirm moserv_url usage (stored only, never requested by the mock flow) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <server_setting>
+    <mask_ac_link_scene>0</mask_ac_link_scene>
+    <reviewed_version>false</reviewed_version>
+  </server_setting>
+  <boot_mes>
+    <status>0</status>
+    <moserv_url>https://aog03-stg.pvt.mo.konami.net/aog</moserv_url>
+    <message>0</message>
+  </boot_mes>
+</res>

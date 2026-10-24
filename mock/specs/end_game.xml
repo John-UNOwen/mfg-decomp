@@ -1,0 +1,32 @@
+<!-- mock: parsed by MFG.GameRequest/EndGame.cs OnParse (mgresult is MustNeedElement) -> MFG.GameData/MahjongResultInfo.cs Parse -->
+<!-- gmode/taku_class/continue_state/continue_fee are NeedNotElement inside a try that only swallows MustNeed, so all four must exist -->
+<!-- breakdown children are Element() null-checked; player_N blocks are optional per seat -->
+<!-- TODO: confirm continue_state/continue_fee meanings (0 = no continue offered) and whether the win/loss result is server-side only -->
+<!-- SKIPPED-OPTIONAL: mgresult/old and mgresult/new (PlayerGameData snapshots), battle_item_use_info (needs PlayerItemMaster oids), player_1..player_3 -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <mgresult>
+    <gmode>1</gmode>
+    <taku_class>1</taku_class>
+    <continue_state>0</continue_state>
+    <continue_fee>0</continue_fee>
+    <breakdown>
+      <exp>
+        <base_exp>120</base_exp>
+        <group_adjust_exp>0</group_adjust_exp>
+        <bonus_list />
+      </exp>
+      <affinity_point>
+        <bonus_list />
+        <affinity_growth_point>100</affinity_growth_point>
+        <actual_affinity_growth_point>100</actual_affinity_growth_point>
+      </affinity_point>
+    </breakdown>
+    <player_0>
+      <rank>1</rank>
+      <score>30000</score>
+      <uma>20</uma>
+    </player_0>
+  </mgresult>
+</res>

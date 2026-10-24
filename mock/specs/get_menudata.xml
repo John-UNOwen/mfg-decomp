@@ -1,0 +1,29 @@
+<!-- mock: parsed by MFG.GameRequest/GetMenuData.cs OnParse (menudata MustNeedElement; mpdata/playmode_list/battle_item_settings/recon optional) -->
+<!-- mpdata mid is stored into Account.PlayerID (GameDataManager.cs:142), so it needs a stable plausible id -->
+<!-- playmode children are chained Element()+ValueInt with no guard (GameModeInfo.cs:31-42): all 9 must exist per entry -->
+<!-- state > 0 marks the mode playable; gmode 1 and taku_class 1 are placeholder ids -->
+<!-- TODO: confirm gmode/taku_class/payment_mode/table_type vocabulary -->
+<!-- SKIPPED-OPTIONAL: battle_item_settings (TaikyokuItemSetting.Parse), recon (ReconnectData.Parse reads only gmode) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <menudata>
+    <mpdata>
+      <mid>1000001</mid>
+      <name>Mock Player</name>
+    </mpdata>
+    <playmode_list>
+      <playmode>
+        <gmode>1</gmode>
+        <taku_class>1</taku_class>
+        <payment_mode>0</payment_mode>
+        <table_type>0</table_type>
+        <pmax>4</pmax>
+        <tenbo>0</tenbo>
+        <state>1</state>
+        <rate>0</rate>
+        <superior_border>0</superior_border>
+      </playmode>
+    </playmode_list>
+  </menudata>
+</res>

@@ -1,0 +1,43 @@
+<!-- mock: parsed by MFG.GameRequest/KikenGame.cs OnParse (delegates to MFG.GameData/MahjongResultInfo.cs Parse) -->
+<!-- TODO: confirm continue_state/continue_fee meanings (0 = no continue offered, fee 0) -->
+<!-- TODO: confirm bonus_type_id vocabulary (read as a raw string into AffinityBonusInfo.BonusTypeID; "1" is a placeholder) -->
+<!-- TODO: confirm sub_cate must be a SchoolID enum name (SchoolID getter does Enum.Parse on it lazily) -->
+<!-- SKIPPED old / new (PlayerGameData snapshots, optional, large) and battle_item_use_info (needs PlayerItemMaster object ids) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <mgresult>
+    <gmode>1</gmode>
+    <taku_class>1</taku_class>
+    <continue_state>0</continue_state>
+    <continue_fee>0</continue_fee>
+    <breakdown>
+      <exp>
+        <base_exp>120</base_exp>
+        <group_adjust_exp>0</group_adjust_exp>
+        <bonus_list>
+          <bonus bonus_id="1"><exp>20</exp></bonus>
+        </bonus_list>
+      </exp>
+      <affinity_point>
+        <bonus_list>
+          <bonus bonus_type_id="1" bonus_key="1" bonus_value="10"><count>1</count><value>10</value></bonus>
+        </bonus_list>
+        <affinity_growth_point>100</affinity_growth_point>
+        <actual_affinity_growth_point>110</actual_affinity_growth_point>
+      </affinity_point>
+    </breakdown>
+    <player_0>
+      <rank>1</rank>
+      <score>30000</score>
+      <uma>20</uma>
+    </player_0>
+    <g2result>
+      <r>
+        <id>1</id>
+        <sub_cate>School001</sub_cate>
+        <win>1</win>
+      </r>
+    </g2result>
+  </mgresult>
+</res>

@@ -1,0 +1,12 @@
+<!-- mock: parsed by MFG.GameRequest/ClientStateRead.cs OnParse (state[@kind] > data, base64 JSON per kind) -->
+<!-- GameDataManager.Apply (GameDataManager.cs:307+) null-checks every section, so unmodelled kinds are safe to omit -->
+<!-- version_game -> VersionGameData {"DataVersion":0,"SaveDataVersion":68}: SaveDataVersion > 68 would trip the save-version gate (GameDataManager.cs:150) -->
+<!-- player_game -> PlayerGameData minimal JSON: Validate() pads CharaData to every CharaType; SelectChara 0 = Chara01 -->
+<!-- TODO: confirm the other 24 kinds the real server returns; see FINDINGS.md for the full skipped list -->
+<!-- SKIPPED-OPTIONAL: receive_only, player_config, player_item, customize_item, story, notice_game, present_box_game, mission, gacha, cc_request, competition_game, competition_latest_result, ea_shop, log, chara_stamp_event, event_taku, vote_event, player_paid_item, scramble_festival, friend_game, music_gacha, bingo_event_remake, others_event, shop_competition_game, shop_competition_latest_result -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <state kind="version_game"><data>eyJEYXRhVmVyc2lvbiI6MCwiU2F2ZURhdGFWZXJzaW9uIjo2OH0=</data></state>
+  <state kind="player_game"><data>eyJEYXRhVmVyc2lvbiI6MTQsIlBsYXllck5hbWUiOiJNb2NrIFBsYXllciIsIlNlbGVjdENoYXJhIjowLCJEYW5MZXZlbCI6MSwiTWF0Y2hpbmdWZXJzaW9uIjo3MCwiQ2hhcmFEYXRhIjpbXX0=</data></state>
+</res>

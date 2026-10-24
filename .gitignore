@@ -6,3 +6,10 @@ Thumbs.db
 .DS_Store
 card*.txt
 .env
+mock/bin/
+mock/obj/
+mock/mock.log.txt
+mods/bin/
+mods/obj/
+mods/**/bin/
+mods/**/obj/

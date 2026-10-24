@@ -1,0 +1,10 @@
+<!-- mock: parsed by MFG.GameRequest/ChkTabooword.cs OnParse -->
+<!-- TODO: confirm taboo_chk/result polarity - code sets IsAvailable = !result, so 0 here means "name is usable" -->
+<!-- TODO: confirm server omits taboo_chk entirely when it does not check (parser then leaves IsAvailable = false, i.e. name rejected) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <taboo_chk>
+    <result>0</result>
+  </taboo_chk>
+</res>

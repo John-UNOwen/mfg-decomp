@@ -1,0 +1,17 @@
+<!-- mock: parsed by MFG.GameRequest/CompetitionEntry.cs OnParse -->
+<!-- TODO: confirm which container the real server returns per request mode: entry for the entry request, displayed_result when the POST carries displayed_result=1; the mock answers both, so IsSuccess is overwritten by displayed_result/result (both 1 here) -->
+<!-- TODO: confirm reason is empty text on success (only .Value is read, no parse) and carries a failure string when result=0 -->
+<!-- TODO: confirm is_check_result=1 meaning (final result already marked displayed); callers of the displayed_result mode ignore the returned fields -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <entry>
+    <result>1</result>
+    <is_entry>1</is_entry>
+    <reason />
+  </entry>
+  <displayed_result>
+    <result>1</result>
+    <is_check_result>1</is_check_result>
+  </displayed_result>
+</res>

@@ -1,0 +1,15 @@
+<!-- mock: parsed by MFG.GameRequest/GGetStampInfo.cs OnParse (delegates to MFG.Taikyoku/StampData.cs Parse) -->
+<!-- TODO: confirm stamp_info is absent when there are no new stamps (it is optional; parse then yields an empty stamp list) -->
+<!-- TODO: confirm contents is an ItemID enum name or number (Enum.TryParse falls back to ItemID.None; 0 used here) -->
+<!-- TODO: confirm time is Java epoch milliseconds (AttributeValueJavaCurrentTimeMillsToDateTime converts to JST) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <stamp_info>
+    <d idx="1" mid="123456" pindex="1" time="1750000000000">
+      <name>Rin</name>
+      <contents>0</contents>
+      <param>Good draw</param>
+    </d>
+  </stamp_info>
+</res>

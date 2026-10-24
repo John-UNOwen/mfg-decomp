@@ -1,0 +1,11 @@
+<!-- mock: parsed by MFG.GameRequest/GetMg.cs OnParse -->
+<!-- TODO: confirm the endpoint path - OnCreateSendParameter() is empty in the decompile, so m_sendUrl is never assigned; "/get_mg" is inferred from the GetHaifuList -> /get_haifu_list naming and the mg_info node -->
+<!-- TODO: confirm mg / additional_mg meaning and units; note the decompiled code assigns BOTH to Result.Mg, so ResultData.AdditionalMg is never set (likely a decompiler artifact or a game bug) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <mg_info>
+    <mg>100</mg>
+    <additional_mg>0</additional_mg>
+  </mg_info>
+</res>

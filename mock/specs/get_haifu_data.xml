@@ -1,0 +1,32 @@
+<!-- mock: parsed by MFG.GameRequest/GetHaifuData.cs OnParse (delegates to MFG.Taikyoku/HaifuData.cs Parse) -->
+<!-- TODO: confirm core_io ordering: index 0 must carry in/tmake, index 1 must carry out/tmake (HaifuData.Parse branches on position) -->
+<!-- TODO: confirm assign_cpu/cpu_N is only touched when pnum < MahjongUtility.GetPlayerNum(gmode); here gmode=1 (GLOBAL_TONPU, 4 seats) and pnum=1, so cpu_0..cpu_2 are required -->
+<!-- TODO: confirm paifu needs >= 4 enabled characters at runtime (HaifuData picks characters randomly, not from XML) -->
+<!-- TODO: confirm cell shape: cell_sno@count then cell_data_<n>@kind; kind maps to RECEIVE_COMMAND_TYPE and unknown kinds are skipped by ReceiveCommandFactory (11 used here); real kinds 1-24 are parsed by ReceiveCommand subclasses (not modeled) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+  <core_io>
+    <in>
+      <tmake>
+        <play_mode><gmode>1</gmode></play_mode>
+        <pnum>1</pnum>
+        <pinfo_0 />
+      </tmake>
+    </in>
+  </core_io>
+  <core_io>
+    <out>
+      <tmake>
+        <zaseki_0>0</zaseki_0>
+        <zaseki_1>1</zaseki_1>
+        <zaseki_2>2</zaseki_2>
+        <zaseki_3>3</zaseki_3>
+        <assign_cpu><cpu_0 /><cpu_1 /><cpu_2 /></assign_cpu>
+      </tmake>
+      <taikyoku>
+        <cell_info><cell_sno count="1" /><cell_data_0 kind="11" /></cell_info>
+      </taikyoku>
+    </out>
+  </core_io>
+</res>

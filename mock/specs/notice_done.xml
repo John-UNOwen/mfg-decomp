@@ -1,0 +1,5 @@
+<!-- mock: parsed by MFG.GameRequest/NoticeDone.cs OnParse (base OnParse only; ResultData reads no nodes) -->
+<res>
+  <serv_st><code>0</code></serv_st>
+  <code>0</code>
+</res>

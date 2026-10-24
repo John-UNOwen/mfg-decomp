@@ -1,5 +1,5 @@
-﻿$ErrorActionPreference = 'Stop'
-$repo = 'C:\Users\ <you>\Documents\GitHub\mfg-decomp'
+$ErrorActionPreference = 'Stop'
+$repo = (Resolve-Path "$PSScriptRoot\..\..").Path
 $inst = '\\MYAPPSANDBOX\c\Games\MFG\game\MFGClient_Data\Managed'
 $recovered7 = 'Assembly-CSharp-firstpass', 'kamunity', 'Shirahama', 'Shirahama.Async', 'Shirahama.Rx', 'VirtualSurround', 'Win10actLog-Runtime'
 

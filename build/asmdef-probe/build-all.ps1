@@ -1,14 +1,14 @@
 param(
   [string]$Profile = 'shipped',
   [string]$Projects = '',
-  [string]$LogDir = 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\tmp',
+  [string]$LogDir = "tmp",
   [string]$Extra = '',
   [string]$Configuration = 'Debug',
   [switch]$NoClean = $false
 )
 
 $ErrorActionPreference = 'Continue'
-Set-Location 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\build\asmdef-probe'
+Set-Location '(Resolve-Path "$PSScriptRoot\..\..").Path\build\asmdef-probe'
 
 if ($Projects -eq '') {
   $Projects = 'Shirahama.csproj,Shirahama.Async.csproj,Shirahama.Rx.csproj,VirtualSurround.csproj,Win10actLog-Runtime.csproj,kamunity.csproj,Assembly-CSharp-firstpass.csproj,Assembly-CSharp.csproj'
@@ -64,5 +64,5 @@ $msgs.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object { '{0,4} 
 
 Write-Output ''
 Write-Output '=== outputs produced ==='
-Get-ChildItem 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\build\asmdef-probe\bin' -Recurse -Filter '*.dll' |
-  ForEach-Object { '{0,-34} {1,9}  {2}  {3}' -f $_.Name, $_.Length, $_.LastWriteTime.ToString('HH:mm:ss'), $_.Directory.FullName.Replace('C:\Users\ <you>\Documents\GitHub\mfg-decomp\build\asmdef-probe\bin\Debug\', '') }
+Get-ChildItem '(Resolve-Path "$PSScriptRoot\..\..").Path\build\asmdef-probe\bin' -Recurse -Filter '*.dll' |
+  ForEach-Object { '{0,-34} {1,9}  {2}  {3}' -f $_.Name, $_.Length, $_.LastWriteTime.ToString('HH:mm:ss'), $_.Directory.FullName.Replace('(Resolve-Path "$PSScriptRoot\..\..").Path\build\asmdef-probe\bin\Debug\', '') }

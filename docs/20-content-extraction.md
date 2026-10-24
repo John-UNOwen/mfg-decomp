@@ -47,18 +47,18 @@ pwsh -File scripts/extract_content.ps1
 
 # the JSON/GLB + full decompiled-solution variant -> build/export-primary-content
 pwsh -File scripts/extract_content.ps1 -Kind PrimaryContent -OutDir `
-  'C:\Users\ <you>\Documents\GitHub\mfg-decomp\build\export-primary-content' -Port 8124
+  '<repo>\build\export-primary-content' -Port 8124
 ```
 
-Same steps by hand (`Invoke-WebRequest`, no script):
+Same steps by hand (`Invoke-WebRequest`, no script). `<repo>` = path to this repo checkout:
 
 ```powershell
-$dir='C:\Users\ <you>\Documents\GitHub\mfg-decomp\tmp\assetripper'
-$p = Start-Process 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\tmp\AssetRipperCLI\AssetRipper.GUI.Free.exe' `
+$dir='<repo>\tmp\assetripper'
+$p = Start-Process '<repo>\tmp\AssetRipperCLI\AssetRipper.GUI.Free.exe' `
   -ArgumentList "--headless --port 8123 --log-path `"$dir\ar.log`"" -WorkingDirectory $dir -PassThru -WindowStyle Hidden
 Invoke-WebRequest http://127.0.0.1:8123/Settings/Update -Method Post -Body @{ DefaultVersion='2022.3.13f1'; TargetVersion='2022.3.13f1'; BundledAssetsExportMode='DirectExport'; ScriptContentLevel='Level2'; AudioExportFormat='Default'; ImageExportFormat='Png'; LightmapTextureExportFormat='Yaml'; SpriteExportMode='Yaml'; ShaderExportMode='Dummy'; TextExportMode='Parse'; ScriptLanguageVersion='AutoSafe'; ScriptExportMode='Hybrid'; PreferOriginalTextureExtension=''; SaveSettingsToDisk=''; IgnoreStreamingAssets=''; EnablePrefabOutlining='' }
 Invoke-WebRequest http://127.0.0.1:8123/LoadFolder -Method Post -Body @{ Path='\\MYAPPSANDBOX\c\Games\MFG\game\MFGClient_Data' } -TimeoutSec 3600
-Invoke-WebRequest http://127.0.0.1:8123/Export/UnityProject -Method Post -Body @{ Path='C:\Users\ <you>\Documents\GitHub\mfg-decomp\build\unity-project'; CreateSubfolder='false' } -TimeoutSec 5400
+Invoke-WebRequest http://127.0.0.1:8123/Export/UnityProject -Method Post -Body @{ Path='<repo>\build\unity-project'; CreateSubfolder='false' } -TimeoutSec 5400
 Stop-Process -Id $p.Id -Force          # PID only - never Stop-Process by name (the harness runs on node)
 ```
 

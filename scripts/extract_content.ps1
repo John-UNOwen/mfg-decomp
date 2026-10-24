@@ -18,8 +18,8 @@ loaded view page, so all statistics here are computed from the export tree on di
 #>
 param(
     [string]$Install = '\\MYAPPSANDBOX\c\Games\MFG\game\MFGClient_Data',
-    [string]$Exe = 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\tmp\AssetRipperCLI\AssetRipper.GUI.Free.exe',
-    [string]$OutDir = 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\build\unity-project',
+  [string]$Exe = (Resolve-Path "$PSScriptRoot\..\tmp\AssetRipperCLI\AssetRipper.GUI.Free.exe").Path,
+  [string]$OutDir = (Resolve-Path "$PSScriptRoot\..\build\unity-project").Path,
     [ValidateSet('UnityProject', 'PrimaryContent')][string]$Kind = 'UnityProject',
     [int]$Port = 8123,
     [string]$UnityVersion = '2022.3.13f1',

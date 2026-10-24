@@ -30,3 +30,6 @@ build/export-logs/
 build/catalog-*.json
 tmp/assetripper/
 tmp/streamingassets-stage/
+
+build/tools/asmmeta/bin/
+build/tools/asmmeta/obj/

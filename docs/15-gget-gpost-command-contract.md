@@ -1063,10 +1063,10 @@ i.e. everything needed to answer `TSUMOCHOICES.select`/`ptn*`, `SUTECHOICES.sele
    reveals each draw to all clients)? The client applies it unconditionally
    (`AC/ExecTsumo.cs:52-91`), so "yes" is the only consistent reading, but the capture does
    not contain a `gget` body dump. — *any captured `gget` response with `cell_data_* kind="1"`.*
-3. `KYOKUEND.end_stat`: is `1` "match over" only, or also "kyoku over"? Client maps `1` to
-   match end (`AC/MFG.Taikyoku.Command.Receive/KyokuEnd.cs:20`,
-   `AC/ExecKyoku.cs:213-221`), so the mock should send `0` mid-match. —
-   *captured final `KYOKUEND` of a match.*
+3. ~~`KYOKUEND.end_stat`~~ **Settled 2026-10-24 by two live S3 matches**: `1` = match over —
+   the client sends `end_game` within seconds of a `KYOKUEND` with `end_stat=1` and goes to the
+   ranking screen; `0` = kyoku over, match continues. The mock must send `0` mid-match and `1`
+   only on the final kyoku (already its behavior; verified live end to end).
 4. `SCORERANK(24)` trigger and cadence (§3.3). — *captured `kind="24"` cell.*
 5. `kan_type` numbering in `kan_pai`/`kan_type`: the client's own kan chooser only acts on
    `1` → `Ankan` and `3` → `Kakan` and silently drops any other value
@@ -1097,3 +1097,11 @@ i.e. everything needed to answer `TSUMOCHOICES.select`/`ptn*`, `SUTECHOICES.sele
     it? — *captured `kind="19"` cell.*
 14. Units/meaning of the `entry_game` limit fields (§6.3). — *server binary, or timing a live
     kyoku against `ste_limit_time`.*
+15. Rank fields are 0-based `Rank` enum values (`KyokuStart/player_info{N}/rank` and
+    `Mgresult/player_{N}/rank`; `ScorePanel.isWin = myRank == 0`, `m_ranks[rank]` has 4 entries,
+    `ResultFlowLikability` prints `Rank + 1`位). A 1-based rank 4 crashed `ScorePanel.PlayFinal`
+    live and `ExecKyoku.ProcessCommand` threw `IndexOutOfRange` on dealer `rank=4`.
+16. Renchan dealer handling: real 4-player rules keep the dealer on an exhaustive-draw renchan;
+    the current mock rotates seats on any tenpai draw and increments `kyoku` as if it advanced.
+    Client renders whatever `oya`/`jikaze`/`kyoku` the server sends, so this is a rule-fidelity
+    gap, not a protocol failure. — *captured renchan `KYOKUSTART` after a dealer tenpai draw.*

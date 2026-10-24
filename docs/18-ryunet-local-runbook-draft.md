@@ -4,6 +4,12 @@ Status: code-read draft (no install/run performed; nothing committed). Clones in
 `tmp/RyuNET-core` (core, TS/Node), `tmp/asphyxia_plugins` (plugins, `mfg@asphyxia`).
 Line citations point into those clones; our-side citations point into this repo.
 
+Update 2026-10-24 (after this draft ran end to end): per owner, v1 uses the PUBLICLY hosted provider
+(http:// <provider-host>, AOG front on :80 /aog/, same stack) instead of self-hosting; the local boot
+below was verified working (server started, AOG 200s, client booted to it). For the desktop game the
+repo mock runs in forwarding mode (`MFG_UPSTREAM=http:// <provider-host>`, commit d8cb710): it keeps the
+hosts-pin/proxy hop, fixes the Host header the vhost needs, logs every exchange, relays the rest.
+
 ## Verdict
 
 **Usable as-is: YES, with three non-code adjustments** — (1) a TLS front (the client hardcodes

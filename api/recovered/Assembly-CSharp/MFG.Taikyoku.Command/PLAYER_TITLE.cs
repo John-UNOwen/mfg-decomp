@@ -1,0 +1,24 @@
+namespace MFG.Taikyoku.Command;
+
+public enum PLAYER_TITLE
+{
+	NOTHING = 0,
+	OUKA_YUSYO = 22,
+	OUKA_NYUSYO = 23,
+	SHISHIN_YUSHO = 24,
+	TENTEI = 25,
+	OUI = 26,
+	SPECIAL1 = 27,
+	KAC3_01 = 28,
+	MASTERS = 29,
+	SPECIAL4 = 30,
+	SPECIAL5 = 31,
+	TENTEI_2 = 32,
+	ENTEI = 33,
+	KAC4_01 = 34,
+	KAC3_02 = 35,
+	TEIOU = 36,
+	KAC3_03 = 37,
+	KAC4_02 = 38,
+	KAC3_04 = 39
+}

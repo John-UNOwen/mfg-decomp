@@ -1,0 +1,36 @@
+namespace MFG.Types.Customize.CustomizeItem;
+
+public enum SortType
+{
+	Sort01 = 100,
+	Sort02 = 200,
+	Sort03 = 300,
+	Sort04 = 400,
+	Sort05 = 500,
+	Sort06 = 600,
+	Sort07 = 700,
+	Sort08 = 800,
+	Sort09 = 900,
+	Sort10 = 1000,
+	Sort11 = 1100,
+	Sort12 = 1200,
+	Sort13 = 1300,
+	Sort14 = 1400,
+	Sort15 = 1500,
+	Sort16 = 1600,
+	Sort17 = 1700,
+	Sort18 = 1800,
+	Sort19 = 1900,
+	Sort20 = 2000,
+	Sort21 = 2100,
+	Sort90 = 9000,
+	Sort91 = 9100,
+	Sort92 = 9200,
+	Sort93 = 9300,
+	Sort94 = 9400,
+	Sort95 = 9500,
+	Sort96 = 9600,
+	Sort97 = 9700,
+	Sort98 = 9800,
+	Sort99 = 9900
+}

@@ -1,0 +1,15 @@
+namespace EagDef;
+
+public enum STATUS
+{
+	OK,
+	SETUP,
+	DOWN,
+	OFFLINE,
+	MAINTE,
+	LOCAL,
+	NO_CONFIRM,
+	RUNTIME_ERROR,
+	DISABLED,
+	NR_STAT
+}

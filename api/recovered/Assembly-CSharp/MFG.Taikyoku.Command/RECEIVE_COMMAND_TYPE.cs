@@ -1,0 +1,23 @@
+namespace MFG.Taikyoku.Command;
+
+public enum RECEIVE_COMMAND_TYPE
+{
+	NONE = 0,
+	TSUMO = 1,
+	SUTEHAI = 2,
+	TSUMOAGARI = 3,
+	RON = 4,
+	RYUKYOKU = 5,
+	PON = 6,
+	CHI = 7,
+	ANKAN = 8,
+	MINKAN = 9,
+	KAKAN = 10,
+	TYOKO = 14,
+	TSUMOCHOICES = 15,
+	SUTECHOICES = 16,
+	KYOKUSTART = 17,
+	RANNYU = 19,
+	KYOKUEND = 23,
+	SCORERANK = 24
+}

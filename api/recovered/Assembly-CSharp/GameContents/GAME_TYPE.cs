@@ -1,0 +1,15 @@
+namespace GameContents;
+
+public enum GAME_TYPE
+{
+	NONE,
+	START,
+	CONTINUE,
+	GACHA,
+	GACHA5,
+	JANDRI,
+	PREMIUMSTART,
+	PREMIUMCONTINUE,
+	MUSICGACHA,
+	MAX
+}

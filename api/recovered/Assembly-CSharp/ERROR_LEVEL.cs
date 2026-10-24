@@ -1,0 +1,7 @@
+public enum ERROR_LEVEL
+{
+	ERROR,
+	ERROR_STOP,
+	ERROR_UNCANCELABLE,
+	HALT
+}

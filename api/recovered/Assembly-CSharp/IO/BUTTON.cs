@@ -1,0 +1,15 @@
+namespace IO;
+
+public enum BUTTON
+{
+	TEST,
+	SERVICE,
+	COIN,
+	Q_BUTTON_1,
+	Q_BUTTON_2,
+	Q_BUTTON_3,
+	Q_BUTTON,
+	JACK_DETECT,
+	MIC_DETECT,
+	NUM
+}

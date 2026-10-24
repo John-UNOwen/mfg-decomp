@@ -2,7 +2,7 @@
 # The managed wrapper resolves these by name (GetProcAddress), so the export lists ARE the
 # native API surface the rebuilt platform layer must cover. Run from repo root.
 param(
-  [string]$Install = '..',
+  [string]$Install = '\\MYAPPSANDBOX\c\Games\MFG',
   [string]$OutDir = 'docs/inventory',
   [string[]]$Targets = @('kamunity.dll', 'avs2-core.dll', 'avs2-ea3.dll', 'kws.dll', 'execexe.dll', 'libaio.dll')
 )

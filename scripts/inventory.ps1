@@ -1,7 +1,7 @@
-# Regenerates docs/inventory/ from the game install (default: parent folder).
+# Regenerates docs/inventory/ from the game install (default: the sandbox install path).
 # Run from the repo root: pwsh -File scripts/inventory.ps1
 param(
-  [string]$Install = '..',
+  [string]$Install = '\\MYAPPSANDBOX\c\Games\MFG',
   [string]$OutDir = 'docs/inventory'
 )
 $ErrorActionPreference = 'Stop'

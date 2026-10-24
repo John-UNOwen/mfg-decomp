@@ -2,7 +2,7 @@
 
 Reverse-engineering **Mahjong Fight Girl** (Konami arcade, model `VFG`, Unity 2022.3.13f1, Mono) so it can run in a browser.
 
-The game install is one level up (`../`): `game/`, `modules/`, `prop/`, `dev/` plus the spice2x runtime (`spice64.exe`, source snapshot in `../spice2x/`). This repo holds research notes, tooling, inventories, and recovered code. Nothing from the live install (`dev/nvram`, `ee_tmp`, logs) belongs here.
+The game install lives in the AppSandbox container at `\\MYAPPSANDBOX\c\Games\MFG`: `game/`, `modules/`, `prop/`, `dev/` plus the spice2x runtime (`spice64.exe`, source snapshot under `spice2x/` in that path). This repo holds research notes, tooling, inventories, and recovered code. Nothing from the live install (`dev/nvram`, `ee_tmp`, logs) belongs here.
 
 ## Current status
 
@@ -30,7 +30,7 @@ Master plan: [docs/04-decompilation-plan.md](docs/04-decompilation-plan.md)
 
 - Game code and assets are Konami copyright. Research material (recovered C#, notes) lives here for study; hosting rights are a separate question.
 - The backend is a private e-Amusement server (` <provider-host>`). Be considerate with test load. Never commit card numbers, PCB IDs, PINs, or the `-p` value from launch lines.
-- Scripts expect the install to stay at `../`; they are safe to re-run and regenerate `docs/inventory/`.
+- Scripts default to the sandbox install at `\\MYAPPSANDBOX\c\Games\MFG` and are safe to re-run; they regenerate `docs/inventory/` inside this repo.
 
 ## Push to GitHub when ready
 

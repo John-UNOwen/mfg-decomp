@@ -3,7 +3,7 @@
 # Default targets are the arcade-platform wrapper layer (the port boundary), so output stays small
 # enough to commit. Assembly-CSharp decompiles to out/ (gitignored) until we decide otherwise.
 param(
-  [string]$Install = '..',
+  [string]$Install = '\\MYAPPSANDBOX\c\Games\MFG',
   [string]$OutDir = 'api/recovered',
   [string[]]$Targets = @('kamunity.dll', 'Shirahama.dll', 'Shirahama.Rx.dll', 'Shirahama.Async.dll')
 )

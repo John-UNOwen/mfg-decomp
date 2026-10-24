@@ -55,6 +55,27 @@ namespace MfgS1
             Debug.unityLogger.logEnabled = true;
         }
 
+        // S3: emulate the cabinet free-play coin option. The guest entry dialog
+        // otherwise dies in credit/PASELI/cardmng checks we do not emulate (real
+        // cabinet options come from AVS sysfile /coin/free). With free play on,
+        // ExecConsume takes the ExecFreePlay path and goes straight into the game.
+        [HarmonyPatch(typeof(GameUtility), "IsFreePlay")]
+        [HarmonyPostfix]
+        public static void ForceFreePlay(ref bool __result)
+        {
+            __result = true;
+        }
+
+        // S3 debug: pin down the ExecTsumo IndexOutOfRange - log the offending
+        // command and the client-side table sizes at the moment of the throw.
+        [HarmonyPatch(typeof(ExecTsumo), "ProcessCommand")]
+        [HarmonyFinalizer]
+        public static System.Exception LogTsumoCrash(System.Exception __exception, MFG.Taikyoku.Command.Receive.Tsumo cmd, MahjongPlayFlow mpf)
+        {
+            Debug.Log($"[S3DIAG] ExecTsumo ex={__exception?.GetType().Name} seq={cmd.SeqNo} pindex={cmd.PlayerIndex} pai={cmd.PaiID} players={mpf.Players.Count} nokori={mpf.m_nokoriHaiNum}");
+            return __exception;
+        }
+
         // S2 capture: log exactly what the eAC3 service_list verb returns.
         // This decides whether the provider also fronts the HTTP game API.
         [HarmonyPatch(typeof(TCSNET.TcsXrpcModuleTypes.GetServiceListResponse), "Parse")]

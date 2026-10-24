@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Shirahama.Async</RootNamespace>
+    <!-- Recovered source is decompiler output using file-scoped namespaces (C# 10 construct). -->
+    <LangVersion>10</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\api\recovered\Shirahama.Async\**\*.cs" />
+    <!-- Compat shim: the net472 reference assemblies lack KeyValuePair.Create; the game's
+         own mscorlib has it, so the shim is only compiled in the net472 profile. -->
+    <Compile Include="$(MSBuildThisFileDirectory)shims\KeyValuePairCreateShim.cs" Condition="'$(ProbeProfile)' == 'pack'" />
+    <ProjectReference Include="Shirahama.csproj" />
+  </ItemGroup>
+</Project>

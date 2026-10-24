@@ -1,0 +1,66 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Flagship probe: rebuild Unity's Assembly-CSharp (primary gameplay assembly, 1315
+    recovered source files) from api/recovered/Assembly-CSharp as a plain .NET assembly,
+    with no Unity editor anywhere. See Directory.Build.props for the three probe profiles.
+
+    Default mode compiles the four plugin assemblies that were also recovered as source
+    (firstpass / kamunity / VirtualSurround / Win10actLog-Runtime) as separate projects in
+    Unity's dependency order, so their shipped copies are not used as references.
+      -p:UseShippedPluginRefs=true   swap those four for the shipped dlls in
+                                     build\reftype-rebuilt, to separate a plugin-tree
+                                     failure from an Assembly-CSharp failure
+      -p:ProbeProfile=pack           Microsoft's stock net472 reference assemblies
+      -p:ProbeProfile=netstandard    shipped Mono BCL as plain references
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>Assembly-CSharp</AssemblyName>
+    <RootNamespace>Assembly-CSharp</RootNamespace>
+    <UseShippedPluginRefs Condition="'$(UseShippedPluginRefs)' == ''">false</UseShippedPluginRefs>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\api\recovered\Assembly-CSharp\**\*.cs" />
+  </ItemGroup>
+
+  <!--
+    pack profile only. Microsoft's net472 reference assemblies have no System.MathF
+    (MFG\DefaultDebugTapper.cs:21 and :57 call MathF.PI), so the compile-only shim stands
+    in there; the shipped and netstandard profiles bind Mono's real System.MathF.
+
+    The same profile also refuses the 13 default interface implementations of
+    MFG.MahjongPlay.Cutin.IPlayerInteractor as error CS8701 (NoWarn cannot suppress an
+    error). build\tools\asmmeta shows the shipped assembly really declares those 13 method
+    bodies (13 of 43 declared methods carry IL bodies), so the recovered file is faithful
+    and the swap below substitutes the build-side lowering in compat\pack - the 13 bodies
+    as extension methods, which is behavior-identical because neither implementer overrides
+    them and every call site has a static receiver typed IPlayerInteractor.
+    Pass -p:KeepNetFx472Dim=true to compile the recovered file unswapped and see them.
+  -->
+  <ItemGroup Condition="'$(ProbeProfile)' == 'pack'">
+    <Compile Include="$(MSBuildThisFileDirectory)shims\MathFShim.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(ProbeProfile)' == 'pack' and ('$(KeepNetFx472Dim)' != 'true')">
+    <Compile Remove="$(MSBuildThisFileDirectory)..\..\api\recovered\Assembly-CSharp\MFG.MahjongPlay.Cutin\IPlayerInteractor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)compat\pack\IPlayerInteractor.cs" />
+  </ItemGroup>
+
+  <!-- recovered-source plugin assemblies, in Unity's dependency order -->
+  <ItemGroup Condition="'$(UseShippedPluginRefs)' != 'true'">
+    <ProjectReference Include="Assembly-CSharp-firstpass.csproj" />
+    <ProjectReference Include="kamunity.csproj" />
+    <ProjectReference Include="VirtualSurround.csproj" />
+    <ProjectReference Include="Win10actLog-Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseShippedPluginRefs)' == 'true'">
+    <Reference Include="$(MSBuildThisFileDirectory)..\reftype-rebuilt\Assembly-CSharp-firstpass.dll" />
+    <Reference Include="$(MSBuildThisFileDirectory)..\reftype-rebuilt\kamunity.dll" />
+    <Reference Include="$(MSBuildThisFileDirectory)..\reftype-rebuilt\VirtualSurround.dll" />
+    <Reference Include="$(MSBuildThisFileDirectory)..\reftype-rebuilt\Win10actLog-Runtime.dll" />
+  </ItemGroup>
+
+</Project>

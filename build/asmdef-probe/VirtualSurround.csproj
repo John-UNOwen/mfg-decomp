@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Konami.VirtualSurround</RootNamespace>
+    <!-- Recovered source is decompiler output using file-scoped namespaces (C# 10 construct). -->
+    <LangVersion>10</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\api\recovered\VirtualSurround\**\*.cs" />
+  </ItemGroup>
+</Project>

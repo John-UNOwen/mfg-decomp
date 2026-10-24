@@ -1,0 +1,131 @@
+<Project>
+
+  <!--
+    Shared settings for the asmdef-probe build: rebuild Unity's asmdef assembly graph
+    with plain dotnet/msbuild, no Unity editor, no modification of the game install.
+
+    Three probe profiles, selected with -p:ProbeProfile=... (default: shipped).
+
+      shipped (default)
+        TargetFramework net472 - the moniker the shipped assemblies reference
+        (Assembly-CSharp.dll references mscorlib 4.0.0.0 / System 4.0.0.0 / System.Xml
+        4.0.0.0) - but the reference assemblies ARE the game's own shipped Mono base
+        class library, installed as a targeting pack under build\reftype-bcl\.NETFramework
+        \v4.7.2 with a FrameworkList.xml generated from the shipped assembly identities.
+        NoStdLib=true keeps MSBuild's own mscorlib out; no NuGet package is involved.
+        This is the reference set the shipped code was compiled against, and the only one
+        of the three that compiles the recovered tree without any change.
+
+      pack
+        TargetFramework net472 with Microsoft's stock net472 reference assemblies, read
+        straight from the local NuGet cache through TargetFrameworkRootPath (the same
+        mechanism the Microsoft.NETFramework.ReferenceAssemblies.net472 package uses; no
+        package reference and no restore is involved, and this machine has no .NET
+        Framework developer pack). Kept to measure what a stock plain-.NET 4.7.2 reference
+        set refuses: it is missing BCL members the shipped Mono fork has (System.MathF,
+        Math.Clamp, Enum.Parse<T>, Dictionary.TryAdd, Enumerable.TakeLast,
+        string.Split(string), string.Join(char, IEnumerable<T>), System.Range/System.Index)
+        and gates default interface implementations (CS8701).
+
+      netstandard
+        TargetFramework netstandard2.1 with the shipped Mono base class library attached
+        as ordinary references instead of as a targeting pack. Same API surface as the
+        shipped profile; shows the clean result does not depend on the net472 moniker.
+        UnityEngine.dll itself references netstandard 2.1.0.0.
+  -->
+
+  <PropertyGroup>
+    <ProbeProfile Condition="'$(ProbeProfile)' == ''">shipped</ProbeProfile>
+    <!--
+      Recovered source is ilspy output, which uses file-scoped namespace declarations:
+      a C# 10 syntax feature (CS8773 under C# 9). Unity compiled these assemblies at
+      C# 9/9.3; file-scoped and braced namespaces have identical semantics, so the probe
+      raises the language version instead of rewriting 1300 recovered files.
+    -->
+    <LangVersion>10</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
+    <RootNamespace>$(MSBuildProjectName)</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <!--
+      1701/1702/0436/0435: reference-assembly identity noise from referencing the game's
+      own BCL. 0436 type-forwarding conflicts, 0105 duplicate using, 0108/0114 hidden or
+      duplicated inherited members, 0169/0414/0649 unused fields, 1591 missing doc comment,
+      1998 async method without await (state-machine decompilation artifact) - all
+      decompiler/reference-set noise, not code defects. NoWarn cannot suppress errors,
+      which is why the pack profile documents its CS8701 set instead of silencing it.
+    -->
+    <NoWarn>1701;1702;0436;0435;0105;0108;0114;0169;0414;0649;1591;1998</NoWarn>
+  </PropertyGroup>
+
+  <!-- profile: shipped (net472 moniker, game's own Mono BCL as the targeting pack) -->
+  <PropertyGroup Condition="'$(ProbeProfile)' == 'shipped'">
+    <TargetFramework>net472</TargetFramework>
+    <TargetFrameworkRootPath>$(MSBuildThisFileDirectory)..\reftype-bcl\</TargetFrameworkRootPath>
+    <EnableFrameworkPathOverride>false</EnableFrameworkPathOverride>
+    <NoStdLib>true</NoStdLib>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ProbeProfile)' == 'shipped'">
+    <Reference Include="$(MSBuildThisFileDirectory)..\reftype-bcl\.NETFramework\v4.7.2\*.dll" />
+  </ItemGroup>
+
+  <!-- profile: pack (net472 moniker, Microsoft stock net472 reference assemblies) -->
+  <PropertyGroup Condition="'$(ProbeProfile)' == 'pack'">
+    <TargetFramework>net472</TargetFramework>
+    <!--
+      Same trick the Microsoft.NETFramework.ReferenceAssemblies.net472 package uses, but
+      pointed straight at the targeting assemblies in the local NuGet cache instead of
+      pulling a package into the build: that package only ships a .targets file that sets
+      TargetFrameworkRootPath + NoStdLib + EnableFrameworkPathOverride and adds mscorlib.
+      Override -p:Net472RefPackRoot=... on a machine that keeps the pack elsewhere.
+    -->
+    <Net472RefPackRoot Condition="'$(Net472RefPackRoot)' == ''">$(UserProfile)\.nuget\packages\microsoft.netframework.referenceassemblies.net472\1.0.3\build</Net472RefPackRoot>
+    <TargetFrameworkRootPath>$(Net472RefPackRoot)</TargetFrameworkRootPath>
+    <EnableFrameworkPathOverride>false</EnableFrameworkPathOverride>
+    <NoStdLib>true</NoStdLib>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ProbeProfile)' == 'pack'">
+    <!--
+      Explicit framework references, the way the pack profile needs them: NoStdLib and
+      DisableImplicitFrameworkReferences keep the SDK from resolving a developer pack that
+      is not installed, so mscorlib plus the pack's own reference set and facades are
+      referenced by path instead. Same shape as the shipped profile, different library.
+    -->
+    <Reference Include="$(Net472RefPackRoot)\.NETFramework\v4.7.2\*.dll" />
+    <Reference Include="$(Net472RefPackRoot)\.NETFramework\v4.7.2\Facades\*.dll" />
+  </ItemGroup>
+
+  <!-- profile: netstandard (shipped Mono BCL as plain references) -->
+  <PropertyGroup Condition="'$(ProbeProfile)' == 'netstandard'">
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ProbeProfile)' == 'netstandard'">
+    <Reference Include="$(MSBuildThisFileDirectory)..\reftype-bcl\.NETFramework\v4.7.2\*.dll" />
+  </ItemGroup>
+
+  <!-- shipped Unity + third-party plugin assemblies: reference set for every project -->
+  <ItemGroup>
+    <Reference Include="$(MSBuildThisFileDirectory)..\reftype\*.dll" />
+  </ItemGroup>
+
+  <!--
+    Compile-only shims for BCL members the shipped Mono fork has and Microsoft's net472
+    reference assemblies do not. Included only in the pack profile, which is the one that
+    needs them; the shipped and netstandard profiles bind the real members. They live in
+    build\asmdef-probe\shims and are never copied into api\recovered.
+  -->
+
+</Project>

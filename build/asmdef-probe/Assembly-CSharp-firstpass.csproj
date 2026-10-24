@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Assembly-CSharp-firstpass</RootNamespace>
+    <!-- Recovered source is decompiler output using file-scoped namespaces (C# 10 construct). -->
+    <LangVersion>10</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\api\recovered\Assembly-CSharp-firstpass\**\*.cs" />
+    <!-- Compat shim: the net472 reference assemblies lack System.MathF; the game's own
+         mscorlib has it, so the shim is only compiled in the net472 profile. -->
+    <Compile Include="$(MSBuildThisFileDirectory)shims\MathFShim.cs" Condition="'$(ProbeProfile)' == 'pack'" />
+  </ItemGroup>
+</Project>

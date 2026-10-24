@@ -1,0 +1,8 @@
+out/
+tmp/
+.cache/
+*.tmp
+Thumbs.db
+.DS_Store
+card*.txt
+.env

@@ -1,6 +1,6 @@
 # 04 - Master decompilation plan
 
-Goal: Mahjong Fight Girl running natively in a browser (Unity WebGL), talking to the same private e-Amusement server, with users logging in with their own card/PIN against their own or the shared server URL. Pin the dump version `2026060900`; do not chase updates until Phase 6.
+Goal: Mahjong Fight Girl running natively in a browser (Unity WebGL). v1 accounts are provisioned by our panel (DataID login, per docs/11 Option S); card/PIN parity with the private e-Amusement server arrives with Option M or Phase 5. Pin the dump version `2026060900`; do not chase updates until Phase 6.
 
 Non-goals for v1: faithful cabinet I/O (coin mech, lamps), Konami cloud hooks, the update flow, other cabinet types.
 
@@ -24,17 +24,21 @@ Tasks:
 
 Exit criteria: a doc listing 100% of platform entry points with proposed semantics, and the match-sync RPC list. Go/No-Go checkpoint: if match sync turns out server-authoritative with heavy RPC choreography, re-evaluate streaming-only.
 
-## Phase 2 - eAC3 client reimplementation (est. 2-6 weeks)
+**Status: complete 2026-10-24.** Deliverables: [10-api-inventory.md](10-api-inventory.md) (603 members classified), [11-port-boundary.md](11-port-boundary.md) (design), `docs/inventory/flow-trace.md` + `platform-callsites.md`. The Go/No-Go question is resolved in code: gameplay sync IS server-authoritative, but as a plain HTTP command log (`/gget`//`/gpost`), not RPC choreography, and the client carries a complete mahjong engine (hint-only today) that a shim can reuse. See docs/10 before re-deriving anything here.
 
-Purpose: a C# library that boots like `kamunity.dll` does, against the real private server.
+## Phase 2 - Server-side path: front-server shim (Option S) + eAC3 capture (Option M)
 
-Tasks:
-1. Capture ground truth: run spice2x with `-netdump`/`-automap` for a full session (boot, card, PIN, lobby, gacha, match); save dumps + `../dev/nvram` snapshots into `protocol/captures/` (sanitized, no card IDs).
-2. Reverse the wire format: XRPC framing (plain binary property trees; esign off; HTTP 8727), property encoding variants, error/status semantics. Use Ghidra on `avs2-ea3.dll`/`kws.dll` only for unclear opcodes; validate byte-for-byte against captured blobs in `spice2x/easrv/responses_raw/` and dumps.
-3. Implement `eac3-cs/`: property store with path semantics (`/ea3/...`, `/opt/...`), service.init + version handshake, pcbtracker/pcbevent/message loops, cardmng (inquire/bindmodel/authpass/getdatalist), POS consume + queue locally, eacoin balance sync, bookkeeping blob format.
-4. Bridge to recovered C#: implement `IEaPlatform` over `eac3-cs`.
+Purpose: make the game talk to something we control and prove the login path. Design and evidence: [11-port-boundary.md](11-port-boundary.md).
 
-Exit criteria: a desktop Unity 2022.3 test scene (new project, recovered wrapper + eac3-cs) reaches the game's login flow against  <provider> with a real card and PIN typed. This is Gate 2: the whole web port lives or dies here.
+Phase 1 finding that shapes this phase: all gameplay is front-server HTTP (35 endpoints + command log); eAC3/XRPC only carries card/PIN/PASELI/POS/boot; and the game has a first-party `-KONAMINET` mode that skips the arcade layer entirely.
+
+Spikes:
+1. **S1, days, first light.** Local mock front server (canned XML per the `MFG.GameRequest` parsers) + hosts pin + the *current install* booted with `-KONAMINET`, aiming at lobby. Proves the seam and the mockability claim before any reconstruction work.
+2. **S2, one night, parallel.** Full  <provider> session with spice2x `-netdump` plus an HTTP-side packet trace; capture the `vfgac.service_list` ServiceUrl value and whether the private server hosts the front-server endpoints. Determines Option M scope.
+3. **S3, 2-4 weeks.** Real shim server: the 35 endpoints, table engine behind `/gget`//`/gpost` (port `StructuredHand`/`BlockSet`/`YakuEvaluator`/`MahjongUtility` for rules/score; the shim declares legality flags and wall order), DataID + `bypass_auth` account provisioning from the panel.
+4. **M1, 2-6 weeks, only if the S2 capture justifies it.** eAC3 wire protocol in `eac3-cs/` (property-tree codec, XRPC framing, eacoin/POS semantics), validated against netdump captures and `spice2x/easrv/responses_raw/`; Ghidra only as an oracle for unclear opcodes. Hybrid deployments override `FrontServerUrl` (override point: `CardEntryScene.cs:1070-1088`).
+
+Exit criteria (Gate 2): a desktop Unity 2022.3 editor build (recovered game code + shim or ea3 client) reaches the lobby and plays one kyoku. The whole web port lives or dies here.
 
 ## Phase 3 - Project reconstruction (est. 2-6 weeks, overlaps Phase 2)
 
@@ -79,8 +83,10 @@ Submission candidate for awesome-decomp-games once playable in browser (they lis
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| eAC3 wire format deeper than expected | High | netdump-first approach; Ghidra targeted; Gate 2 kills cheaply |
-| Match sync is server-authoritative RPC choreography | High | Phase 1 flow trace decides before Phase 2 spends weeks |
+| eAC3 wire format deeper than expected | Medium (Option M only) | Option S needs no proprietary protocol; M1 is capture-gated; netdump-first, Ghidra targeted |
+| Gameplay authority | Resolved | server-authoritative command log over front-server HTTP, verified in code (docs/10); client engine is the shim's seed |
+| Shim rules-engine fidelity (mahjong edge cases, CPU fill, timeouts) | Medium-High | port the client's own engine classes; use kifu replay (title demo) as the regression harness |
+| Front-server response semantics beyond parser-required nodes | Medium | spike S2 packet trace of a real session; mock iterates against live parser failures |
 | 2022 LTS reconstruction gaps (AssetRipper) | Medium | custom UnityPy pipeline fallback; GUID-preserving import |
 | WebGL perf on phones | Medium | IL2CPP, lazy character packs, first-load budget; desktop-first release |
 | Private server etiquette/capacity | Medium | rate-limit test scripts, ask server owner before public beta |
@@ -91,3 +97,5 @@ Submission candidate for awesome-decomp-games once playable in browser (they lis
 - 2026-10-23: pin target version `2026060900` (this dump).
 - 2026-10-23: repo starts local-first (`mfg-decomp`), push to GitHub later at owner's call.
 - 2026-10-23: streaming MVP proceeds in parallel as interim product (docs/02).
+- 2026-10-24: gameplay sync resolved: server-authoritative HTTP command log at the front-server seam (docs/10).
+- 2026-10-24: Option S (`-KONAMINET` + front-server shim) adopted as the first-light path; Option M eAC3 work is capture-gated behind spike S2. Sign-off: proposed, owner to confirm.

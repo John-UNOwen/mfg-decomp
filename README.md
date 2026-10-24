@@ -7,8 +7,8 @@ The game install lives in the AppSandbox container at `\\MYAPPSANDBOX\c\Games\MF
 ## Current status
 
 - [x] Phase 0: install analysis, runtime analysis (spice2x log + configs), inventories, difficulty assessment
-- [ ] Phase 1: recover C# (`scripts/decompile.ps1`), API-surface inventory (`docs/inventory/`)
-- [ ] Phase 2: eAC3 client reimplementation spike
+- [x] Phase 1: recovered all game C# (`api/recovered/`), flow trace + platform census (`docs/inventory/`), API inventory and port boundary (`docs/10`, `docs/11`)
+- [ ] Phase 2: front-server shim first light (Option S, `-KONAMINET` mock) +  <provider> capture session (Option M evidence)
 - [ ] Phase 3: project reconstruction spike
 - [ ] Phase 4: WebGL bring-up
 - [ ] Phase 5: online feature completion, mobile, scale
@@ -24,7 +24,9 @@ Master plan: [docs/04-decompilation-plan.md](docs/04-decompilation-plan.md)
 | [02-streaming-mvp-plan](docs/02-streaming-mvp-plan.md) | Interim product: Sunshine + Moonlight Web streaming while decomp proceeds |
 | [03-decompile-difficulty](docs/03-decompile-difficulty.md) | Measured difficulty assessment: easy parts, hard parts, effort estimates |
 | [04-decompilation-plan](docs/04-decompilation-plan.md) | Master phased plan with gates and exit criteria |
-| [inventory/](docs/inventory/) | Generated inventories: assemblies, native modules, ea3 API surface |
+| [10-api-inventory](docs/10-api-inventory.md) | Phase 1 exit: classification totals, the ~60-function reimplement core, the two server surfaces |
+| [11-port-boundary](docs/11-port-boundary.md) | Rebuild design: wrapper ABI, Option S (front-server shim) vs Option M (eAC3), gate sequence |
+| [inventory/](docs/inventory/) | Generated + traced evidence: assemblies, native exports, ea3 API surface, full flow trace, platform callsites |
 
 ## Ground rules
 

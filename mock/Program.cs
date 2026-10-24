@@ -29,17 +29,21 @@ internal static class Program
 
     private static readonly object LogGate = new object();
     private static readonly CertHolder Cert = new CertHolder();
+    private static readonly MatchEngine Engine = new MatchEngine();
     private static long SeqCounter;
     private static string SpecDir = "";
     private static string LogPath = "";
 
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && string.Equals(args[0], "selftest", StringComparison.OrdinalIgnoreCase))
+            return SelfTest.Run();
+
         int port = 8080;
         if (args.Length > 0 &&
             (!int.TryParse(args[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out port) || port < 1 || port > 65535))
         {
-            Console.Error.WriteLine("usage: MockServer [port]   (default 8080)");
+            Console.Error.WriteLine("usage: MockServer [port | selftest]   (default 8080)");
             return 2;
         }
 
@@ -178,7 +182,10 @@ internal static class Program
 
         string specName = Route(target);
         long seq = Interlocked.Increment(ref SeqCounter);
-        string xml = FillTemplate(LoadSpec(specName), seq, body);
+        // Match-aware endpoints override their spec file as long as the session has a live match;
+        // everything else (and every request without a session) keeps the canned template path.
+        string xml = Engine.Handle(specName, body, spec => FillTemplate(LoadSpec(spec), seq, body))
+                     ?? FillTemplate(LoadSpec(specName), seq, body);
         byte[] payload = Encoding.UTF8.GetBytes(xml);
 
         var head = new StringBuilder();
@@ -482,7 +489,7 @@ internal static class Program
         LogPath = Path.Combine(parent, LogFileName);
     }
 
-    private static void Log(string message)
+    internal static void Log(string message)
     {
         string line = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'", CultureInfo.InvariantCulture) + " " + message;
         lock (LogGate)

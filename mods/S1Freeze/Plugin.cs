@@ -54,5 +54,30 @@ namespace MfgS1
         {
             Debug.unityLogger.logEnabled = true;
         }
+
+        // S2 capture: log exactly what the eAC3 service_list verb returns.
+        // This decides whether the provider also fronts the HTTP game API.
+        [HarmonyPatch(typeof(TCSNET.TcsXrpcModuleTypes.GetServiceListResponse), "Parse")]
+        [HarmonyPostfix]
+        public static void LogServiceList(TCSNET.TcsXrpcModuleTypes.GetServiceListResponse __instance)
+        {
+            Debug.Log($"[S2CAP] service_list service_url={__instance.ServiceUrl} services={__instance.ServiceInfos.Count}");
+            foreach (var info in __instance.ServiceInfos)
+            {
+                var t = info.GetType();
+                var name = t.GetProperty("Name", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var url = t.GetProperty("Url", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var mode = t.GetProperty("Mode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                Debug.Log($"[S2CAP] service name={name?.GetValue(info)} url={url?.GetValue(info)} mode={mode?.GetValue(info)}");
+            }
+        }
+
+        // S2 capture: log every time the front base URL is (re)assigned.
+        [HarmonyPatch(typeof(SystemConfigGameData), "set_FrontServerUrl")]
+        [HarmonyPostfix]
+        public static void LogFrontUrl(string value)
+        {
+            Debug.Log($"[S2CAP] FrontServerUrl set to: {value}");
+        }
     }
 }

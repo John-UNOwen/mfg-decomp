@@ -274,6 +274,28 @@ internal sealed class MatchEngine
     private void StartKyoku(Match match)
     {
         var wall = Mahjong.BuildWall136(rng);
+        if (Program.TestTePai is { Length: 13 } testTe && match.KyokuCompleted == 0 && match.DealerSeat == 0)
+        {
+            // Test deal: seat 0 takes the requested kinds (first free copy each) at the
+            // front of the wall layout; the rest keeps its shuffled order so all the
+            // generic slicing below still conserves every tile. The first draw is moved
+            // to the win kind so the dealer can tsumo on draw one.
+            var rest = new List<int>(wall);
+            var hand = new List<int>();
+            foreach (int kind in testTe)
+            {
+                int idx = rest.FindIndex(p => Mahjong.KindOfPai(p) == kind);
+                hand.Add(rest[idx]);
+                rest.RemoveAt(idx);
+            }
+            if (Program.TestWinKind >= 0)
+            {
+                int win = rest.FindIndex(39, rest.Count - 39, p => Mahjong.KindOfPai(p) == Program.TestWinKind);
+                if (win > 39) (rest[39], rest[win]) = (rest[win], rest[39]);
+            }
+            wall = hand.OrderBy(p => p).ToList();
+            wall.AddRange(rest);
+        }
         int pos = 0;
         foreach (var seat in match.Seats)
         {
@@ -715,10 +737,12 @@ internal sealed class MatchEngine
         return Mahjong.CountDora(counts, match.Dora.Take(match.DoraOpen).ToList());
     }
 
+    // Match standing. The client's Rank enum is 0-based (Rank1 = 0; ScorePanel indexes m_ranks by it),
+    // so ranks here are 0..3. Ties break toward the earlier seat (dealer-relative order).
     private static int RankOf(Seat[] seats, int seat)
     {
         long mine = seats[seat].Score;
-        int rank = 1;
+        int rank = 0;
         for (int i = 0; i < 4; i++)
             if (i != seat && (seats[i].Score > mine || (seats[i].Score == mine && i < seat))) rank++;
         return rank;
@@ -734,10 +758,10 @@ internal sealed class MatchEngine
           .Append("<actual_affinity_growth_point>100</actual_affinity_growth_point></affinity_point></breakdown>");
         for (int s = 0; s < 4; s++)
         {
-            int rank = RankOf(match.Seats, s);
+            int rank = RankOf(match.Seats, s);      // 0-based, see RankOf
             sb.Append("<player_" + s + "><rank>" + rank + "</rank><score>" +
                       match.Seats[s].Score.ToString(CultureInfo.InvariantCulture) + "</score><uma>" +
-                      uma[rank - 1] + "</uma></player_" + s + ">");
+                      uma[rank] + "</uma></player_" + s + ">");
         }
         sb.Append("</mgresult>");
         return Res(sb.ToString());

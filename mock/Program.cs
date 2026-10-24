@@ -30,6 +30,12 @@ internal static class Program
     private static readonly object LogGate = new object();
     private static readonly CertHolder Cert = new CertHolder();
     private static readonly MatchEngine Engine = new MatchEngine();
+    // Live S3 verification hooks: MFG_TEST_TEPAI gives seat 0 a fixed 13-kind hand,
+    // MFG_TEST_WIN forces the first kyoku-1 draw to that kind (deal stays conserved).
+    internal static readonly int[] TestTePai = ParseKindList(Environment.GetEnvironmentVariable("MFG_TEST_TEPAI"));
+    internal static readonly int TestWinKind = int.TryParse(Environment.GetEnvironmentVariable("MFG_TEST_WIN"), out int wk) ? wk : -1;
+    private static int[] ParseKindList(string s) =>
+        string.IsNullOrEmpty(s) ? null : s.Split(',').Select(int.Parse).ToArray();
     private static long SeqCounter;
     private static string SpecDir = "";
     private static string LogPath = "";

@@ -35,7 +35,7 @@ Node 16 runtime (RyuNET-core `.github/workflows/build.yml:19`), which has no `no
 ## 2. Install + first run (PowerShell, from core clone root)
 
 ```powershell
-cd 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\tmp\RyuNET-core'
+cd '<repo>\tmp\RyuNET-core'
 npm install
 npm run build                     # tsc -> dist/
 

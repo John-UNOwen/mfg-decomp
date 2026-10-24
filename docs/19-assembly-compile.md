@@ -297,7 +297,7 @@ Standing caveats, stated as limits rather than failures:
 ## 10. Reproduce
 
 ```powershell
-Set-Location 'C:\Users\ <you>\Documents\GitHub\mfg-decomp\build\asmdef-probe'
+Set-Location '<repo>\build\asmdef-probe'
 
 # flagship, defaults (shipped profile, Debug): exit 0, 0 errors, 0 warnings
 dotnet build Assembly-CSharp.csproj

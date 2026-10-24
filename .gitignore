@@ -22,3 +22,11 @@ build/reftype-rebuilt/
 build/asmdef-probe/bin/
 build/asmdef-probe/obj/
 build/asmdef-probe/logs/
+
+build/unity-project/
+build/unity-project-auxiliary/
+build/export-primary-content/
+build/export-logs/
+build/catalog-*.json
+tmp/assetripper/
+tmp/streamingassets-stage/

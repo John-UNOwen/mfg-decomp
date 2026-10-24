@@ -402,6 +402,7 @@ public class TestModeLocalization : SingletonBehaviour<TestModeLocalization>
 		dictionary["AF/CLOCK"] = new LocalizedTexts("CLOCK", "設定した時刻");
 		dictionary["SUPER FACTORY REBOOT"] = new LocalizedTexts("INITALIZING THE BACKUP DATA COMPLETE. PLEASE TURN OFF THE SWITCH AND REBOOT.", "バックアップデータを初期化しました\n電源を切り、再起動してください");
 		LocalizedTextsDictionary = dictionary;
-		base._002Ector();
+		// decompiler artifact removed: it emitted the base-class constructor call as
+		// "base._002Ector();" at the end of the body; C# issues that call implicitly.
 	}
 }

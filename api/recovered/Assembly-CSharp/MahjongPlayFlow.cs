@@ -637,7 +637,7 @@ public class MahjongPlayFlow : BaseFlow
 		}).AddTo(this);
 		try
 		{
-			int num;
+			int num = 0;
 			_ = num - 3;
 			_ = 2;
 			try

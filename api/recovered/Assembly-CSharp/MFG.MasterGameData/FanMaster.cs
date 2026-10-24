@@ -3013,7 +3013,7 @@ public class FanMaster : MasterGameDataBase
 			num4 += DefenceFansForNotFurikomi(count);
 			foreach (var item3 in source.Where(((Player player, int index) p) => p.player.m_cha != Cha.Jicha))
 			{
-				int item = item3.index;
+				int item = item3.Item2;
 				num4 += DefenceFansForEvasion(count, (Han)ronCommand.Yakus[item].HanID);
 			}
 			List<Pai> source2 = (from pai in source.Where(((Player player, int index) pair) => pair.player.m_cha != Cha.Jicha).SelectMany(((Player player, int index) pair) => flow.m_haiNavi[pair.index].MachiHais().Select(PaiExtention.HaiIDToPai).Distinct()).ToList()

@@ -153,7 +153,7 @@ namespace MfgRebuild
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.WebGL)
             {
-                bool ok = BuildPipeline.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
+                bool ok = EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
                 Side($"switch webgl ok={ok} now={EditorUserBuildSettings.activeBuildTarget}");
                 if (!ok) { EditorApplication.Exit(3); return; }
             }
@@ -178,11 +178,19 @@ namespace MfgRebuild
             };
             var report = BuildPipeline.BuildPlayer(options);
             var summary = report.summary;
-            Side($"webgl build result={summary.result} bytes={summary.totalBuiltSize} " +
-                $"errors={report.errors.Length} time={summary.totalTime}");
-            foreach (var err in report.errors)
-                Side($"build error: {err}");
-            EditorApplication.Exit(summary.result == BuildResult.OK ? 0 : 5);
+            Side($"webgl build result={summary.result} totalSize={report.totalSize} " +
+                $"time={summary.totalTime}");
+            if (summary.result != BuildResult.Succeeded)
+            {
+                int shown = 0;
+                foreach (var info in report.GetAllWarningsAndErrors())
+                {
+                    if (info.type != BuildReportType.Error) continue;
+                    Side($"build error: {info}");
+                    if (++shown >= 10) break;
+                }
+            }
+            EditorApplication.Exit(summary.result == BuildResult.Succeeded ? 0 : 5);
         }
     }
 }

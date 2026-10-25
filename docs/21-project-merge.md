@@ -330,3 +330,21 @@ re-export from AssetRipper would rebuild the map from scratch.
   - After an aborted compile, Bee and Library\SourceGenerated keep the old input list, so a
     deleted .cs yields CS2001 "Source file not found" on the next run. Delete Library\Bee and
     Library\SourceGenerated (asset artifacts survive) before rerunning compilation.
+
+## 10. Gate 2 execution decisions (owner-approved)
+
+- Standalone player is the primary Gate 2 proof. Editor playmode works to the bundle-resolver
+  quirk but the player path skips every editor-layout problem, so editor play is a
+  nice-to-have harness.
+- Kyoku proof: debug-path automation (mock test hooks + game debug surfaces) first, plus a
+  screenshot pass confirming the lobby rendered.
+- Shipped Plugins\x86_64 natives are installed into Assets\Plugins\x86_64 (spice2x supplied
+  them under S3; the standalone player needs them for effect parity). P/Invoke ladder if a
+  native import fails: managed stub for dead paths, shipped dll for live paths, spice-hosted
+  run only as last resort.
+- WebGL: rebuild AddressableAssetSettings content state from the shipped catalog and let the
+  package produce WebGL bundles. Custom packer is fallback only.
+- Editor-only shims (cert preload, aa provisioning copies) live in the automation assembly,
+  documented here; players run the untouched shipped semantics.
+- Gate 2 passing = kyoku completed against the mock with the provider hop wired; a live-front
+  kyoku is confirmation, not a blocker, while the public front :80 stalls.

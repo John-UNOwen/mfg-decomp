@@ -41,6 +41,7 @@ namespace MfgRebuild
             EditorSettings.enterPlayModeOptionsEnabled = false;
             EditorPrefs.SetBool(PrefsKey, true);
             try { System.IO.File.Delete(@"C:\mfgtmp\play.log.txt"); } catch { }
+            try { System.IO.File.Delete(@"C:\mfgtmp\side.log.txt"); } catch { }
             Debug.Log("AUTOMATION entering play mode");
             EditorApplication.EnterPlaymode();
         }
@@ -50,10 +51,10 @@ namespace MfgRebuild
         private static void PlayHook()
         {
             if (!EditorPrefs.GetBool(PrefsKey, false)) return;
-            Debug.Log("AUTOMATION play-domain pump attached");
+            Side("play-domain hook ran");
+            PreloadCertificates();
             var ta = Resources.Load("certs/DigiCert") as TextAsset;
-            var ta2 = Resources.Load("certs/digicert") as TextAsset;
-            Debug.Log($"AUTOMATION playcertprobe exact={(ta == null ? "NULL" : ta.text.Length + " chars")} lower={(ta2 == null ? "NULL" : ta2.text.Length + " chars")}");
+            Side($"playcertprobe exact={(ta == null ? "NULL" : ta.text.Length + " chars")}");
             Application.logMessageReceived += (msg, stack, type) =>
             {
                 try
@@ -65,6 +66,42 @@ namespace MfgRebuild
             EditorApplication.update += Pump;
         }
 
+        // The shipping boot calls CertificateValidation.Init from the network stack's worker thread.
+        // Resources.Load only answers on the main thread inside the editor (players are fine), so the
+        // cert list is prebuilt here on the main thread; Init() sees the field non-null and skips its
+        // own loads. Editor-only shim, no shipping-code change.
+        private static void PreloadCertificates()
+        {
+            try
+            {
+                var asm = typeof(RequestManager).Assembly;
+                var t = asm.GetType("Konami.System.Net.CertificateValidation");
+                var f = t?.GetField("s_CertificateList",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+                if (f == null || f.GetValue(null) != null) { Side("certpreload skipped"); return; }
+                var coll = new System.Security.Cryptography.X509Certificates.X509Certificate2Collection();
+                foreach (string p in new[] { "certs/DigiCert", "certs/GeoTrustRSACA_2018", "certs/RapidSSL_RSA_CA_2018" })
+                {
+                    var ta = Resources.Load(p) as TextAsset;
+                    if (ta == null) { Side($"certpreload missing {p}"); return; }
+                    coll.Add(new System.Security.Cryptography.X509Certificates.X509Certificate2(
+                        System.Text.Encoding.ASCII.GetBytes(ta.text)));
+                }
+                f.SetValue(null, coll);
+                Side("certpreload done 3 certs");
+            }
+            catch (System.Exception e)
+            {
+                Side($"certpreload failed {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        private static void Side(string message)
+        {
+            try { System.IO.File.AppendAllText(@"C:\mfgtmp\side.log.txt", $"{System.DateTime.Now:HH:mm:ss} {message}\n"); }
+            catch { }
+        }
+
         private static void Pump()
         {
             if (startedAt < 0) startedAt = EditorApplication.timeSinceStartup;
@@ -73,14 +110,14 @@ namespace MfgRebuild
                 ? SceneManager.GetActiveScene().name : "<none>";
             if (elapsed > 10.0 && (active == "Boot" || active == "Title" || active == "TitleDemo"))
             {
-                Debug.Log($"AUTOMATION GATE2_BOOT_OK active_scene={active} elapsed={elapsed:F1}s");
+                Side($"GATE2_BOOT_OK active_scene={active} elapsed={elapsed:F1}s");
                 EditorPrefs.SetBool(PrefsKey, false);
                 EditorApplication.Exit(0);
                 return;
             }
             if (elapsed > PlayTimeoutS)
             {
-                Debug.Log($"AUTOMATION GATE2_BOOT_TIMEOUT active_scene={active} elapsed={elapsed:F1}s");
+                Side($"GATE2_BOOT_TIMEOUT active_scene={active} elapsed={elapsed:F1}s");
                 EditorPrefs.SetBool(PrefsKey, false);
                 EditorApplication.Exit(2);
                 return;
@@ -88,7 +125,7 @@ namespace MfgRebuild
             if (elapsed - lastHeartbeat > 15.0)
             {
                 lastHeartbeat = elapsed;
-                Debug.Log($"AUTOMATION heartbeat t={elapsed:F0}s active_scene={active} scenes={SceneManager.sceneCount}");
+                Side($"heartbeat t={elapsed:F0}s active_scene={active} scenes={SceneManager.sceneCount}");
             }
         }
 

@@ -307,3 +307,19 @@ re-export from AssetRipper would rebuild the map from scratch.
 | `build/project-merge-analysis/prepare_report.json` | run totals (rerun-safe record) |
 | `build/project-merge-analysis/verify/firstpass9/`, `verify/ac9/` | §5 LangVersion-9 builds |
 | `build/unity-project/` | the mergeable project (nothing git-added) |
+
+## 9. Editor run gotchas (first headless import, 2026-10-25)
+
+- License: Unity Personal was granted through Unity Hub sign-in (Store Hub package,
+  UIA-driven sign-in; Personal cannot use the manual .alf page). Entitlements land in
+  `%LOCALAPPDATA%\Unity\licenses\UnityEntitlementLicense.xml`.
+- `Unity.exe` splits quoted argument values on spaces: always launch with space-free paths.
+  A junction `C:\mfg -> <repo>` makes `C:\mfg\build\unity-project` usable.
+- Embedded vendored packages ship their own NUnit test assemblies; with no test framework in
+  the project they produced 5,475 CS0246/CS0538/CS0234 errors and aborted compilation.
+  Stripped every `*Tests*` directory from the three embedded packages (vendor_packages.ps1 now
+  does this automatically) and deleted the stale Library (its SourceGenerated duplicate
+  AssemblyMonoScriptTypes.gen.cs caused CS0579/CS0101/CS0111).
+- First refresh also runs AssemblyUpdater over the loose Plugins DLLs (Timeline, zxing,
+  userfully...); that is expected, let it finish.
+

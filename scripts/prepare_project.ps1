@@ -352,6 +352,15 @@ foreach ($g in @((Join-Path $proj 'Assets\Assembly-CSharp\UnitySourceGeneratedAs
 # ---------- phase 3: loose dll disposition ----------
 
 $pluginsDir = Join-Path $proj 'Assets\Plugins'
+# Native plugins from the shipped build (audio effects like KONAMI/VirtualSurround and the
+# arcade io libs). spice2x supplied these under S3; the standalone player needs them for
+# shipping parity. WebGL ignores x86_64 plugin folders.
+$nativeSrc = Join-Path $install 'Plugins\x86_64'
+$nativeDst = Join-Path $pluginsDir 'x86_64'
+if (Test-Path $nativeSrc) {
+  $null = Invoke-Robocopy @($nativeSrc, $nativeDst, '/E', '/NFL', '/NDL', '/NJH', '/NP')
+  Write-Host 'native plugins installed to Assets\Plugins\x86_64'
+}
 $deleted = New-Object System.Collections.Generic.List[string]
 # AssetRipper per-plugin-tree export folders (decompiles of the six dlls whose sources are
 # now copied to Assets\<tree>): same types as the copied trees, so deleting them is required

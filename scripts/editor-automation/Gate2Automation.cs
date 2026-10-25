@@ -17,6 +17,7 @@ namespace MfgRebuild
     {
         private const double PlayTimeoutS = 420.0;   // import already done at this point; boot should reach Boot/Title well inside
         private static double startedAt = -1.0;
+        private static double lastHeartbeat = -15.0;
 
         // Import pass: asset/database import + script compilation happen before executeMethod runs.
         // Play mode keeps full domain+scene reload: ResidentFlow boots in Awake/Start, and with
@@ -29,15 +30,25 @@ namespace MfgRebuild
             EditorApplication.Exit(0);
         }
 
+        private const string PrefsKey = "MfgRebuil******Key";
+
         // Play-mode boot proof: enter play mode, then pump until the Boot/Title scene is live or the
-        // timeout hits. Exit code 0 = boot reached, 2 = timeout. kyoku interaction is proven in the
-        // standalone player (mouse automation), not headless.
+        // timeout hits. Exit code 0 = boot reached, 2 = timeout. With domain reload on, this domain's
+        // statics/subscription are wiped at play entry, so PlayGate2 only arms the run (EditorPrefs
+        // survives the reload) and PlayHook re-attaches the pump inside the fresh play domain.
         public static void PlayGate2()
         {
             EditorSettings.enterPlayModeOptionsEnabled = false;
+            EditorPrefs.SetBool(PrefsKey, true);
             Debug.Log("AUTOMATION entering play mode");
             EditorApplication.EnterPlaymode();
-            startedAt = EditorApplication.timeSinceStartup;
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void PlayHook()
+        {
+            if (!EditorPrefs.GetBool(PrefsKey, false)) return;
+            Debug.Log("AUTOMATION play-domain pump attached");
             EditorApplication.update += Pump;
         }
 
@@ -50,13 +61,21 @@ namespace MfgRebuild
             if (elapsed > 10.0 && (active == "Boot" || active == "Title" || active == "TitleDemo"))
             {
                 Debug.Log($"AUTOMATION GATE2_BOOT_OK active_scene={active} elapsed={elapsed:F1}s");
+                EditorPrefs.SetBool(PrefsKey, false);
                 EditorApplication.Exit(0);
                 return;
             }
             if (elapsed > PlayTimeoutS)
             {
                 Debug.Log($"AUTOMATION GATE2_BOOT_TIMEOUT active_scene={active} elapsed={elapsed:F1}s");
+                EditorPrefs.SetBool(PrefsKey, false);
                 EditorApplication.Exit(2);
+                return;
+            }
+            if (elapsed - lastHeartbeat > 15.0)
+            {
+                lastHeartbeat = elapsed;
+                Debug.Log($"AUTOMATION heartbeat t={elapsed:F0}s active_scene={active} scenes={SceneManager.sceneCount}");
             }
         }
 

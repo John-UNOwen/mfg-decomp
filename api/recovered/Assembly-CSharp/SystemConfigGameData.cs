@@ -51,6 +51,13 @@ public class SystemConfigGameData : GameDataBase
 	{
 		get
 		{
+			// Rebuild gate (docs/21 10): Konami's Konasta/Netcafe builds run as thin clients
+			// hosted by cloudstrap.exe with Kamunity/eAC3 active. Standalone play with
+			// -KONAMINET has no cloud host, so report plain local (non-cloud) mode there.
+			if (!GameUtility.IsKamunityBootEnable())
+			{
+				return false;
+			}
 			if (AppBehaviorType != AppBehaviorType.Konasta)
 			{
 				return AppBehaviorType == AppBehaviorType.Netcafe;

@@ -7,7 +7,7 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 
 ## Behavior
 
-- One origin on `http://127.0.0.1:8090` (port via `WEBFRONT_PORT`).
+- One origin on `http://127.0.0.1:8090` (port via `WEBFRONT_PORT`). Raw TcpListener, no http.sys/urlacl dependency; `Connection: close` per response.
 - `/aog/*` proxied to `WEBFRONT_UPSTREAM` (default `http:// <provider-host>`), path+body+content-type
   relayed untouched, `User-Agent` replaced with a neutral agent string (the provider only rejects
   UAs containing "Mozilla"), `Host` set by the outbound URI. OPTIONS on /aog/* answers 204 preflight.
@@ -35,7 +35,7 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
   UA-swapping proxy); webfront is the reference implementation and the local dev server.
 
 ## Smoke evidence (2026-10-25, against live provider)
-
+- `GET /` with Chrome UA: 200 with coop=same-origin, coep=require-corp. Random 4 KB binary served byte-exact (latin1 staging).
 - `GET /` with Chrome UA: 200 with coop=same-origin, coep=require-corp.
 - `POST /aog/appli_boot` with Chrome UA + Origin header: 200 provider XML (UA rewrite works),
   Access-Control-Allow-Origin echoes origin, X-WebFront-Upstream: http:// <provider-host>.

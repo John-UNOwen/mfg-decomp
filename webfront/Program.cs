@@ -3,12 +3,14 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
 namespace WebFront
 {
     // Browser front for the WebGL rebuild (Gate 3/4 support piece).
+    // Raw TcpListener (same bind model as the repo mock, no http.sys/urlacl dependencies).
     // Serves the Unity WebGL export + content trees (incl. addressables bundles) from one origin,
     // and proxies /aog/* to the public provider, rewriting the User-Agent (the provider's AOG
     // middleware refuses browser UAs) and adding CORS headers for dev clients.
@@ -22,130 +24,184 @@ namespace WebFront
         // The provider only excludes UAs containing "Mozilla"; any neutral agent works.
         private static readonly string RelayUA = "MFG-WebFront/1.0 (+https://github.com/John-UNOwen/mfg-decomp)";
 
+        // Latin1 (28591): char 0..255 encodes to exactly one byte, so bodies are staged as
+        // latin1-mapped strings and go out byte-exact.
+        private static readonly Encoding Latin1 = Encoding.GetEncoding(28591);
         private static readonly HttpClient Up = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(60) };
-        private static HttpListener Listener;
 
         private static int Main()
         {
             Directory.CreateDirectory(Root);
-            Listener = new HttpListener();
-            Listener.Prefixes.Add("http://127.0.0.1:" + Port.ToString(CultureInfo.InvariantCulture) + "/");
-            try { Listener.Start(); }
-            catch (HttpListenerException e) { Console.Error.WriteLine("bind failed: " + e.Message); return 1; }
+            var listener = new TcpListener(IPAddress.Loopback, Port);
+            try { listener.Start(); }
+            catch (SocketException e) { Console.Error.WriteLine("bind failed: " + e.Message); return 1; }
             Console.WriteLine("webfront listening on http://127.0.0.1:" + Port + " root=" + Root + " upstream=" + Upstream);
 
             while (true)
             {
-                HttpListenerContext ctx;
-                try { ctx = Listener.GetContext(); }
+                TcpClient client;
+                try { client = listener.AcceptTcpClient(); }
                 catch (Exception) { return 0; }
-                ThreadPool.QueueUserWorkItem(_ => Handle(ctx));
+                ThreadPool.QueueUserWorkItem(_ => HandleClient(client));
             }
-            return 0;
         }
 
-        private static void Handle(HttpListenerContext ctx)
+        private static void HandleClient(TcpClient client)
         {
-            var req = ctx.Request; var res = ctx.Response;
             try
             {
-                res.AddHeader("Cross-Origin-Opener-Policy", "same-origin");
-                res.AddHeader("Cross-Origin-Embedder-Policy", "require-corp");
-                res.AddHeader("Access-Control-Allow-Origin", req.Headers["Origin"] ?? "*");
-                res.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                res.AddHeader("Access-Control-Allow-Headers", "content-type");
+                using (client)
+                {
+                    client.ReceiveTimeout = 30000;
+                    client.SendTimeout = 30000;
+                    var net = client.GetStream();
+                    using var reader = new StreamReader(net, UTF8Fallback, false, 8192, true);
+                    using var writer = new StreamWriter(net, Latin1, 8192, true);
 
-                string path = req.Url.AbsolutePath;
-                if (req.HttpMethod == "OPTIONS" && path.StartsWith("/aog/", StringComparison.Ordinal))
-                {
-                    res.StatusCode = 204; res.Close(); return;
+                    string line;
+                    while ((line = reader.ReadLine()) != null && line.Length > 0)
+                    {
+                        string[] parts = line.Split(' ');
+                        if (parts.Length < 2) continue;
+                        string method = parts[0], target = parts[1];
+
+                        int contentLength = 0;
+                        string origin = "", acceptEnc = "", contentType = "";
+                        while ((line = reader.ReadLine()) != null && line.Length > 0)
+                        {
+                            int colon = line.IndexOf(':');
+                            if (colon <= 0) continue;
+                            string name = line.Substring(0, colon).Trim().ToLowerInvariant();
+                            string value = line.Substring(colon + 1).Trim();
+                            switch (name)
+                            {
+                                case "content-length": int.TryParse(value, out contentLength); break;
+                                case "origin": origin = value; break;
+                                case "accept-encoding": acceptEnc = value; break;
+                                case "content-type": contentType = value; break;
+                            }
+                        }
+
+                        byte[] body = Array.Empty<byte>();
+                        if (contentLength > 0)
+                        {
+                            body = new byte[contentLength];
+                            int read = 0;
+                            while (read < contentLength)
+                            {
+                                int n = net.Read(body, read, contentLength - read);
+                                if (n <= 0) break;
+                                read += n;
+                            }
+                        }
+
+                        string path = target.Split('?')[0];
+                        try
+                        {
+                            if (method == "OPTIONS" && path.StartsWith("/aog/", StringComparison.Ordinal))
+                            {
+                                Respond(writer, origin, 204, "No Content", null, null, null);
+                            }
+                            else if (path.StartsWith("/aog/", StringComparison.Ordinal))
+                            {
+                                Forward(writer, origin, method, target, body, contentType);
+                            }
+                            else
+                            {
+                                ServeStatic(writer, origin, acceptEnc, path);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            try { Respond(writer, origin, 502, "Bad Gateway", "text/plain", ToLatin1(UTF8Fallback.GetBytes("front error: " + e.Message)), null); } catch { }
+                        }
+                    }
                 }
-                if (path.StartsWith("/aog/", StringComparison.Ordinal))
-                {
-                    Forward(req, res, path).GetAwaiter().GetResult();
-                    return;
-                }
-                ServeStatic(req, res, path);
             }
-            catch (Exception e)
-            {
-                try
-                {
-                    byte[] eb = Encoding.UTF8.GetBytes("front error: " + e.Message);
-                    res.StatusCode = 502; res.ContentType = "text/plain"; res.ContentLength64 = eb.Length;
-                    res.OutputStream.Write(eb, 0, eb.Length); res.Close();
-                }
-                catch { }
-            }
+            catch { }
         }
 
-        private static void ServeStatic(HttpListenerRequest req, HttpListenerResponse res, string path)
+        private static readonly Encoding UTF8Fallback = new UTF8Encoding(false);
+
+        private static void Respond(StreamWriter writer, string origin, int status, string reason, string contentType, string bodyLatin1, string contentEncoding)
         {
-            string rel = path == "/" ? "index.html" : path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            writer.Write("HTTP/1.1 ");
+            writer.Write(status.ToString(CultureInfo.InvariantCulture));
+            writer.Write(' ');
+            writer.Write(reason);
+            writer.Write("\r\nCross-Origin-Opener-Policy: same-origin\r\nCross-Origin-Embedder-Policy: require-corp\r\nAccess-Control-Allow-Origin: ");
+            writer.Write(string.IsNullOrEmpty(origin) ? "*" : origin);
+            writer.Write("\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: content-type\r\n");
+            if (contentType != null) { writer.Write("Content-Type: "); writer.Write(contentType); writer.Write("\r\n"); }
+            if (contentEncoding != null) { writer.Write("Content-Encoding: "); writer.Write(contentEncoding); writer.Write("\r\n"); }
+            writer.Write("Cache-Control: public, max-age=31536000, immutable\r\nContent-Length: ");
+            writer.Write((bodyLatin1 == null ? 0 : bodyLatin1.Length).ToString(CultureInfo.InvariantCulture));
+            writer.Write("\r\nConnection: close\r\n\r\n");
+            if (bodyLatin1 != null && bodyLatin1.Length > 0) writer.Write(bodyLatin1);
+            writer.Flush();
+        }
+
+        private static string ToLatin1(byte[] b)
+        {
+            if (b == null || b.Length == 0) return null;
+            char[] chars = new char[b.Length];
+            for (int i = 0; i < b.Length; i++) chars[i] = (char)b[i];
+            return new string(chars);
+        }
+
+        private static void ServeStatic(StreamWriter writer, string origin, string acceptEnc, string path)
+        {
+            string rel = path == "/" ? "index.html" : Uri.UnescapeDataString(path.TrimStart('/')).Replace('/', Path.DirectorySeparatorChar);
             string file = Path.GetFullPath(Path.Combine(Root, rel));
-            if (!file.StartsWith(Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(file, Root, StringComparison.OrdinalIgnoreCase))
-            { res.StatusCode = 403; res.Close(); return; }
-
-            string accept = req.Headers["Accept-Encoding"] ?? "";
-            string enc = "";
-            if (accept.Contains("br") && File.Exists(file + ".br")) { file += ".br"; enc = "br"; }
-            if (!File.Exists(file)) { res.StatusCode = 404; res.Close(); return; }
-
-            res.StatusCode = 200;
-            res.ContentType = Mime(file);
-            if (enc.Length > 0) res.AddHeader("Content-Encoding", "br");
-            res.AddHeader("Cache-Control", "public, max-age=31536000, immutable");
-            byte[] data = File.ReadAllBytes(file);
-            res.ContentLength64 = data.Length;
-            res.OutputStream.Write(data, 0, data.Length);
-            res.Close();
+            if (!file.StartsWith(Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                Respond(writer, origin, 403, "Forbidden", "text/plain", "forbidden", null);
+                return;
+            }
+            string enc = null;
+            if (acceptEnc != null && acceptEnc.Contains("br") && File.Exists(file + ".br")) { file += ".br"; enc = "br"; }
+            if (!File.Exists(file))
+            {
+                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null);
+                return;
+            }
+            Respond(writer, origin, 200, "OK", Mime(file), ToLatin1(File.ReadAllBytes(file)), enc);
         }
 
-        private static System.Threading.Tasks.Task Forward(HttpListenerRequest req, HttpListenerResponse res, string path)
+        private static void Forward(StreamWriter writer, string origin, string method, string target, byte[] body, string contentType)
         {
-            return ForwardAsync(req, res, path);
-        }
-
-        private static async System.Threading.Tasks.Task ForwardAsync(HttpListenerRequest req, HttpListenerResponse res, string path)
-        {
-            byte[] body = Array.Empty<byte>();
-            if (req.HasEntityBody)
-            {
-                using var ms = new MemoryStream();
-                req.InputStream.CopyTo(ms);
-                body = ms.ToArray();
-            }
-            string target = Upstream.TrimEnd('/') + path + (req.Url.Query.Length > 0 ? req.Url.Query : "");
-            using var mreq = new HttpRequestMessage(req.HttpMethod == "GET" ? HttpMethod.Get : HttpMethod.Post, target);
-            if (body.Length > 0)
-            {
-                var content = new ByteArrayContent(body);
-                if (req.ContentType != null) content.Headers.TryAddWithoutValidation("Content-Type", req.ContentType);
-                mreq.Content = content;
-            }
-            mreq.Headers.TryAddWithoutValidation("User-Agent", RelayUA);
-
+            string pathAndQuery = target.StartsWith("/") ? target : "/" + target;
+            string url = Upstream.TrimEnd('/') + pathAndQuery;
             HttpResponseMessage resp;
-            try { resp = await Up.SendAsync(mreq).ConfigureAwait(false); }
+            try
+            {
+                using var mreq = new HttpRequestMessage(method == "GET" ? HttpMethod.Get : HttpMethod.Post, url);
+                if (body != null && body.Length > 0)
+                {
+                    var content = new ByteArrayContent(body);
+                    if (!string.IsNullOrEmpty(contentType)) content.Headers.TryAddWithoutValidation("Content-Type", contentType);
+                    mreq.Content = content;
+                }
+                mreq.Headers.TryAddWithoutValidation("User-Agent", RelayUA);
+                resp = Up.SendAsync(mreq).GetAwaiter().GetResult();
+            }
             catch (Exception e)
             {
-                byte[] eb = Encoding.UTF8.GetBytes("<root><serv_st><code>502</code><msg>" + WebUtility.HtmlEncode(e.Message) + "</msg></serv_st></root>");
-                res.StatusCode = 502; res.ContentType = "text/xml"; res.ContentLength64 = eb.Length;
-                res.OutputStream.Write(eb, 0, eb.Length); res.Close(); return;
+                string xml = "<root><serv_st><code>502</code><msg>" + WebUtility.HtmlEncode(e.Message) + "</msg></serv_st></root>";
+                Respond(writer, origin, 502, "Bad Gateway", "text/xml; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(xml)), null);
+                return;
             }
-            byte[] payload = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-            res.StatusCode = (int)resp.StatusCode;
-            res.ContentType = resp.Content.Headers.ContentType?.ToString() ?? "text/xml";
-            res.AddHeader("X-WebFront-Upstream", Upstream);
-            res.ContentLength64 = payload.Length;
-            res.OutputStream.Write(payload, 0, payload.Length);
-            res.Close();
+            using (resp)
+            {
+                byte[] payload = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                string ct = resp.Content.Headers.ContentType?.ToString() ?? "text/xml";
+                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null);
+            }
         }
 
         private static string Mime(string f)
         {
-            if (f.EndsWith(".html", StringComparison.OrdinalIgnoreCase)) return "text/html";
+            if (f.EndsWith(".html", StringComparison.OrdinalIgnoreCase)) return "text/html; charset=utf-8";
             if (f.EndsWith(".js", StringComparison.OrdinalIgnoreCase)) return "text/javascript";
             if (f.EndsWith(".wasm", StringComparison.OrdinalIgnoreCase)) return "application/wasm";
             if (f.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) return "application/json";

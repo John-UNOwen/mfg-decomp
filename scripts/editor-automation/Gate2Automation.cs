@@ -49,24 +49,58 @@ namespace MfgRebuild
 
         // The project has no AddressableAssetsData (shipped game used a prebuilt catalog), so the
         // package's editor init looks for Library/com.unity.addressables/aa/Windows/settings.json and
-        // fails with 'Invalid path in TextDataProvider'. The shipped settings.json resolves the
-        // catalog and bundles via {RuntimePath} (= Assets/StreamingAssets/aa) in the editor too, so
-        // dropping it at the expected editor location makes editor play serve the shipped layout.
+        // fails with 'Invalid path in TextDataProvider'. Junction the editor package layout directory
+        // onto the shipped Assets/StreamingAssets/aa tree: settings + catalog resolve there, and a
+        // junction is skipped by the player build's file collection, so it cannot conflict the way a
+        // copied catalog does (SetupDataFiles 'callback provided streaming assets file conflicts').
         private static void ProvisionEditorAddressables()
         {
             try
             {
                 string project = System.IO.Directory.GetParent(Application.dataPath).FullName;
-                string srcDir = System.IO.Path.Combine(project, "Assets", "StreamingAssets", "aa");
-                string dstDir = System.IO.Path.Combine(project, "Library", "com.unity.addressables", "aa", "Windows");
-                System.IO.Directory.CreateDirectory(dstDir);
-                foreach (string f in new[] { "settings.json", "catalog.json" })
-                    System.IO.File.Copy(System.IO.Path.Combine(srcDir, f), System.IO.Path.Combine(dstDir, f), overwrite: true);
-                Side($"aa files provisioned -> {dstDir}");
+                string link = System.IO.Path.Combine(project, "Library", "com.unity.addressables", "aa");
+                if (System.IO.Directory.Exists(System.IO.Path.Combine(link, "Windows")))
+                {
+                    Side("aa provision present");
+                    return;
+                }
+                if (System.IO.Directory.Exists(link))
+                {
+                    // Earlier runs copied real directories here; those files conflict with the
+                    // player build's streaming assets merge, so replace them with the junction.
+                    System.IO.Directory.Delete(link, recursive: true);
+                }
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(link));
+                string target = System.IO.Path.Combine(project, "Assets", "StreamingAssets", "aa");
+                int rc = Symlink(link, target);
+                Side(rc == 0 ? "aa junction created" : $"aa mklink rc={rc}");
             }
             catch (System.Exception e)
             {
-                Side($"aa settings provision failed {e.Message}");
+                Side($"aa provision failed {e.Message}");
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+        private static extern bool CreateSymbolicLinkW(string lpSymlinkFileName, string lpTargetFileName, uint dwFlags);
+
+        // mklink /J semantics: FLAG_DIRECTORY | FLAG_ABSOLUTE. cmd fallback for sessions without
+        // SeCreateSymbolicLink privilege; junctions need no privilege.
+        private static int Symlink(string link, string target)
+        {
+            if (CreateSymbolicLinkW(link, target, 0x1 | 0x2)) return 0;
+            var psi = new System.Diagnostics.ProcessStartInfo("cmd.exe",
+                "/c mklink /J \"" + link + "\" \"" + target + "\"")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+            };
+            using (var p = System.Diagnostics.Process.Start(psi))
+            {
+                p.StandardOutput.ReadToEnd();
+                p.WaitForExit(10000);
+                return p.ExitCode;
             }
         }
 

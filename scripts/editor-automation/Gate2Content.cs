@@ -12,8 +12,8 @@
 //
 // Run headless:
 //   Unity.exe -batchmode -projectPath C:\mfg\build\unity-project `
-//       -executeMethod MfgRebuild.Automation.Gate2Content.BuildContentState -logFile <log>
-//   ... -executeMethod MfgRebuild.Automation.Gate2Content.BuildWebGLPlayer -logFile <log>
+//       -executeMethod MfgRebuild.Gate2Content.BuildContentState -logFile <log>
+//   ... -executeMethod MfgRebuild.Gate2Content.BuildWebGLPlayer -logFile <log>
 //
 // Exit codes: 0 ok, 2 fatal precondition, 3 target switch failed, 4 no scenes, 5 player build failed.
 
@@ -26,7 +26,7 @@ using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.AddressableAssets.Settings.GroupSchemas;
 using UnityEditor.Build.Reporting;
 
-namespace MfgRebuild.Automation
+namespace MfgRebuild
 {
     public static class Gate2Content
     {

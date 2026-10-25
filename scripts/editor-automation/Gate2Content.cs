@@ -290,6 +290,7 @@ namespace MfgRebuild
             Side($"scenes enabled={scenes.Count}");
             if (scenes.Count == 0) { EditorApplication.Exit(4); return; }
 
+            ApplyWebGLPlayerSettings();
             var options = new BuildPlayerOptions
             {
                 scenes = scenes.ToArray(),
@@ -301,7 +302,81 @@ namespace MfgRebuild
             var report = BuildPipeline.BuildPlayer(options);
             var summary = report.summary;
             Side($"webgl build result={summary.result} time={summary.totalTime} out={options.locationPathName}");
+            DumpBuildReport(report);
             EditorApplication.Exit(summary.result == BuildResult.Succeeded ? 0 : 5);
+        }
+
+        // The AssetRipper-exported ProjectSettings carries an all-zero WebGL section
+        // (webGLTemplate empty, memorySize 0). An empty template list makes
+        // BuildPipeline.BuildPlayer abort with a bare IndexOutOfRangeException in
+        // BuildPlayerInternalNoCheck right after level packaging (observed 2026-10-25,
+        // webglbuild2.log L35413), producing zero output files. Pick safe, browser-serving
+        // defaults: the shipped-by-editor default template, uncompressed artifacts (the
+        // webfront serves .br sidecars, so container compression is redundant), a legacy
+        // 256 MB heap, and full exception support so the browser console shows real stacks.
+        private static void ApplyWebGLPlayerSettings()
+        {
+            try { PlayerSettings.WebGL.template = "APPLICATION:Default"; } catch (Exception e) { Side($"webgl template: {e.Message}"); }
+            try { PlayerSettings.WebGL.memorySize = 256; } catch (Exception e) { Side($"webgl memorySize: {e.Message}"); }
+            foreach (var name in new[] { "Disabled", "Gzip" })
+            {
+                try
+                {
+                    var fmt = Enum.Parse(typeof(WebGLCompressionFormat), name);
+                    PlayerSettings.WebGL.compressionFormat = (WebGLCompressionFormat)fmt;
+                    Side($"webgl compression={name}");
+                    break;
+                }
+                catch { }
+            }
+            foreach (var name in new[] { "FullWithStackTraces", "FullExplicitStackTraces", "ExtractStackTraceOnly" })
+            {
+                try
+                {
+                    var es = Enum.Parse(typeof(WebGLExceptionSupport), name);
+                    PlayerSettings.WebGL.exceptionSupport = (WebGLExceptionSupport)es;
+                    Side($"webgl exceptions={name}");
+                    break;
+                }
+                catch { }
+            }
+        }
+
+        // GetAllWarningsAndErrors is editor-internal here, so read the report through the
+        // public GetTotalMessages/GetPageOfMessages pair via reflection and side-log every
+        // message the engine recorded for the failed phase.
+        private static void DumpBuildReport(BuildReport report)
+        {
+            try
+            {
+                var t = report.GetType();
+                int total = 0;
+                var getTotal = t.GetMethod("GetTotalMessages", new[] { typeof(uint) });
+                if (getTotal != null) total = (int)(uint)getTotal.Invoke(report, new object[] { uint.MaxValue });
+                var getPage = t.GetMethod("GetPageOfMessages", new[] { typeof(uint), typeof(uint) });
+                Side($"report messages total={total}");
+                if (getPage == null) return;
+                uint idx = 0;
+                while (idx < (uint)total && idx < 60)
+                {
+                    var page = getPage.Invoke(report, new object[] { idx, 20u }) as System.Collections.IEnumerable;
+                    if (page == null) break;
+                    foreach (var m in page)
+                    {
+                        var mt = m.GetType();
+                        string type = "?", msg = "?";
+                        try { type = mt.GetField("type")?.GetValue(m)?.ToString() ?? mt.GetProperty("type")?.GetValue(m)?.ToString() ?? "?"; } catch { }
+                        try { msg = (string)(mt.GetField("message")?.GetValue(m) ?? mt.GetProperty("message")?.GetValue(m)); } catch { }
+                        if (msg == null) continue;
+                        Side($"report[{type}]: {msg.Substring(0, Math.Min(220, msg.Length))}");
+                        idx++;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Side($"report dump failed: {e.Message}");
+            }
         }
     }
 }

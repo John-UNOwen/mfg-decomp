@@ -157,7 +157,9 @@ namespace MfgRebuild
             {
                 if (g == null || g.entries.Count == 0) continue;
                 if (g.Name == "Built In Data" || g.Name == "Default Local Group") continue;
-                var e = g.entries[0];
+                AddressableAssetEntry e = null;
+                foreach (var en in g.entries) { e = en; break; }
+                if (e == null) continue;
                 Side($"sample group={g.Name} entry guid={e.guid} addr={e.address} labels={e.labels.Count} schemas={g.Schemas.Count}");
                 break;
             }

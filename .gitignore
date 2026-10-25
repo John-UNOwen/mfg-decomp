@@ -46,3 +46,9 @@ out/webroot/
 
 build/unity-project/Packages/
 tmp/upm-cache/
+
+scripts/brotli-sidecar/bin/
+scripts/brotli-sidecar/obj/
+scripts/brotli-sidecar/check/bin/
+scripts/brotli-sidecar/check/obj/
+out/brtest/

@@ -40,15 +40,28 @@ namespace MfgRebuild
         {
             EditorSettings.enterPlayModeOptionsEnabled = false;
             EditorPrefs.SetBool(PrefsKey, true);
+            try { System.IO.File.Delete(@"C:\mfgtmp\play.log.txt"); } catch { }
             Debug.Log("AUTOMATION entering play mode");
             EditorApplication.EnterPlaymode();
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        // BeforeSceneLoad so the sink is live before ResidentFlow's Awake throws anything.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void PlayHook()
         {
             if (!EditorPrefs.GetBool(PrefsKey, false)) return;
             Debug.Log("AUTOMATION play-domain pump attached");
+            var ta = Resources.Load("certs/DigiCert") as TextAsset;
+            var ta2 = Resources.Load("certs/digicert") as TextAsset;
+            Debug.Log($"AUTOMATION playcertprobe exact={(ta == null ? "NULL" : ta.text.Length + " chars")} lower={(ta2 == null ? "NULL" : ta2.text.Length + " chars")}");
+            Application.logMessageReceived += (msg, stack, type) =>
+            {
+                try
+                {
+                    System.IO.File.AppendAllText(@"C:\mfgtmp\play.log.txt", $"[{type}] {msg}\n{stack}\n---\n");
+                }
+                catch { }
+            };
             EditorApplication.update += Pump;
         }
 
@@ -77,6 +90,21 @@ namespace MfgRebuild
                 lastHeartbeat = elapsed;
                 Debug.Log($"AUTOMATION heartbeat t={elapsed:F0}s active_scene={active} scenes={SceneManager.sceneCount}");
             }
+        }
+
+        // Diagnostics: does Resources actually contain the certs in this project copy?
+        public static void LoadCertProbe()
+        {
+            int okCount = 0;
+            foreach (string p in new[] { "certs/DigiCert", "certs/GeoTrustRSACA_2018", "certs/RapidSSL_RSA_CA_2018" })
+            {
+                var ta = Resources.Load(p) as TextAsset;
+                Debug.Log($"AUTOMATION certprobe {p} = {(ta == null ? "NULL" : ta.text.Length + " chars")}");
+                if (ta != null) okCount++;
+            }
+            var any = Resources.Load("DebugMenu") as GameObject;
+            Debug.Log($"AUTOMATION resprobe DebugMenu = {(any == null ? "NULL" : "ok")}");
+            EditorApplication.Exit(okCount == 3 ? 0 : 1);
         }
 
         // Standalone Windows64 player build (for the kyoku-level tap automation).

@@ -34,7 +34,7 @@ GUID_SCRIPT_CUG = "5834b5087d578d24c926ce20cd31e6d6"
 META_TMPL = """fileFormatVersion: 2
 guid: {guid}
 NativeFormatImporter:
-  externalObjects: {}
+  externalObjects: {{}}
   mainObjectFileID: 11400000
   userData: 
   assetBundleName: 

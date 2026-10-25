@@ -227,7 +227,7 @@ namespace MfgRebuild
                             {
                                 var ps = m.GetParameters();
                                 if (m.Name == "Locate" && ps.Length == 3 && ps[0].ParameterType == typeof(object)
-                                    && ps[1].ParameterType == typeof(Type) && ps[2].ParameterType.IsByRefType)
+                                    && ps[1].ParameterType == typeof(Type) && ps[2].ParameterType.IsByRef)
                                 { mi = m; break; }
                             }
                             if (mi == null)

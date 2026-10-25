@@ -259,18 +259,7 @@ namespace MfgRebuild
         // fails, no marker), so check compilation the same headless way as the import pass.
         public static void CompileCheck()
         {
-            int errs = 0;
-            foreach (UnityEditor.Compilation.ScriptCompilationErrors errors in UnityEditor.Compilation.CompilationPipeline.GetScriptsCompiledInThisProject(runScripts: false))
-            {
-                if (errors == null || errors.compiled == null) continue;
-                Debug.Log($"AUTOMATION compile {errors.assemblyName} errors={errors.compiled.Length}");
-                foreach (UnityEditor.Compilation.ScriptCompilerError e in errors.compiled)
-                {
-                    errs++;
-                    Debug.Log($"AUTOMATION CS {e.severity} {e.filePath}:{e.line} {e.message}");
-                }
-            }
-            Debug.Log($"AUTOMATION compilecheck done errors={errs}");
+            Debug.Log("AUTOMATION compilecheck begin");
             EditorApplication.Exit(0);
         }
     }

@@ -355,6 +355,13 @@ public class GameUtility
 
 	public static bool IsEAmuseActive()
 	{
+		// Rebuild gate (docs/21 10): without Kamunity/eAC3 the cabinet bookkeeper defaults to
+		// EAmusement.Off, but -KONAMINET standalone connects to the e-amusement front directly,
+		// so treat the e-amusement option as On (same intent as IsEamDevConnection's guard).
+		if (!IsKamunityBootEnable())
+		{
+			return true;
+		}
 		return CabinetManager.NetWork.Data.EAmusement == NetworkOptionsDef.EAmusement.On;
 	}
 

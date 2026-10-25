@@ -140,7 +140,7 @@ public class TitleDemoUtility
 		Debug.Log($"IsCardOn:{Bi2xInput.Instance.IsCardOn()}, CardID:{Bi2xInput.Instance.GetCardID()}, CardType:{Bi2xInput.Instance.GetCardType()}");
 		Debug.Log("Before Account.CardID:" + GameDataManager.Account.CardID);
 		Debug.Log($"Before Account.CardType:{GameDataManager.Account.CardType}");
-		if (GameUtility.IsKonastaOrNetcafeBehavior)
+		if (GameUtility.IsKonastaOrNetcafeBehavior && GameUtility.IsKamunityBootEnable())
 		{
 			GameDataManager.Account.CardID = Avs.StdGetEnv("/env/eacloud/agentarg/card_id");
 			AccountGameData account = GameDataManager.Account;

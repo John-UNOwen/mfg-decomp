@@ -15,6 +15,14 @@ public class ShopCloseUtility
 
 		public static GameSettings.ShopClosePhase GetShopClosePhase()
 		{
+			// Rebuild gate (docs/21 10): the shipped Konasta build always runs with Kamunity/eAC3
+			// enabled, but -KONAMINET standalone keeps Kamunity off, leaving AvsEa3's delegates
+			// unbound. Treat 'no cabinet service' as Normal, matching QueryServerMaintenanceSchedule's
+			// shipped guard below.
+			if (!GameUtility.IsKamunityBootEnable())
+			{
+				return GameSettings.ShopClosePhase.Normal;
+			}
 			if (AvsEa3.Ea3GetStatus(out var _, out var _) == AvsTypes.EA3_STATUS.MAINTE)
 			{
 				return GameSettings.ShopClosePhase.Final;

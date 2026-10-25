@@ -575,6 +575,12 @@ public class BootSceneFlow : BaseFlow
 			if (redraw)
 			{
 				RenderMenu();
+				// Rebuild-only observability: this headless harness cannot screenshot the boot
+				// checklist (D3D swapchain captures black), so mirror the TMP text to the log.
+				if (m_text != null)
+				{
+					Debug.Log("BOOTCHECKLIST\n" + m_text.text);
+				}
 				redraw = false;
 			}
 			Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num}");

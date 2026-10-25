@@ -378,6 +378,15 @@ foreach ($n in $dllKeep) {
 }
 "loose dlls: deleted $($deleted.Count) items (files+metas), metas editor-enabled for $flagged kept dlls"
 
+# ---------- phase 3.6: editor automation entry points (compiled against UnityEditor modules) ----------
+$autoDir = Join-Path $PSScriptRoot 'editor-automation'
+foreach ($f in (Get-ChildItem $autoDir -Filter *.cs)) {
+  $dstDir = Join-Path $proj 'Assets\Editor'
+  New-Item -ItemType Directory -Force $dstDir | Out-Null
+  Copy-Item $f.FullName (Join-Path $dstDir $f.Name) -Force
+}
+"editor automation: copied $((Get-ChildItem $autoDir -Filter *.cs).Count) script(s) to Assets\Editor"
+
 # ---------- phase 4: manifest + csc.rsp ----------
 
 $manifestPath = Join-Path $proj 'Packages\manifest.json'

@@ -350,3 +350,23 @@ Modified (3 files, nothing committed):
 Read-only inputs, unmodified: `\\MYAPPSANDBOX\c\Games\MFG` (game install),
 `api\recovered\*` apart from the three files above, `%USERPROFILE%\.nuget\packages\...`
 (net472 targeting assemblies read in place by the `pack` profile only).
+
+## 2026-10-25 recheck: the project-copy build itself
+
+The merged project copy (what Unity will actually compile; namespace-flattened variants of the
+recovered trees, all six plugin trees merged into Assembly-CSharp) was rebuilt through
+`build/project-merge-analysis/verify/ac9` + `firstpass9` and diffed against the shipped DLLs
+with asmmeta:
+
+- firstpass: 1832/1832 hand-written members identical (public/protected 1407/1407), 0 missing,
+  0 extra; only compiler-generated closure names differ.
+- merged Assembly-CSharp: every shipped hand-written member present. The 38 nominal
+  "shipped-only" entries are all the same member with a type-qualification artifact (e.g.
+  `GetCardType(CardType)` vs `GetCardType(KAMUNITY.AvsTypes/CardType)`): plugin types now live in
+  the merged assembly so the signature prints unqualified. Left-only entries are the six plugin
+  trees` members (kamunity et al.) landing in Assembly-CSharp by design, plus compiler-generated
+  anonymous types/state machines.
+
+Unity-facing consequence: no signature drift between what the extracted prefabs/scenes reference
+(type names unchanged) and what the project compiles.
+

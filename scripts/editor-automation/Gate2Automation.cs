@@ -175,95 +175,29 @@ namespace MfgRebuild
         }
 
         private static object dumpHandle;
+        private static object dumpLocator;
 
         private static void DumpPump()
         {
             try
             {
-                var ht = dumpHandle.GetType();
-                var isDone = (bool)ht.GetProperty("IsDone").GetValue(dumpHandle);
-                if (!isDone)
+                if (dumpLocator == null && !TryResolveLocator())
                 {
                     if (startedAt < 0)
                     {
                         startedAt = EditorApplication.timeSinceStartup;
-                        Side("catalog init started");
+                        Side("catalog locator pending");
                     }
                     else if (EditorApplication.timeSinceStartup - startedAt > 300.0)
                     {
-                        Side("catalog init timeout");
+                        Side("catalog locator not found (timeout)");
                         EditorPrefs.SetBool(DumpPrefsKey, false);
                         EditorApplication.Exit(2);
                     }
                     return;
                 }
                 if (startedAt < 0) startedAt = EditorApplication.timeSinceStartup;
-                string status = ht.GetProperty("Status").GetValue(dumpHandle).ToString();
-                object locator = ht.GetProperty("Result").GetValue(dumpHandle);
-                if (locator == null || status != "Succeeded")
-                {
-                    var errProp = ht.GetProperty("OperationException");
-                    object err = errProp == null ? null : errProp.GetValue(dumpHandle);
-                    Side($"catalog init failed status={status} error={(err == null ? "<none>" : Truncate(err.ToString(), 300))}");
-                    EditorPrefs.SetBool(DumpPrefsKey, false);
-                    EditorApplication.Exit(2);
-                    return;
-                }
-                object locateState = null; // [locator, locateMi] once resolved
-                int written = 0, failed = 0;
-                var sw = new System.IO.StreamWriter(@"C:\mfgtmp\catalog_manifest.tsv", false, System.Text.Encoding.UTF8);
-                using (sw)
-                {
-                    sw.WriteLine("#key\tproviderId\tinternalId\ttypeName\tdeps");
-                    foreach (object key in (System.Collections.IEnumerable)locator.GetType()
-                        .GetProperty("Keys").GetValue(locator))
-                    {
-                        string keyStr = (key ?? "<null>").ToString();
-                        if (keyStr.Length == 0 || keyStr.IndexOf('\t') >= 0) { failed++; continue; }
-                        if (locateState == null)
-                        {
-                            System.Reflection.MethodInfo mi = null;
-                            foreach (var m in locator.GetType().GetMethods())
-                            {
-                                var ps = m.GetParameters();
-                                if (m.Name == "Locate" && ps.Length == 3 && ps[0].ParameterType == typeof(object)
-                                    && ps[1].ParameterType == typeof(Type) && ps[2].ParameterType.IsByRef)
-                                { mi = m; break; }
-                            }
-                            if (mi == null)
-                            {
-                                Side($"Locate(object,Type,out) not found on {locator.GetType().Name}");
-                                EditorPrefs.SetBool(DumpPrefsKey, false);
-                                EditorApplication.Exit(2);
-                                return;
-                            }
-                            locateState = new object[] { locator, mi };
-                        }
-                        var mi2 = (System.Reflection.MethodInfo)((object[])locateState)[1];
-                        var args = new object[] { key, null, null };
-                        object ok;
-                        try { ok = mi2.Invoke(locator, args); }
-                        catch { failed++; continue; }
-                        if (!(ok is bool flag && flag) || args[2] == null) { failed++; continue; }
-                        object loc = args[2];
-                        var lt = loc.GetType();
-                        var deps = new System.Text.StringBuilder();
-                        try
-                        {
-                            var depsValue = lt.GetProperty("Dependencies").GetValue(loc) as System.Collections.IEnumerable;
-                            if (depsValue != null)
-                                foreach (object d in depsValue)
-                                    deps.Append(';').Append(d == null ? "?" : d.GetType().GetProperty("InternalId")?.GetValue(d) ?? "?");
-                        }
-                        catch { }
-                        string tname = (lt.GetProperty("PrimaryKeyType").GetValue(loc) as Type)?.Name ?? "";
-                        sw.WriteLine($"{keyStr}\t{lt.GetProperty("ProviderId").GetValue(loc)}\t{lt.GetProperty("InternalId").GetValue(loc)}\t{tname}\t{deps}");
-                        written++;
-                    }
-                }
-                Side($"catalog dump done written={written} failed={failed} status={status} elapsed={EditorApplication.timeSinceStartup - startedAt:F1}s");
-                EditorPrefs.SetBool(DumpPrefsKey, false);
-                EditorApplication.Exit(0);
+                DumpManifest();
             }
             catch (System.Exception e)
             {
@@ -271,6 +205,148 @@ namespace MfgRebuild
                 EditorPrefs.SetBool(DumpPrefsKey, false);
                 EditorApplication.Exit(2);
             }
+        }
+
+        // The game initializes + releases the default init operation before we can observe it, so the
+        // handle may already be stale. Try Result first, then fall back to a bounded reflection walk
+        // from the Addressables static class's static fields down to whatever exposes Keys + Locate.
+        private static bool TryResolveLocator()
+        {
+            try
+            {
+                var ht = dumpHandle.GetType();
+                var isDone = (bool)ht.GetProperty("IsDone").GetValue(dumpHandle);
+                object res = isDone ? ht.GetProperty("Result").GetValue(dumpHandle) : null;
+                if (res != null && LooksLikeLocator(res))
+                {
+                    dumpLocator = res;
+                    Side($"locator via handle result ({res.GetType().Name})");
+                    return true;
+                }
+                if (!isDone)
+                {
+                    var st = ht.GetProperty("Status").GetValue(dumpHandle);
+                    string stName = st.ToString();
+                    if (stName == "Succeeded" || stName == "Running") return false;
+                    string err = ht.GetProperty("OperationException").GetValue(dumpHandle)?.ToString() ?? "<none>";
+                    Side($"catalog init failed status={stName} error={Truncate(err, 300)}");
+                    EditorPrefs.SetBool(DumpPrefsKey, false);
+                    EditorApplication.Exit(2);
+                    return false;
+                }
+            }
+            catch (System.Exception)
+            {
+                // handle released/stale (the game finished init before our first pump tick); scan below
+            }
+            var addrType = typeof(UnityEngine.AddressableAssets.Addressables);
+            foreach (var sf in addrType.GetFields(System.Reflection.BindingFlags.Static
+                | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic))
+            {
+                object seed;
+                try { seed = sf.GetValue(null); } catch { continue; }
+                if (seed == null) continue;
+                scanSeen.Clear();
+                object found = FindLocator(seed, 0);
+                if (found != null)
+                {
+                    dumpLocator = found;
+                    Side($"locator via scan seed={sf.Name} ({found.GetType().Name})");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static readonly System.Collections.Generic.HashSet<object> scanSeen =
+            new System.Collections.Generic.HashSet<object>();
+
+        private static object FindLocator(object node, int depth)
+        {
+            if (node == null || depth > 3 || scanSeen.Count > 20000) return null;
+            if (node is string) return null;
+            var t = node.GetType();
+            if (scanSeen.Add(node))
+            {
+                if (LooksLikeLocator(node)) return node;
+                if (depth < 3)
+                {
+                    foreach (var f in t.GetFields(System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic))
+                    {
+                        if (f.FieldType.IsPrimitive || f.FieldType.IsEnum) continue;
+                        object child;
+                        try { child = f.GetValue(node); } catch { continue; }
+                        object r = FindLocator(child, depth + 1);
+                        if (r != null) return r;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static bool LooksLikeLocator(object candidate)
+        {
+            if (candidate == null) return false;
+            var keys = candidate.GetType().GetProperty("Keys");
+            if (keys == null || !typeof(System.Collections.IEnumerable).IsAssignableFrom(keys.PropertyType))
+                return false;
+            foreach (var m in candidate.GetType().GetMethods())
+            {
+                var ps = m.GetParameters();
+                if (m.Name == "Locate" && ps.Length == 3 && ps[0].ParameterType == typeof(object)
+                    && ps[1].ParameterType == typeof(Type) && ps[2].ParameterType.IsByRef)
+                    return true;
+            }
+            return false;
+        }
+
+        private static void DumpManifest()
+        {
+            object locator = dumpLocator;
+            var lt = locator.GetType();
+            System.Reflection.MethodInfo locateMi = null;
+            foreach (var m in lt.GetMethods())
+            {
+                var ps = m.GetParameters();
+                if (m.Name == "Locate" && ps.Length == 3 && ps[0].ParameterType == typeof(object)
+                    && ps[1].ParameterType == typeof(Type) && ps[2].ParameterType.IsByRef)
+                { locateMi = m; break; }
+            }
+            int written = 0, failed = 0;
+            var sw = new System.IO.StreamWriter(@"C:\mfgtmp\catalog_manifest.tsv", false, System.Text.Encoding.UTF8);
+            using (sw)
+            {
+                sw.WriteLine("#key\tproviderId\tinternalId\ttypeName\tdeps");
+                foreach (object key in (System.Collections.IEnumerable)lt.GetProperty("Keys").GetValue(locator))
+                {
+                    string keyStr = (key ?? "<null>").ToString();
+                    if (keyStr.Length == 0 || keyStr.IndexOf('\t') >= 0) { failed++; continue; }
+                    var args = new object[] { key, null, null };
+                    object ok;
+                    try { ok = locateMi.Invoke(locator, args); }
+                    catch { failed++; continue; }
+                    if (!(ok is bool flag && flag) || args[2] == null) { failed++; continue; }
+                    object loc = args[2];
+                    var lct = loc.GetType();
+                    var deps = new System.Text.StringBuilder();
+                    try
+                    {
+                        var props = lct.GetProperty("Dependencies");
+                        var depsValue = props == null ? null : props.GetValue(loc) as System.Collections.IEnumerable;
+                        if (depsValue != null)
+                            foreach (object d in depsValue)
+                                deps.Append(';').Append(d == null ? "?" : d.GetType().GetProperty("InternalId")?.GetValue(d) ?? "?");
+                    }
+                    catch { }
+                    string tname = (lct.GetProperty("PrimaryKeyType")?.GetValue(loc) as Type)?.Name ?? "";
+                    sw.WriteLine($"{keyStr}\t{lct.GetProperty("ProviderId").GetValue(loc)}\t{lct.GetProperty("InternalId").GetValue(loc)}\t{tname}\t{deps}");
+                    written++;
+                }
+            }
+            Side($"catalog dump done written={written} failed={failed} elapsed={EditorApplication.timeSinceStartup - startedAt:F1}s");
+            EditorPrefs.SetBool(DumpPrefsKey, false);
+            EditorApplication.Exit(0);
         }
 
         // The shipping boot calls CertificateValidation.Init from the network stack's worker thread.

@@ -39,11 +39,34 @@ namespace MfgRebuild
         public static void PlayGate2()
         {
             EditorSettings.enterPlayModeOptionsEnabled = false;
+            ProvisionEditorAddressables();
             EditorPrefs.SetBool(PrefsKey, true);
             try { System.IO.File.Delete(@"C:\mfgtmp\play.log.txt"); } catch { }
             try { System.IO.File.Delete(@"C:\mfgtmp\side.log.txt"); } catch { }
             Debug.Log("AUTOMATION entering play mode");
             EditorApplication.EnterPlaymode();
+        }
+
+        // The project has no AddressableAssetsData (shipped game used a prebuilt catalog), so the
+        // package's editor init looks for Library/com.unity.addressables/aa/Windows/settings.json and
+        // fails with 'Invalid path in TextDataProvider'. The shipped settings.json resolves the
+        // catalog and bundles via {RuntimePath} (= Assets/StreamingAssets/aa) in the editor too, so
+        // dropping it at the expected editor location makes editor play serve the shipped layout.
+        private static void ProvisionEditorAddressables()
+        {
+            try
+            {
+                string project = System.IO.Directory.GetParent(Application.dataPath).FullName;
+                string src = System.IO.Path.Combine(project, "Assets", "StreamingAssets", "aa", "settings.json");
+                string dstDir = System.IO.Path.Combine(project, "Library", "com.unity.addressables", "aa", "Windows");
+                System.IO.Directory.CreateDirectory(dstDir);
+                System.IO.File.Copy(src, System.IO.Path.Combine(dstDir, "settings.json"), overwrite: true);
+                Side($"aa settings provisioned -> {dstDir}");
+            }
+            catch (System.Exception e)
+            {
+                Side($"aa settings provision failed {e.Message}");
+            }
         }
 
         // BeforeSceneLoad so the sink is live before ResidentFlow's Awake throws anything.
@@ -52,10 +75,13 @@ namespace MfgRebuild
         {
             if (!EditorPrefs.GetBool(PrefsKey, false)) return;
             Side("play-domain hook ran");
+            // ResidentFlow.InitializeOnBoot silences the Unity logger for arcade cosmetics; the
+            // editor needs it back or none of the boot progress logs are observable.
+            UnityEngine.Debug.unityLogger.logEnabled = true;
             PreloadCertificates();
             var ta = Resources.Load("certs/DigiCert") as TextAsset;
             Side($"playcertprobe exact={(ta == null ? "NULL" : ta.text.Length + " chars")}");
-            AppDomain.CurrentDomain.UnhandledException += e =>
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
                 Side($"UNHANDLED {e.ExceptionObject.GetType().Name}: {Truncate(e.ExceptionObject.ToString(), 900)}");
             Application.logMessageReceivedThreaded += (msg, stack, type) =>
             {

@@ -218,7 +218,10 @@ videos staged: **121 + 13 `.webm`**.
 
 Residual risks, honestly listed:
 
-1. **Shader stubs pink.** The ~40 dummy shader stubs make most materials render pink in the editor.
+1. **Shader stubs pink.** Measured 2026-10-25: 2394 material shader refs = 284 built-in + 2110
+   pointing at the 40 exported stubs (all ~0-byte placeholders) + 0 unresolved; stub names show the
+   real set: Shader Graph assets, Unity-chan toon family (DoubleShadeWithFeather/ShadingGradeMap +
+   stencil variants), TMP SDF, particle blends, Konami UI (Bsac_*), ProBuilder pickers. The 40 makes most materials render pink in the editor.
    Play-mode logic is unaffected; visual checks need shader recovery.
 2. **Merged assemblies vs bundle type strings.** MonoBehaviour references inside the 28k bundles
    serialize assembly names `kamunity`/`Shirahama*`/`VirtualSurround`/`Win10actLog-Runtime`, which no

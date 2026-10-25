@@ -36,6 +36,15 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
   `http://localhost:8090/?-FRONTURL=http://localhost:8090/aog` configures the browser client with no
   per-build code change (absolute URL keeps it same-origin; relative URLs are unreliable in
   UnityWebRequest). Desktop examples below.
+## First-payload sizing (measured 2026-10-25)
+
+- Boot scene files are tiny (< 1 MB); nothing heavy in Resources. The shipped startup cost is the
+  44.8 MB addressables `catalog.json` (init parses the whole catalog). Brotli-precompressed it streams
+  ~4-6 MB and webfront already serves `.br` variants, so brotli sidecar generation for the WebGL
+  content tree (catalog + regenerated bundles) is a prebuild step, not a code problem.
+- All 28k bundles (4.9 GB desktop equivalent) are lazy-loaded per screen; a browser first-play only
+  downloads the boot + title + lobby groups.
+
 - Real hosting can later be any server with the same three properties (static, COOP/COEP,
   UA-swapping proxy); webfront is the reference implementation and the local dev server.
 

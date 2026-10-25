@@ -24,6 +24,11 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 - Copy StreamingAssets content (video trees + `aa/` catalog + the 28k bundles staged in
   docs/21) under webroot/StreamingAssets so addressables lazy-load from the same origin; COEP is
   satisfied without CORS gymnastics because everything is same-origin.
+  Caveat: those staged bundles are the shipped StandaloneWindows64 builds. Correct for
+  editor/standalone play mode (same platform), but NOT directly usable by a WebGL player: bundle
+  content is target-specific (desktop-compiled shaders, BC textures). WebGL needs the bundles
+  rebuilt for its target (docs/04 Phase 3 regeneration); they then get served from this same
+  webroot path unchanged.
 - The game's front-server URL uses the rebuild's `-FRONTURL <url>` command-line option (added to
   `ResidentFlow.ApplyCommandLineArgs` on top of shipping `-KONAMINET`; calls the shipped but unused
   `NetEnvironment.SetEnv` with the proxy hop off). Unity WebGL receives command line arguments from
@@ -36,7 +41,6 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 
 ## Smoke evidence (2026-10-25, against live provider)
 - `GET /` with Chrome UA: 200 with coop=same-origin, coep=require-corp. Random 4 KB binary served byte-exact (latin1 staging).
-- `GET /` with Chrome UA: 200 with coop=same-origin, coep=require-corp.
 - `POST /aog/appli_boot` with Chrome UA + Origin header: 200 provider XML (UA rewrite works),
   Access-Control-Allow-Origin echoes origin, X-WebFront-Upstream: http:// <provider-host>.
 - `OPTIONS /aog/gget` preflight: 204 + ACAO.

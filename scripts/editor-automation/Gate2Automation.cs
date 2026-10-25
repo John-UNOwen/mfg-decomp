@@ -55,11 +55,13 @@ namespace MfgRebuild
             PreloadCertificates();
             var ta = Resources.Load("certs/DigiCert") as TextAsset;
             Side($"playcertprobe exact={(ta == null ? "NULL" : ta.text.Length + " chars")}");
-            Application.logMessageReceived += (msg, stack, type) =>
+            AppDomain.CurrentDomain.UnhandledException += e =>
+                Side($"UNHANDLED {e.ExceptionObject.GetType().Name}: {Truncate(e.ExceptionObject.ToString(), 900)}");
+            Application.logMessageReceivedThreaded += (msg, stack, type) =>
             {
                 try
                 {
-                    System.IO.File.AppendAllText(@"C:\mfgtmp\play.log.txt", $"[{type}] {msg}\n{stack}\n---\n");
+                    System.IO.File.AppendAllText(@"C:\mfgtmp\play.log.txt", $"[{type}] {Truncate(msg, 400)}\n---\n");
                 }
                 catch { }
             };
@@ -102,6 +104,12 @@ namespace MfgRebuild
             catch { }
         }
 
+        private static string Truncate(string s, int max)
+        {
+            if (s == null) return "<null>";
+            return s.Length <= max ? s : s.Substring(0, max) + "...";
+        }
+
         private static void Pump()
         {
             if (startedAt < 0) startedAt = EditorApplication.timeSinceStartup;
@@ -125,7 +133,24 @@ namespace MfgRebuild
             if (elapsed - lastHeartbeat > 15.0)
             {
                 lastHeartbeat = elapsed;
-                Side($"heartbeat t={elapsed:F0}s active_scene={active} scenes={SceneManager.sceneCount}");
+                var sb = new System.Text.StringBuilder();
+                sb.Append($"heartbeat t={elapsed:F0}s active='{active}'");
+                for (int i = 0; i < SceneManager.sceneCount; i++)
+                {
+                    var sc = SceneManager.GetSceneAt(i);
+                    sb.Append($" | [{i}]'{sc.name}' roots={sc.rootCount}");
+                    if (sc.IsValid() && sc.isLoaded)
+                    {
+                        var roots = sc.GetRootGameObjects();
+                        for (int j = 0; j < roots.Length && j < 6; j++) sb.Append($" {roots[j].name}");
+                    }
+                }
+                try
+                {
+                    sb.Append($" | rf={ResidentFlow.IsInitialized} net={JubeatPlus.NetworkService.IsInitialized}");
+                }
+                catch (System.Exception e) { sb.Append($" | state_err={e.GetType().Name}"); }
+                Side(sb.ToString());
             }
         }
 

@@ -19,12 +19,11 @@ namespace MfgRebuild
         private static double startedAt = -1.0;
 
         // Import pass: asset/database import + script compilation happen before executeMethod runs.
-        // Also turns off play-mode domain/scene reload so the PlayGate2 pump survives entering play.
+        // Play mode keeps full domain+scene reload: ResidentFlow boots in Awake/Start, and with
+        // Enter Play Mode Options those callbacks are skipped (observed stall right after play entry).
         public static void ImportAndQuit()
         {
-            EditorSettings.enterPlayModeOptionsEnabled = true;
-            EditorSettings.enterPlayModeOptions =
-                EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload;
+            EditorSettings.enterPlayModeOptionsEnabled = false;
             AssetDatabase.SaveAssets();
             Debug.Log($"AUTOMATION import done dataPath={Application.dataPath} scenes_in_build={EditorBuildSettings.scenes.Length}");
             EditorApplication.Exit(0);
@@ -35,6 +34,7 @@ namespace MfgRebuild
         // standalone player (mouse automation), not headless.
         public static void PlayGate2()
         {
+            EditorSettings.enterPlayModeOptionsEnabled = false;
             Debug.Log("AUTOMATION entering play mode");
             EditorApplication.EnterPlaymode();
             startedAt = EditorApplication.timeSinceStartup;

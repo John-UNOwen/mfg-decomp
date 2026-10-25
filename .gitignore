@@ -39,3 +39,7 @@ build/project-merge-analysis/verify/bin/
 
 *.alf
 *.ulf
+
+webfront/bin/
+webfront/obj/
+out/webroot/

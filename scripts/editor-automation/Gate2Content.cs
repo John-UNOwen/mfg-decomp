@@ -61,6 +61,75 @@ namespace MfgRebuild
             return settings;
         }
 
+        // Template capture for the YAML-generation route (scripts/gen_content_state.py): makes one
+        // sample group with three real entries + labels via the editor API, saves, and copies every
+        // produced AddressableAssetsData file (+ metas, EditorBuildSettings.asset) to C:\mfgtmp\template
+        // so the generator can replay exact serialization shapes for all 28k groups without paying
+        // per-asset editor import/refresh costs.
+        public static void CaptureTemplates()
+        {
+            var settings = EnsureSettings();
+            if (settings == null)
+            {
+                Side("template capture: no settings");
+                EditorApplication.Exit(2);
+                return;
+            }
+            var schemaTypes = new[] { typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema) };
+            var group = settings.CreateGroup("zz_sample_group", false, false, false, null, schemaTypes);
+            string[] samplePaths =
+            {
+                "Assets/Bundle/Common/MatCap/matcap_test.png",
+                "Assets/DFG-HeiSeiGothic-W7 Bingo.mat",
+                "Assets/MFG/Addressables/Banner/Animations/BtGachaSeriesBase.controller",
+            };
+            int made = 0;
+            foreach (var p in samplePaths)
+            {
+                string guid = AssetDatabase.AssetPathToGUID(p, AssetPathToGUIDOptions.OnlyExistingAssets);
+                if (string.IsNullOrEmpty(guid)) { Side($"sample missing path {p}"); continue; }
+                var entry = settings.CreateOrMoveEntry(guid, group, false, false);
+                entry.address = "sample/" + System.IO.Path.GetFileName(p);
+                settings.AddLabel("sample_label_alpha", false);
+                settings.AddLabel("sample_label_beta", false);
+                entry.SetLabel("sample_label_alpha", true, false, false);
+                entry.SetLabel("sample_label_beta", true, false, false);
+                made++;
+            }
+            EditorUtility.SetDirty(settings);
+            settings.SetDirty(AddressableAssetSettings.ModificationEvent.BatchModification, null, true, true);
+            AssetDatabase.SaveAssets();
+
+            const string dst = @"C:\mfgtmp\template";
+            Directory.CreateDirectory(dst);
+            CopyTreeWithMetas("Assets/AddressableAssetsData", dst, ref made);
+            File.Copy("EditorBuildSettings.asset", System.IO.Path.Combine(dst, "EditorBuildSettings.asset"), true);
+            Side($"template capture done files copied (entries made={made})");
+            EditorApplication.Exit(0);
+        }
+
+        private static void CopyTreeWithMetas(string srcFolder, string dstRoot, ref int counter)
+        {
+            if (!Directory.Exists(srcFolder)) return;
+            foreach (var f in Directory.GetFiles(srcFolder, "*", SearchOption.AllDirectories))
+            {
+                if (f.EndsWith(".meta")) continue;
+                string rel = f.Substring("Assets/".Length).Replace('/', '\\');
+                string dstFile = System.IO.Path.Combine(dstRoot, rel);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dstFile));
+                File.Copy(f, dstFile, true);
+                counter++;
+            }
+            foreach (var f in Directory.GetFiles(srcFolder, "*.meta", SearchOption.AllDirectories))
+            {
+                string rel = f.Substring("Assets/".Length).Replace('/', '\\');
+                string dstFile = System.IO.Path.Combine(dstRoot, rel);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dstFile));
+                File.Copy(f, dstFile, true);
+                counter++;
+            }
+        }
+
         // Replays the rebuild spec into editor content state: one group per shipped bundle,
         // entry address = shipped primary key, entry labels = shipped label keys.
         public static void BuildContentState()

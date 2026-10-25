@@ -36,3 +36,6 @@ build/tools/asmmeta/obj/
 
 build/project-merge-analysis/verify/obj/
 build/project-merge-analysis/verify/bin/
+
+*.alf
+*.ulf

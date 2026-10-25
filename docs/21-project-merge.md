@@ -348,3 +348,32 @@ re-export from AssetRipper would rebuild the map from scratch.
   documented here; players run the untouched shipped semantics.
 - Gate 2 passing = kyoku completed against the mock with the provider hop wired; a live-front
   kyoku is confirmation, not a blocker, while the public front :80 stalls.
+## 11. Gate 2 passed (2026-10-25)
+
+Standalone build 12 (Succeeded, 7,407,289,837 bytes, 0 errors) boots to lobby and plays a full
+kyoku on two front paths:
+
+- Offline mock (:8080, test hooks TEPAI/WIN): Boot checklist all PASS -> Logo -> Title ->
+  Login guest -> intro story -> FirstCharaSelect -> Home -> Guide -> Matching -> MahjongPlay.
+  Kyoku 0 concluded: mock logged KYOKUEND end_stat=0 scores=[33000,29000,29000,29000]; client
+  confirmed NEXT_KYOKU_READY and started kyoku 1 (kyoku 0 also completed without hooks in the
+  earlier unhooked run, all 210+ gpost accepted).
+- Live public provider (RyuNET  <provider-host>:80 /aog) through the mock hop on :8081: identical
+  UI path, real matchmaking table, kyoku driven by the provider engine (gget 35KB state polls,
+  gpost accepted 200), ron agari cutin, PlayerResultInfo parse (rank 2, score 22200, uma -10000
+  for our seat), end_game 200, Result scene loaded. 396 front requests, every one answered
+  200 by the provider through the hop.
+
+- Player args (desktop netcafe local play): -KONAMINET -FRONTURL http://127.0.0.1:8080/aog
+  -GAMELOG -NOIO -appBehavior NETCAFE -AUTOSERVE. The four Kamunity-off guards from section 10
+  plus -NOIO (I/O checklist bypass; netcafe without IO gates ends in a dead end otherwise) are
+  what make this configuration run standalone.
+- UI driver: -AUTOSERVE runs Assets\RuntimeHarness\AutoServeBehaviour.cs (repo copy
+  scripts\runtime-harness). Screenshots are unusable in this session (capture returns black), so
+  the harness polls live Buttons in the active flow scene and invokes onClick, logging
+  AUTOSERVE poll/invoked lines as the observable trail. Title needs private _loginRequest
+  injection because ScreenTouch gates on a cabinet touch panel; Home 対局 = a GameObject named
+  ModeButton (name collision with the mode-window tab button of the same name, pool dedupe by
+  name makes which one fires traversal-order dependent; BtStart force rule decides the window);
+  guide dialogs auto-advance on timeouts. Rules hot-edit from C:\mfgtmp\autocode.cfg
+  (example in scripts\runtime-harness).

@@ -152,62 +152,116 @@ namespace MfgRebuild
             };
             if (dumpMode)
             {
-                var handle = UnityEngine.AddressableAssets.Addressables.InitializeAsync();
-                EditorApplication.update += () => DumpPump(handle);
+                // Reflection only: Assembly-CSharp-Editor cannot see UnityEngine.ResourceManager /
+                // .AddressableAssets (package asmdefs are autoReferenced=false), and the shipped game
+                // reaches addressables without a compile-time reference too (S3: no Addressables. in
+                // recovered code). Start init through the public Addressables class, then everything
+                // below runs late-bound on the play domain's objects.
+                var initMi = typeof(UnityEngine.AddressableAssets.Addressables).GetMethod("InitializeAsync",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                    null, Type.EmptyTypes, null);
+                if (initMi == null)
+                {
+                    Side("Addressables.InitializeAsync() not found");
+                    EditorPrefs.SetBool(DumpPrefsKey, false);
+                    EditorApplication.Exit(2);
+                    return;
+                }
+                dumpHandle = initMi.Invoke(null, null);
+                EditorApplication.update += DumpPump;
                 return;
             }
             EditorApplication.update += Pump;
         }
 
-        private static bool dumpStarted;
+        private static object dumpHandle;
 
-        private static void DumpPump(UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle<
-            UnityEngine.ResourceManagement.ResourceLocators.IResourceLocator> handle)
+        private static void DumpPump()
         {
-            if (!handle.IsDone)
-            {
-                if (!dumpStarted)
-                {
-                    dumpStarted = true;
-                    Side("catalog init started");
-                }
-                return;
-            }
-            dumpStarted = true;
             try
             {
-                var locator = handle.Result as UnityEngine.ResourceManagement.ResourceLocators.ResourceLocator;
-                if (locator == null || handle.Status != UnityEngine.ResourceManagement.AsyncOperations.OperationStatus.Succeeded)
+                var ht = dumpHandle.GetType();
+                var isDone = (bool)ht.GetProperty("IsDone").GetValue(dumpHandle);
+                if (!isDone)
                 {
-                    Side($"catalog init failed status={handle.Status} error={Truncate(handle.OperationException?.Message, 300)}");
+                    if (startedAt < 0)
+                    {
+                        startedAt = EditorApplication.timeSinceStartup;
+                        Side("catalog init started");
+                    }
+                    else if (EditorApplication.timeSinceStartup - startedAt > 300.0)
+                    {
+                        Side("catalog init timeout");
+                        EditorPrefs.SetBool(DumpPrefsKey, false);
+                        EditorApplication.Exit(2);
+                    }
+                    return;
+                }
+                if (startedAt < 0) startedAt = EditorApplication.timeSinceStartup;
+                string status = ht.GetProperty("Status").GetValue(dumpHandle).ToString();
+                object locator = ht.GetProperty("Result").GetValue(dumpHandle);
+                if (locator == null || status != "Succeeded")
+                {
+                    var errProp = ht.GetProperty("OperationException");
+                    object err = errProp == null ? null : errProp.GetValue(dumpHandle);
+                    Side($"catalog init failed status={status} error={(err == null ? "<none>" : Truncate(err.ToString(), 300))}");
                     EditorPrefs.SetBool(DumpPrefsKey, false);
                     EditorApplication.Exit(2);
                     return;
                 }
+                object locateState = null; // [locator, locateMi] once resolved
                 int written = 0, failed = 0;
                 var sw = new System.IO.StreamWriter(@"C:\mfgtmp\catalog_manifest.tsv", false, System.Text.Encoding.UTF8);
                 using (sw)
                 {
                     sw.WriteLine("#key\tproviderId\tinternalId\ttypeName\tdeps");
-                    foreach (object key in locator.Keys)
+                    foreach (object key in (System.Collections.IEnumerable)locator.GetType()
+                        .GetProperty("Keys").GetValue(locator))
                     {
-                        string keyStr = key?.ToString() ?? "<null>";
+                        string keyStr = (key ?? "<null>").ToString();
                         if (keyStr.Length == 0 || keyStr.IndexOf('\t') >= 0) { failed++; continue; }
-                        UnityEngine.ResourceManagement.ResourceLocations.IResourceLocation loc;
-                        if (!locator.Locate(key, null, out loc) || loc == null) { failed++; continue; }
-                        string deps = "";
-                        if (loc.Dependencies != null)
+                        if (locateState == null)
                         {
-                            var sb = new System.Text.StringBuilder();
-                            foreach (var d in loc.Dependencies)
-                                sb.Append(';').Append(d?.InternalId ?? "?");
-                            deps = sb.ToString();
+                            System.Reflection.MethodInfo mi = null;
+                            foreach (var m in locator.GetType().GetMethods())
+                            {
+                                var ps = m.GetParameters();
+                                if (m.Name == "Locate" && ps.Length == 3 && ps[0].ParameterType == typeof(object)
+                                    && ps[1].ParameterType == typeof(Type) && ps[2].ParameterType.IsByRefType)
+                                { mi = m; break; }
+                            }
+                            if (mi == null)
+                            {
+                                Side($"Locate(object,Type,out) not found on {locator.GetType().Name}");
+                                EditorPrefs.SetBool(DumpPrefsKey, false);
+                                EditorApplication.Exit(2);
+                                return;
+                            }
+                            locateState = new object[] { locator, mi };
                         }
-                        sw.WriteLine($"{keyStr}\t{loc.ProviderId}\t{loc.InternalId}\t{loc.PrimaryKeyType?.Name}\t{deps}");
+                        var mi2 = (System.Reflection.MethodInfo)((object[])locateState)[1];
+                        var args = new object[] { key, null, null };
+                        object ok;
+                        try { ok = mi2.Invoke(locator, args); }
+                        catch { failed++; continue; }
+                        if (!(ok is bool flag && flag) || args[2] == null) { failed++; continue; }
+                        object loc = args[2];
+                        var lt = loc.GetType();
+                        var deps = new System.Text.StringBuilder();
+                        try
+                        {
+                            var depsValue = lt.GetProperty("Dependencies").GetValue(loc) as System.Collections.IEnumerable;
+                            if (depsValue != null)
+                                foreach (object d in depsValue)
+                                    deps.Append(';').Append(d == null ? "?" : d.GetType().GetProperty("InternalId")?.GetValue(d) ?? "?");
+                        }
+                        catch { }
+                        string tname = (lt.GetProperty("PrimaryKeyType").GetValue(loc) as Type)?.Name ?? "";
+                        sw.WriteLine($"{keyStr}\t{lt.GetProperty("ProviderId").GetValue(loc)}\t{lt.GetProperty("InternalId").GetValue(loc)}\t{tname}\t{deps}");
                         written++;
                     }
                 }
-                Side($"catalog dump done written={written} failed={failed} status={handle.Status}");
+                Side($"catalog dump done written={written} failed={failed} status={status} elapsed={EditorApplication.timeSinceStartup - startedAt:F1}s");
                 EditorPrefs.SetBool(DumpPrefsKey, false);
                 EditorApplication.Exit(0);
             }

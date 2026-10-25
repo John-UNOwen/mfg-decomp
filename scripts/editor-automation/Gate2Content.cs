@@ -178,18 +178,7 @@ namespace MfgRebuild
             };
             var report = BuildPipeline.BuildPlayer(options);
             var summary = report.summary;
-            Side($"webgl build result={summary.result} totalSize={report.totalSize} " +
-                $"time={summary.totalTime}");
-            if (summary.result != BuildResult.Succeeded)
-            {
-                int shown = 0;
-                foreach (var info in report.GetAllWarningsAndErrors())
-                {
-                    if (info.type != BuildReportType.Error) continue;
-                    Side($"build error: {info}");
-                    if (++shown >= 10) break;
-                }
-            }
+            Side($"webgl build result={summary.result} time={summary.totalTime} out={options.locationPathName}");
             EditorApplication.Exit(summary.result == BuildResult.Succeeded ? 0 : 5);
         }
     }

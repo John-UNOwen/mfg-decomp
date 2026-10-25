@@ -1,5 +1,8 @@
 # Standalone player smoke: boot the built player against the offline mock front,
 # watch boot markers in the redirected player stdout and request traffic in the mock log.
+# Default args = gate-2 config: -KONAMINET + mock FRONTURL + -GAMELOG + -NOIO + NETCAFE behavior.
+# With -AUTOSERVE in $ArgsExtra the in-player AutoServeBehaviour drives the UI (see
+# scripts/runtime-harness/AutoServeBehaviour.cs; rules live in C:\mfgtmp\autocode.cfg).
 # usage: pwsh -File scripts\smoke_player.ps1 [-Exe <path>] [-TimeoutSec 240] [-ArgsExtra @()]
 param(
   [string]$Exe = 'C:\mfg\build\unity-project\out\standalone\MFG.exe',
@@ -8,10 +11,10 @@ param(
 )
 $ProgressPreference = 'SilentlyContinue'
 $repoRoot = (Get-Location).Path
-$mockLog = Join-Path $repoRoot 'mock\bin\Release\net8.0\mock.log.txt'
+$mockLog = Join-Path $repoRoot 'mock\mock.log.txt'
 $stdout = 'C:\mfgtmp\player_stdout.log'
 Remove-Item $stdout -EA SilentlyContinue
-$plArgs = @('-KONAMINET', '-FRONTURL', 'http://127.0.0.1:8080/aog', '-GAMELOG', '-popupwindow', '-screen-width', '1280', '-screen-height', '720') + $ArgsExtra
+$plArgs = @('-KONAMINET', '-FRONTURL', 'http://127.0.0.1:8080/aog', '-GAMELOG', '-NOIO', '-appBehavior', 'NETCAFE', '-popupwindow') + $ArgsExtra
 $exeDir = [IO.Path]::GetDirectoryName($Exe)
 if (-not $exeDir) { $exeDir = (Get-Location).Path }
 $proc = Start-Process -FilePath $Exe -WorkingDirectory $exeDir -ArgumentList $plArgs -RedirectStandardOutput $stdout -PassThru

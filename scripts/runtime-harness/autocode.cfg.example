@@ -1,0 +1,7 @@
+// autocode steering rules for AutoServeBehaviour (gate 2 headless play)
+// format: scene|match|pattern[ rep]; match = exact | contains; append f to match to also
+// hit non-interactable buttons; ' rep' re-fires every 2 s poll (dialogs/turn loops).
+// Built-in steps (no rule needed): Title login-request injection, Login guest click,
+// FirstCharaSelect window decide. Player reads this file live from C:\mfgtmp\autocode.cfg.
+Home|exact|ModeButton
+Guide|containsf|Bt rep

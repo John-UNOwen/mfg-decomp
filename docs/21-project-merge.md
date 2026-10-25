@@ -327,3 +327,6 @@ re-export from AssetRipper would rebuild the map from scratch.
   UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs (AC + firstpass). Unity 2022 generates the
   same class itself, so the copies must go; prepare_project.ps1 now deletes them (they caused
   CS0101/CS0579/CS0111 even on a clean Library).
+  - After an aborted compile, Bee and Library\SourceGenerated keep the old input list, so a
+    deleted .cs yields CS2001 "Source file not found" on the next run. Delete Library\Bee and
+    Library\SourceGenerated (asset artifacts survive) before rerunning compilation.

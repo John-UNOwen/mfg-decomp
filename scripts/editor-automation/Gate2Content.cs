@@ -130,6 +130,40 @@ namespace MfgRebuild
             }
         }
 
+        // Load the generated content state after a plain import pass and cross-check counts
+        // against C:\mfgtmp\gen_counts.txt written by scripts/gen_content_state.py.
+        public static void VerifyContentState()
+        {
+            var settings = EnsureSettings();
+            if (settings == null)
+            {
+                Side("verify: no settings (config object lost?)");
+                EditorApplication.Exit(2);
+                return;
+            }
+            int entryTotal = 0, schemaMissing = 0;
+            foreach (var g in settings.groups)
+            {
+                if (g == null) continue;
+                entryTotal += g.entries.Count;
+                if (g.Schemas.Count == 0) schemaMissing++;
+            }
+            string expected = "<?>";
+            try { expected = File.ReadAllText(@"C:\mfgtmp\gen_counts.txt").Trim(); } catch { }
+            Side($"verify groups={settings.groups.Count} entries={entryTotal} " +
+                $"labels={settings.GetLabels().Count} schemalessGroups={schemaMissing} expected[{expected}]");
+            // dump one non-built-in group entry for eyeballing
+            foreach (var g in settings.groups)
+            {
+                if (g == null || g.entries.Count == 0) continue;
+                if (g.Name == "Built In Data" || g.Name == "Default Local Group") continue;
+                var e = g.entries[0];
+                Side($"sample group={g.Name} entry guid={e.guid} addr={e.address} labels={e.labels.Count} schemas={g.Schemas.Count}");
+                break;
+            }
+            EditorApplication.Exit(0);
+        }
+
         // Replays the rebuild spec into editor content state: one group per shipped bundle,
         // entry address = shipped primary key, entry labels = shipped label keys.
         public static void BuildContentState()

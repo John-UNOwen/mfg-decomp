@@ -1,0 +1,759 @@
+{
+    "when":  "2026-10-24T20:19:13",
+    "placedCsFiles":  1477,
+    "placedDistinctTypes":  1932,
+    "keptLooseDlls":  [
+                          "DOTween",
+                          "Springbone.Runtime",
+                          "UniRx",
+                          "UniTask",
+                          "UniTask.Addressables",
+                          "UniTask.DOTween",
+                          "UniTask.Linq",
+                          "UniTask.TextMeshPro",
+                          "Unity.ProBuilder",
+                          "Unity.ProBuilder.Csg",
+                          "Unity.ProBuilder.KdTree",
+                          "Unity.ProBuilder.Poly2Tri",
+                          "Unity.ProBuilder.Stl",
+                          "Unity.RenderPipelines.Core.Runtime",
+                          "Unity.RenderPipelines.Core.ShaderLibrary",
+                          "Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary",
+                          "Unity.TextMeshPro",
+                          "Unity.Timeline",
+                          "Unity_userfully",
+                          "UnityEngine.UI",
+                          "zxing.unity"
+                      ],
+    "keptLooseDllTypeCounts":  {
+                                   "DOTween":  191,
+                                   "Springbone.Runtime":  101,
+                                   "UniRx":  800,
+                                   "UniTask":  592,
+                                   "UniTask.Addressables":  12,
+                                   "UniTask.DOTween":  13,
+                                   "UniTask.Linq":  561,
+                                   "UniTask.TextMeshPro":  9,
+                                   "Unity.ProBuilder":  209,
+                                   "Unity.ProBuilder.Csg":  17,
+                                   "Unity.ProBuilder.KdTree":  23,
+                                   "Unity.ProBuilder.Poly2Tri":  39,
+                                   "Unity.ProBuilder.Stl":  13,
+                                   "Unity.RenderPipelines.Core.Runtime":  513,
+                                   "Unity.RenderPipelines.Core.ShaderLibrary":  7,
+                                   "Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary":  7,
+                                   "Unity.TextMeshPro":  177,
+                                   "Unity.Timeline":  126,
+                                   "Unity_userfully":  82,
+                                   "UnityEngine.UI":  206,
+                                   "zxing.unity":  369
+                               },
+    "placedVsLooseDllCollisions":  [
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Springbone.Runtime",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "UniRx",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "UniTask",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "UniTask.Addressables",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "UniTask.DOTween",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "UniTask.Linq",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "UniTask.TextMeshPro",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.ProBuilder",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.ProBuilder.Csg",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.ProBuilder.KdTree",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.ProBuilder.Poly2Tri",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.ProBuilder.Stl",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.RenderPipelines.Core.Runtime",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.RenderPipelines.Core.ShaderLibrary",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.TextMeshPro",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity.Timeline",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "Unity_userfully",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       },
+                                       {
+                                           "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                           "dll":  "UnityEngine.UI",
+                                           "files":  [
+                                                         "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                         "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                     ]
+                                       }
+                                   ],
+    "duplicateFqnsInPlacedCode":  [
+                                      {
+                                          "fqn":  "ViewElement",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\PlayerAccessoryViewData.cs",
+                                                        "Assets\\Assembly-CSharp\\ViewManager.cs",
+                                                        "Assets\\Assembly-CSharp\\ViewManager.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "MFG.GameRequest.ConsumeLog",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ItemConsumeLog.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ItemGainLog.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.CameraKind",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\UIAttachCam.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\VideoAttachCam.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "LogData",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\LogData.cs",
+                                                        "Assets\\Assembly-CSharp\\TCSBookKeeping.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "BioContext",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputTBS.cs",
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputUKS.cs",
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputVFG.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.Pattern",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\Pattern.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\VirtualCoinSettings.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.INITMODE",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2a.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobIcca.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.INPUT",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTCS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2aVFG.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobIcca.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.OUTPUTDATA",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2a.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobIcca.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.ConnectionDisp",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\NetworkCheck.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\QCMode.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.Status",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\ConsentConfirmation.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\ErrorMode.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\RomCheck.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "MFG.GameData.EventTaku.BonusType",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\AccelDoraEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\AllGreenEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\AtomicEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\BlowawayEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\BombEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\ComebackTakuEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\FireGalaxyEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\FireReachEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\KirisameTakuEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\MeldBonusTakuEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\PckGalaxyEventGameData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameData.EventTaku\\ReversalEventGameData.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "YakuInfo",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\Agari.cs",
+                                                        "Assets\\Assembly-CSharp\\YakuInfo.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "MFG.GameRequest.GachaResult",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CutinGachaPlayDraw.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\MusicGachaPlayRequest.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.SaveData",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\BookKeepingSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\CalibrationSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\ClockSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\CoinSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\GachaTicketLogSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\GameSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\LanguageSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\NetworkSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\SoundSettings.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\VirtualCoinSettings.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.TAPELED_CNT",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTCS.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "ColorType",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\Tile.cs",
+                                                        "Assets\\Assembly-CSharp\\TsumikomiTile.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.SLOT",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTCS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2aVFG.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.System.Net.Response",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\Konami.System.Net\\Response.cs",
+                                                        "Assets\\Assembly-CSharp\\Konami.System.Net\\Response.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.RequestSateInStateMenu",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\BookKeeping.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\ClosingTimeOptions.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\GameOptions.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "STEP",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\BootSceneFlow.cs",
+                                                        "Assets\\Assembly-CSharp\\CardEntryScene.cs",
+                                                        "Assets\\Assembly-CSharp\\DispSerialID.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.INPUTDATA",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2a.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobIcca.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "STATE",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\BootSceneFlow.cs",
+                                                        "Assets\\Assembly-CSharp\\CountDownTimer.cs",
+                                                        "Assets\\Assembly-CSharp\\EdgeTouchingWarning.cs",
+                                                        "Assets\\Assembly-CSharp\\HaiShantenIcon.cs",
+                                                        "Assets\\Assembly-CSharp\\UnableCharaGachaSelectWindow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "SlotStatus",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\DojoFlow.cs",
+                                                        "Assets\\Assembly-CSharp\\SubMonitorDojoFlow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.LampID",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\LampCheck.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\QCMode.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "MFG.GameRequest.ResultData",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\AppliBoot.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\AppliInfo.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CharaEnabledSend.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ChkTabooword.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ClientStateRead.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ClientStateWrite.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CompetitionEntry.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CoopDone.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CreatePlayer.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CutinGachaPlayApply.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CutinGachaPlayDraw.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\DojoGainSoul.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\DojoGetStatus.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\DojoSetSlot.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\EndGame.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\EndShow.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\EntryGame.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GachaInfoRequest.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GachaLogSend.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GChat.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GetHaifuData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GetHaifuList.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GetJongStoneInfo.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GetMenuData.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GetMg.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GetRecord.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GGet.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GGetStampInfo.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\GPost.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ImportantNoticeDone.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ItemConsumeLog.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ItemGainLog.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\JanponLog.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\KeepAlive.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\KikenGame.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\Login.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\Logout.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\MissionDate.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\MusicGachaPlayRequest.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\MusicGachaPlayReserve.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\NoticeDone.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\OdekakeDone.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\PresentDone.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\Reconnect.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ReqDrawGacha.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ReqGachaResult.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\SetFavoriteCharacter.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "SaveData",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\BackupStorage.cs",
+                                                        "Assets\\Assembly-CSharp\\ServiceButtonLog.cs",
+                                                        "Assets\\Assembly-CSharp\\TCSBookKeeping.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.ServiceCategoryId",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleCcUploaderTypes.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleUploaderTypes.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.COMMSTATUS",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioNMgrIob.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioSci.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.FindFilesResponse_Content",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleCcUploaderTypes.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleUploaderTypes.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.TAPELED",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTCS.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.XrpcMethodBase",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcMethodBase.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcMethodBase.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.TimeCursor",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\Clock.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\Pattern.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.COUNTER",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTCS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2aVFG.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "MonoScriptData",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "MFG.GameRequest.Param",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\ClientStateRead.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\CompetitionEntry.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "NativeMethods",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\Cloudstrap.cs",
+                                                        "Assets\\Assembly-CSharp\\MouseInputWrapper.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.AMP",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2aVFG.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "AttentionMessage",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\AttentionMessage.cs",
+                                                        "Assets\\Assembly-CSharp\\ThinkCount.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TestModeSkeleton.Path",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\NetworkCheck.cs",
+                                                        "Assets\\Assembly-CSharp\\TestModeSkeleton\\QCMode.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "COLOR",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\DemoErrorMessage.cs",
+                                                        "Assets\\Assembly-CSharp\\PaseliWindow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Item",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\DanLevelMaster.cs",
+                                                        "Assets\\Assembly-CSharp\\ErrorData.cs",
+                                                        "Assets\\Assembly-CSharp\\FightGirlNewsProperties.cs",
+                                                        "Assets\\Assembly-CSharp\\PlayRuleWindowProperties.cs",
+                                                        "Assets\\Assembly-CSharp\\SystemUtility.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "TileMaterial",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\TileManager.cs",
+                                                        "Assets\\Assembly-CSharp\\TsumikomiTileManager.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.CONSTVAL",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2x.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTCS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2a.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2aVFG.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobCardId.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobIcca.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.XrpcMethodCommitUpload",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleCcUploader.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleUploader.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.XrpcMethodFindFiles",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleCcUploader.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleUploader.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "UnitySourceGeneratedAssemblyMonoScriptTypes_v1",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "CutinMovie",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\CutinMovie.cs",
+                                                        "Assets\\Assembly-CSharp\\MovieTestFlow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "MFG.GameRequest.RequestApiBase",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\RequestApiBase.cs",
+                                                        "Assets\\Assembly-CSharp\\MFG.GameRequest\\RequestApiBase.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "AssetType",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\DebutEffect.cs",
+                                                        "Assets\\Assembly-CSharp\\DojoFlow.cs",
+                                                        "Assets\\Assembly-CSharp\\SubMonitorDojoFlow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "ResultType",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\FightSpiritConsumeWindow.cs",
+                                                        "Assets\\Assembly-CSharp\\PlayCountResultWindow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.EA3_EACOIN_ERROR",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\AvsEa3CoinTypes.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\AvsTypes.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "INITSTEP",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputTBS.cs",
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputUKS.cs",
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputVFG.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.XrpcMethodDeclareUpload",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleCcUploader.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleUploader.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.DEVSTATUS",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTCS.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2a.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobBi2aVFG.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIobIcca.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.STEP",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\FileCcUploaderHelper.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\FileUploaderHelper.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcService.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.IORESET",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "Konami.Aio.IORESETDATA",
+                                          "files":  [
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xAC1.cs",
+                                                        "Assets\\Plugins\\Assembly-CSharp-firstpass\\Konami.Aio\\aioIob2Bi2xTBS.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "CharaSlot",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\DojoFlow.cs",
+                                                        "Assets\\Assembly-CSharp\\SubMonitorDojoFlow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "EndType",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\BreakTimeWindow.cs",
+                                                        "Assets\\Assembly-CSharp\\ConsumeWindow.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.InternalMethod",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\Avs.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\AvsBookkeeping.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\AvsEa3.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\AvsEa3Coin.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\AvsEa3Xrpc.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\Bootstrap.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\Cardnumber.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\ExtDrm.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\QRLogin.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "KAMUNITY.XrpcMethodDeclareDiscard",
+                                          "files":  [
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleCcUploader.cs",
+                                                        "Assets\\kamunity\\KAMUNITY\\XrpcModuleUploader.cs"
+                                                    ]
+                                      },
+                                      {
+                                          "fqn":  "InputElement",
+                                          "files":  [
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputTBS.cs",
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputUKS.cs",
+                                                        "Assets\\Assembly-CSharp\\Bi2xInputVFG.cs"
+                                                    ]
+                                      }
+                                  ],
+    "assemblyQualifiedLookupsToMergedAssemblies":  [
+
+                                                   ]
+}

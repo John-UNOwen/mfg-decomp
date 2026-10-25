@@ -1,0 +1,56 @@
+{
+    "when":  "2026-10-24T20:17:23",
+    "phases":  "trees+metas, loose dll disposition, manifest+csc.rsp, bundle staging",
+    "totals":  {
+                   "assetsTotalFiles":  146599,
+                   "assetsCsFiles":  1477,
+                   "assetsMetaFiles":  58743,
+                   "looseDllsRemaining":  21,
+                   "foldersDeleted":  [
+
+                                      ],
+                   "bundleFiles":  28295,
+                   "bundleBytes":  5252208459,
+                   "charactersWebm":  121,
+                   "yakumanWebm":  13,
+                   "metasCarried":  794,
+                   "namespacesTransformed":  909,
+                   "metasEditorEnabled":  0,
+                   "looseItemsDeleted":  [
+
+                                         ],
+                   "manifestEntries":  38
+               },
+    "assemblyStats":  {
+                          "Assembly-CSharp":  {
+                                                  "exportCs":  1314,
+                                                  "carries":  753,
+                                                  "keeps":  0,
+                                                  "guidOrphans":  0,
+                                                  "guidDupeDrops":  0,
+                                                  "exportCsNoMetaCovered":  560
+                                              },
+                          "Assembly-CSharp-firstpass":  {
+                                                            "exportCs":  72,
+                                                            "carries":  41,
+                                                            "keeps":  0,
+                                                            "guidOrphans":  0,
+                                                            "guidDupeDrops":  0,
+                                                            "exportCsNoMetaCovered":  30
+                                                        },
+                          "kamunity":  "plugin-tree (no AssetRipper cs export existed)",
+                          "Shirahama":  "plugin-tree (no AssetRipper cs export existed)",
+                          "Shirahama.Async":  "plugin-tree (no AssetRipper cs export existed)",
+                          "Shirahama.Rx":  "plugin-tree (no AssetRipper cs export existed)",
+                          "VirtualSurround":  "plugin-tree (no AssetRipper cs export existed)",
+                          "Win10actLog-Runtime":  "plugin-tree (no AssetRipper cs export existed)"
+                      },
+    "guards":  {
+                   "referencedInOtherExportFolders":  [
+
+                                                      ],
+                   "referencedGuidsNotCarriedOrKept":  [
+
+                                                       ]
+               }
+}

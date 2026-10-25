@@ -33,3 +33,6 @@ tmp/streamingassets-stage/
 
 build/tools/asmmeta/bin/
 build/tools/asmmeta/obj/
+
+build/project-merge-analysis/verify/obj/
+build/project-merge-analysis/verify/bin/

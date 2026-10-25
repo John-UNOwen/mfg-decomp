@@ -1,0 +1,92 @@
+{
+ "results": {
+  "3a5e0fa8b46a071a01d714d29e619292": [
+   "kamunity.dll.meta",
+   {}
+  ],
+  "b2b020ff5557f37bd18a812f03c24d9c": [
+   "Shirahama.dll.meta",
+   {}
+  ],
+  "2f0ac8a74317369c34d2cf8cd7a87ad3": [
+   "Unity.Addressables.dll.meta",
+   {}
+  ],
+  "8c4cbb421ce28a8fffaeb3d5ca7d6e29": [
+   "Unity.ResourceManager.dll.meta",
+   {}
+  ],
+  "67dfb1fdfb2b407222eda8e23ac8b724": [
+   "Unity.TextMeshPro.dll.meta",
+   {}
+  ],
+  "1f79187d04fa6fdd168e19d4bafe7dfa": [
+   "Unity.Timeline.dll.meta",
+   {}
+  ],
+  "d3e719b59ab71ba3f6b398058c866280": [
+   "UnityEngine.UI.dll.meta",
+   {}
+  ],
+  "57c9a3e5193e26c4b968cc86e528416d": [
+   "Unity.RenderPipelines.Core.Runtime.dll.meta",
+   {}
+  ],
+  "2fa277733cf6e1533c5b7283121f7261": [
+   "Unity.AI.Navigation.dll.meta",
+   {}
+  ],
+  "48f5c5a1018ef6d05b06eda9831963cc": [
+   "Unity.Recorder.dll.meta",
+   {}
+  ],
+  "70c8d96c7c0cf79843e3d6bf686b9d52": [
+   "Autodesk.Fbx.dll.meta",
+   {}
+  ],
+  "7b1a59189237b800ccebfc62fc3362d6": [
+   "UniRx.dll.meta",
+   {}
+  ],
+  "64435b183d43d2249e5ec6a06a177dd8": [
+   "UniTask.dll.meta",
+   {}
+  ],
+  "9684ab7ac98f2cc8be57bb5146ddf8ea": [
+   "DOTween.dll.meta",
+   {}
+  ],
+  "3f0c6900adce850870879787e038a42d": [
+   "Springbone.Runtime.dll.meta",
+   {}
+  ],
+  "2d5637c19bd712726e640fce0b7d48a3": [
+   "zxing.unity.dll.meta",
+   {}
+  ],
+  "86fe11240ced471656b7a1b4e0cc8cce": [
+   "Unity_userfully.dll.meta",
+   {}
+  ],
+  "024cf8091853995adef283e1ccc264bc": [
+   "Win10actLog-Runtime.dll.meta",
+   {}
+  ],
+  "7d92c28de253b4c5391ea5623ed75ea6": [
+   "VirtualSurround.dll.meta",
+   {}
+  ],
+  "27f63cebb9740ed1ab1553347609c4de": [
+   "AccelDoraAnimationEventNotifier.cs.meta",
+   {}
+  ],
+  "32384452a89a0b59467baffea00030a4": [
+   "AudioManager.cs.meta",
+   {}
+  ],
+  "cf9c8026daaaa12c01c60f6a07190990": [
+   "BoardBase.cs.meta",
+   {}
+  ]
+ }
+}

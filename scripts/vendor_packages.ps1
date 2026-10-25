@@ -56,6 +56,8 @@ while ($queue.Count -gt 0) {
   New-Item -ItemType Directory -Force $stage | Out-Null
   tar -xzf $tgz -C $stage
   $pkgRoot = Join-Path $stage 'package'
+  # test assemblies of vendored packages would compile against a missing NUnit framework in-editor
+  Get-ChildItem $pkgRoot -Recurse -Directory | Where-Object { $_.Name -match 'Tests' } | Remove-Item -Recurse -Force
   $pj = Get-Content (Join-Path $pkgRoot 'package.json') -Raw | ConvertFrom-Json
   $dest = Join-Path $pkgsDir $name
   if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }

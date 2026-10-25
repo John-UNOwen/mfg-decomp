@@ -971,6 +971,21 @@ public class ResidentFlow : BaseFlow
 		KAMUNITY.Logger.Log($"IsIOEnable: {GameUtility.IsIOEnable}");
 		KAMUNITY.Logger.Log($"AppBehavior: {SystemConfigGameData.AppBehaviorType}");
 		KAMUNITY.Logger.Log($"IsCloudStreaming: {SystemConfigGameData.IsCloudStreaming}");
+		string frontUrl = commandLineArgs.GetOption("-FRONTURL", "");
+		if (!string.IsNullOrEmpty(frontUrl))
+		{
+			// rebuild-only: point the AOG front at any endpoint (local mock, webfront proxy, or the
+			// public provider) with the proxy hop disabled; desktop reaches them directly, WebGL via
+			// same-origin. NetEnvironment.SetEnv is shipped code left unused by Konami for exactly this.
+			Konami.System.Net.NetEnvironment.Instance.SetEnv(new Konami.System.Net.NetEnvironmentConnection
+			{
+				Name = "rebuild",
+				RequestUrl = frontUrl,
+				Proxy = Konami.System.Net.NetEnvironmentProxy.Default
+			});
+			SystemConfigGameData.FrontServerUrl = frontUrl;
+			KAMUNITY.Logger.Log($"FRONTURL: {frontUrl}");
+		}
 	}
 
 	private void OnApplicationFocus(bool focus)

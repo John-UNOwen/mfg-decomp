@@ -24,9 +24,13 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 - Copy StreamingAssets content (video trees + `aa/` catalog + the 28k bundles staged in
   docs/21) under webroot/StreamingAssets so addressables lazy-load from the same origin; COEP is
   satisfied without CORS gymnastics because everything is same-origin.
-- The game's front-server URL points at same-origin `/aog/` (KONAMINET URL override in the
-  rebuild, or hosts pin inside the browser is not possible - the WebGL rebuild must use a
-  configurable URL; recorded in docs/21 follow-ups).
+- The game's front-server URL uses the rebuild's `-FRONTURL <url>` command-line option (added to
+  `ResidentFlow.ApplyCommandLineArgs` on top of shipping `-KONAMINET`; calls the shipped but unused
+  `NetEnvironment.SetEnv` with the proxy hop off). Unity WebGL receives command line arguments from
+  the page URL query string, so
+  `http://localhost:8090/?-FRONTURL=http://localhost:8090/aog` configures the browser client with no
+  per-build code change (absolute URL keeps it same-origin; relative URLs are unreliable in
+  UnityWebRequest). Desktop examples below.
 - Real hosting can later be any server with the same three properties (static, COOP/COEP,
   UA-swapping proxy); webfront is the reference implementation and the local dev server.
 
@@ -43,4 +47,13 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 dotnet build webfront -c Release
 set WEBFRONT_ROOT=<path to webroot>
 webfront\bin\Release\net8.0\WebFront.exe
+```
+
+Desktop rebuild launches (once the editor is licensed):
+
+```
+# play mode against the offline mock engine (same harness that proved S3)
+Unity.exe -projectPath build\unity-project -FRONTURL http://127.0.0.1:8080/aog
+# play mode straight against the public provider (Unity's UA passes their middleware; no hop, no hosts pin)
+Unity.exe -projectPath build\unity-project -FRONTURL http:// <provider-host>/aog
 ```

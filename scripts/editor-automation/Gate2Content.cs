@@ -45,13 +45,20 @@ namespace MfgRebuild
 
         private static AddressableAssetSettings EnsureSettings()
         {
-            var settings = AddressableAssetSettingsDefaultObject.Settings;
+            // The default-object getter can NRE when a previous run registered the config
+            // object and the asset was since deleted outside Unity; treat that as "none".
+            AddressableAssetSettings settings = null;
+            try { settings = AddressableAssetSettingsDefaultObject.Settings; } catch { settings = null; }
             if (settings != null) return settings;
             settings = AddressableAssetSettings.Create(
                 "Assets/AddressableAssetsData", "AddressableAssetSettings", true, true);
-            if (settings != null && AddressableAssetSettingsDefaultObject.Settings == null)
-                AddressableAssetSettingsDefaultObject.Settings = settings;
-            return AddressableAssetSettingsDefaultObject.Settings ?? settings;
+            try { if (AddressableAssetSettingsDefaultObject.Settings == null) AddressableAssetSettingsDefaultObject.Settings = settings; }
+            catch { }
+            if (settings == null)
+            {
+                try { settings = AddressableAssetSettingsDefaultObject.Settings; } catch { }
+            }
+            return settings;
         }
 
         // Replays the rebuild spec into editor content state: one group per shipped bundle,
@@ -78,54 +85,64 @@ namespace MfgRebuild
             var labelSeen = new HashSet<string>(StringComparer.Ordinal);
             int rows = 0, entriesMoved = 0, guidMissing = 0, labelsAdded = 0, groupsCreated = 0;
 
-            using (var sr = new StreamReader(SpecPath, System.Text.Encoding.UTF8))
+            // Without batching, each group CreateAsset triggers a full AssetDatabase import
+            // cycle (~1.5 s x 28k groups = days). Defer all imports to one flush at Stop.
+            AssetDatabase.StartAssetEditing();
+            try
             {
-                string line;
-                while ((line = sr.ReadLine()) != null)
+                using (var sr = new StreamReader(SpecPath, System.Text.Encoding.UTF8))
                 {
-                    if (line.Length == 0 || line[0] == '#') continue;
-                    var f = line.Split('\t');
-                    if (f.Length < 3) { guidMissing++; continue; }
-                    string path = f[0], addr = f[1], bundle = f[2];
-
-                    AddressableAssetGroup group;
-                    if (!groups.TryGetValue(bundle, out group))
+                    string line;
+                    while ((line = sr.ReadLine()) != null)
                     {
-                        group = settings.CreateGroup(bundle, false, false, false, null, schemaTypes);
-                        groups[bundle] = group;
-                        groupsCreated++;
-                    }
+                        if (line.Length == 0 || line[0] == '#') continue;
+                        var f = line.Split('\t');
+                        if (f.Length < 3) { guidMissing++; continue; }
+                        string path = f[0], addr = f[1], bundle = f[2];
 
-                    string guid = AssetDatabase.AssetPathToGUID(path, AssetPathToGUIDOptions.OnlyExistingAssets);
-                    if (string.IsNullOrEmpty(guid)) { guidMissing++; continue; }
-
-                    var entry = settings.CreateOrMoveEntry(guid, group, false, false);
-                    entry.address = addr;
-                    entriesMoved++;
-
-                    if (f.Length > 3 && f[3].Length > 0)
-                    {
-                        foreach (var label in f[3].Split('|'))
+                        AddressableAssetGroup group;
+                        if (!groups.TryGetValue(bundle, out group))
                         {
-                            if (label.Length == 0) continue;
-                            if (labelSeen.Add(label))
-                            {
-                                settings.AddLabel(label, false);
-                                labelsAdded++;
-                            }
-                            entry.SetLabel(label, true, false, false);
+                            group = settings.CreateGroup(bundle, false, false, false, null, schemaTypes);
+                            groups[bundle] = group;
+                            groupsCreated++;
                         }
+
+                        string guid = AssetDatabase.AssetPathToGUID(path, AssetPathToGUIDOptions.OnlyExistingAssets);
+                        if (string.IsNullOrEmpty(guid)) { guidMissing++; continue; }
+
+                        var entry = settings.CreateOrMoveEntry(guid, group, false, false);
+                        entry.address = addr;
+                        entriesMoved++;
+
+                        if (f.Length > 3 && f[3].Length > 0)
+                        {
+                            foreach (var label in f[3].Split('|'))
+                            {
+                                if (label.Length == 0) continue;
+                                if (labelSeen.Add(label))
+                                {
+                                    settings.AddLabel(label, false);
+                                    labelsAdded++;
+                                }
+                                entry.SetLabel(label, true, false, false);
+                            }
+                        }
+
+                        rows++;
+                        if (rows % 5000 == 0)
+                            Side($"content state progress rows={rows} groups={groupsCreated} labels={labelsAdded} guidMissing={guidMissing}");
                     }
-
-                    rows++;
-                    if (rows % 5000 == 0)
-                        Side($"content state progress rows={rows} groups={groupsCreated} labels={labelsAdded} guidMissing={guidMissing}");
                 }
-            }
 
-            EditorUtility.SetDirty(settings);
-            settings.SetDirty(AddressableAssetSettings.ModificationEvent.BatchModification, null, true, true);
-            AssetDatabase.SaveAssets();
+                EditorUtility.SetDirty(settings);
+                settings.SetDirty(AddressableAssetSettings.ModificationEvent.BatchModification, null, true, true);
+                AssetDatabase.SaveAssets();
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+            }
 
             int entryCount = 0;
             foreach (var g in settings.groups)

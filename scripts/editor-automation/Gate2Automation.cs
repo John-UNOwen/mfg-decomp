@@ -31,6 +31,24 @@ namespace MfgRebuild
         }
 
         private const string PrefsKey = "MfgRebuil******Key";
+        private const string DumpPrefsKey = "MfgRebu****Prefs";
+
+        // Play-mode catalog dump: enter play, pump Addressables.InitializeAsync to completion (the
+        // shipped catalog parses fine in play; only bundle opening has the editor-layout quirk), then
+        // dump every locator key + resolved location to C:\mfgtmp\catalog_manifest.tsv for the
+        // WebGL content-state reconstruction. TSV: key \t providerId \t internalId \t typeName \t deps.
+        public static void PlayCatalogDump()
+        {
+            EditorSettings.enterPlayModeOptionsEnabled = false;
+            ProvisionEditorAddressables();
+            EditorPrefs.SetBool(DumpPrefsKey, true);
+            EditorPrefs.SetBool(PrefsKey, false);
+            try { System.IO.File.Delete(@"C:\mfgtmp\play.log.txt"); } catch { }
+            try { System.IO.File.Delete(@"C:\mfgtmp\side.log.txt"); } catch { }
+            try { System.IO.File.Delete(@"C:\mfgtmp\catalog_manifest.tsv"); } catch { }
+            Debug.Log("AUTOMATION entering play mode (catalog dump)");
+            EditorApplication.EnterPlaymode();
+        }
 
         // Play-mode boot proof: enter play mode, then pump until the Boot/Title scene is live or the
         // timeout hits. Exit code 0 = boot reached, 2 = timeout. With domain reload on, this domain's
@@ -108,7 +126,8 @@ namespace MfgRebuild
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void PlayHook()
         {
-            if (!EditorPrefs.GetBool(PrefsKey, false)) return;
+            bool dumpMode = EditorPrefs.GetBool(DumpPrefsKey, false);
+            if (!dumpMode && !EditorPrefs.GetBool(PrefsKey, false)) return;
             Side("play-domain hook ran");
             // ResidentFlow.InitializeOnBoot silences the Unity logger for arcade cosmetics; the
             // editor needs it back or none of the boot progress logs are observable.
@@ -131,7 +150,73 @@ namespace MfgRebuild
                 }
                 catch { }
             };
+            if (dumpMode)
+            {
+                var handle = UnityEngine.AddressableAssets.Addressables.InitializeAsync();
+                EditorApplication.update += () => DumpPump(handle);
+                return;
+            }
             EditorApplication.update += Pump;
+        }
+
+        private static bool dumpStarted;
+
+        private static void DumpPump(UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle<
+            UnityEngine.ResourceManagement.ResourceLocators.IResourceLocator> handle)
+        {
+            if (!handle.IsDone)
+            {
+                if (!dumpStarted)
+                {
+                    dumpStarted = true;
+                    Side("catalog init started");
+                }
+                return;
+            }
+            dumpStarted = true;
+            try
+            {
+                var locator = handle.Result as UnityEngine.ResourceManagement.ResourceLocators.ResourceLocator;
+                if (locator == null || handle.Status != UnityEngine.ResourceManagement.AsyncOperations.OperationStatus.Succeeded)
+                {
+                    Side($"catalog init failed status={handle.Status} error={Truncate(handle.OperationException?.Message, 300)}");
+                    EditorPrefs.SetBool(DumpPrefsKey, false);
+                    EditorApplication.Exit(2);
+                    return;
+                }
+                int written = 0, failed = 0;
+                var sw = new System.IO.StreamWriter(@"C:\mfgtmp\catalog_manifest.tsv", false, System.Text.Encoding.UTF8);
+                using (sw)
+                {
+                    sw.WriteLine("#key\tproviderId\tinternalId\ttypeName\tdeps");
+                    foreach (object key in locator.Keys)
+                    {
+                        string keyStr = key?.ToString() ?? "<null>";
+                        if (keyStr.Length == 0 || keyStr.IndexOf('\t') >= 0) { failed++; continue; }
+                        UnityEngine.ResourceManagement.ResourceLocations.IResourceLocation loc;
+                        if (!locator.Locate(key, null, out loc) || loc == null) { failed++; continue; }
+                        string deps = "";
+                        if (loc.Dependencies != null)
+                        {
+                            var sb = new System.Text.StringBuilder();
+                            foreach (var d in loc.Dependencies)
+                                sb.Append(';').Append(d?.InternalId ?? "?");
+                            deps = sb.ToString();
+                        }
+                        sw.WriteLine($"{keyStr}\t{loc.ProviderId}\t{loc.InternalId}\t{loc.PrimaryKeyType?.Name}\t{deps}");
+                        written++;
+                    }
+                }
+                Side($"catalog dump done written={written} failed={failed} status={handle.Status}");
+                EditorPrefs.SetBool(DumpPrefsKey, false);
+                EditorApplication.Exit(0);
+            }
+            catch (System.Exception e)
+            {
+                Side($"catalog dump threw {e.GetType().Name}: {Truncate(e.ToString(), 1200)}");
+                EditorPrefs.SetBool(DumpPrefsKey, false);
+                EditorApplication.Exit(2);
+            }
         }
 
         // The shipping boot calls CertificateValidation.Init from the network stack's worker thread.

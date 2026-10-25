@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Verify ONLY what the Unity editor will actually compile: the transformed project copy
+    at Unity 2022.3's default C# 9 (LangVersion 9), against the shipped reference set
+    (build/reftype + the shipped Mono BCL targeting pack via the probe props).
+    See docs/21-project-merge.md. Not a Unity project file - plain msbuild.
+  -->
+
+  <Import Project="..\..\..\asmdef-probe\Directory.Build.props" />
+
+  <PropertyGroup>
+    <AssemblyName>Assembly-CSharp-firstpass</AssemblyName>
+    <RootNamespace>AssemblyCSharpFirstpassVerify</RootNamespace>
+    <!-- Unity 2022.3.13f1 predefined assemblies default to C# 9; override the probe's 10 -->
+    <LangVersion>9</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\unity-project\Assets\Plugins\Assembly-CSharp-firstpass\**\*.cs" />
+  </ItemGroup>
+
+</Project>

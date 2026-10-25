@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
+        "projectName": "Assembly-CSharp",
+        "projectPath": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
+        "packagesPath": "C:\\Users\\ <you>\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\ <you>\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreLockProperties": {
+          "restorePackagesWithLockFile": "false"
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.402\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

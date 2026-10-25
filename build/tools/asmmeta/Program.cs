@@ -1,4 +1,4 @@
-﻿// asmmeta - metadata inspector for the asmdef-probe build.
+// asmmeta - metadata inspector for the asmdef-probe build.
 //
 // Reads a managed assembly through System.Reflection.Metadata (nothing is loaded, so a
 // Unity-targeted dll can be inspected on a machine with no Unity and no .NET Framework)
@@ -10,6 +10,9 @@
 //                           default interface implementations as compiled IL
 //   members <dll>           type / member counts
 //   diff <a.dll> <b.dll>    member-identity set diff between two assemblies
+//   dump <dll> [-noTypes]  one-line JSON: identity + informational/package versions +
+//                           references + full type names (for version mapping and
+//                           duplicate-type scans; docs/21)
 //
 // run: build\tools\asmmeta\bin\Debug\net8.0\asmmeta.exe <command> <dll> [args]
 
@@ -21,6 +24,7 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace AsmMeta
 {
@@ -30,7 +34,7 @@ namespace AsmMeta
 		{
 			if (args.Length < 2)
 			{
-				Console.Error.WriteLine("usage: asmmeta <tfm|dim|members|diff> <dll> [args]");
+				Console.Error.WriteLine("usage: asmmeta <tfm|dim|members|diff|dump> <dll> [args]");
 				return 2;
 			}
 
@@ -49,6 +53,8 @@ namespace AsmMeta
 					return Dim(args[1], args.Length > 2 ? args[2] : ".");
 				case "members":
 					return Members(args[1]);
+				case "dump":
+					return Dump(args[1], args.Length < 3 || args[2] != "-noTypes");
 				default:
 					Console.Error.WriteLine("unknown command " + args[0]);
 					return 2;
@@ -188,6 +194,125 @@ namespace AsmMeta
 			}
 			Console.WriteLine($"{Path.GetFileName(path)}: types={types} methods={methods} fields={fields} properties={props} events={events} members={methods + fields + props + events}");
 			return 0;
+		}
+
+		private static int Dump(string path, bool withTypes)
+		{
+			using PEReader pe = new PEReader(File.OpenRead(path));
+			MetadataReader md = pe.GetMetadataReader();
+			AssemblyDefinition ad = md.GetAssemblyDefinition();
+			var info = new DumpInfo
+			{
+				File = Path.GetFileName(path),
+				Name = md.GetString(ad.Name),
+				Version = ad.Version.ToString(),
+			};
+			foreach (CustomAttributeHandle cah in ad.GetCustomAttributes())
+			{
+				CustomAttribute ca = md.GetCustomAttribute(cah);
+				string an = AttributeName(md, ca);
+				List<string> strs = AttributeStrings(md, ca);
+				switch (an)
+				{
+					case "System.Reflection.AssemblyInformationalVersionAttribute":
+						if (strs.Count > 0) { info.Informational = strs[0]; }
+						break;
+					case "System.Reflection.AssemblyMetadataAttribute":
+						if (strs.Count >= 2)
+						{
+							info.Metadata[strs[0]] = strs[1];
+							if (strs[0] == "PackageVersion") { info.PackageVersion = strs[1]; }
+						}
+						break;
+					case "System.Runtime.Versioning.TargetFrameworkAttribute":
+						if (strs.Count > 0) { info.Tfm = strs[0]; }
+						break;
+					case "System.Reflection.AssemblyFileVersionAttribute":
+						if (strs.Count > 0) { info.FileVersion = strs[0]; }
+						break;
+				}
+			}
+			if (string.IsNullOrEmpty(info.PackageVersion) && !string.IsNullOrEmpty(info.Informational))
+			{
+				info.PackageVersion = info.Informational.Split('+')[0];
+			}
+			foreach (AssemblyReferenceHandle arh in md.AssemblyReferences)
+			{
+				AssemblyReference ar = md.GetAssemblyReference(arh);
+				info.Refs.Add(new RefEntry { Name = md.GetString(ar.Name), Version = ar.Version.ToString() });
+			}
+			if (withTypes)
+			{
+				foreach (TypeDefinitionHandle th in md.TypeDefinitions)
+				{
+					info.Types.Add(TypeFqn(md, md.GetTypeDefinition(th)));
+				}
+			}
+			Console.WriteLine(JsonSerializer.Serialize(info, new JsonSerializerOptions { IncludeFields = true }));
+			return 0;
+		}
+
+		// Attribute value blob: prologue 0x0001 then fixed arguments. This decodes the
+		// leading sequence of UTF8 string arguments (compressed-length prefixed), which is
+		// all the identity attributes carry. Ints / named args after the strings decode as
+		// extra entries and are ignored by callers (only the first entries are used).
+		private static List<string> AttributeStrings(MetadataReader md, CustomAttribute ca)
+		{
+			var list = new List<string>();
+			try
+			{
+				BlobReader br = md.GetBlobReader(ca.Value);
+				if (br.RemainingBytes < 2) { return list; }
+				if (br.ReadUInt16() != 0x0001) { return list; }
+				while (br.RemainingBytes > 0)
+				{
+					try
+					{
+						int len = br.ReadCompressedInteger();
+						if (len < 0 || len > br.RemainingBytes) { break; }
+						byte[] bs = br.ReadBytes(len);
+						list.Add(System.Text.Encoding.UTF8.GetString(bs));
+						if (br.RemainingBytes == 0) { break; }
+					}
+					catch (Exception) { break; }
+				}
+			}
+			catch (Exception) { }
+			return list;
+		}
+
+		// C#-style FQN: namespace.root.Nested.Nested, dot separated, so source-parsed
+		// declarations and metadata agree without needing the CLR's '+' form.
+		private static string TypeFqn(MetadataReader md, TypeDefinition td)
+		{
+			string name = md.GetString(td.Name);
+			string ns = md.GetString(td.Namespace);
+			EntityHandle en = NestedHandle(md, td);
+			if (!en.IsNil && en.Kind == HandleKind.TypeDefinition)
+			{
+				return TypeFqn(md, md.GetTypeDefinition((TypeDefinitionHandle)en)) + "." + name;
+			}
+			return Qualified(ns, name);
+		}
+
+		sealed class RefEntry
+		{
+			public string Name;
+			public string Version;
+		}
+
+		sealed class DumpInfo
+		{
+			public string File;
+			public string Name;
+			public string Version;
+			public string Informational;
+			public string PackageVersion;
+			public string FileVersion;
+			public string Tfm;
+			public Dictionary<string, string> Metadata = new();
+			public List<RefEntry> Refs = new();
+			public List<string> Types = new();
 		}
 
 		private static HashSet<string> MemberSet(string path, bool withSignature, int mode)

@@ -43,3 +43,6 @@ build/project-merge-analysis/verify/bin/
 webfront/bin/
 webfront/obj/
 out/webroot/
+
+build/unity-project/Packages/
+tmp/upm-cache/

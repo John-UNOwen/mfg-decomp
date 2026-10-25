@@ -233,11 +233,16 @@ Residual risks, honestly listed:
 3. **Bundle↔script GUID rebinding for the kept loose dlls** works only while those dlls stay at their
    AssetRipper metas (that is why they are kept — §2). Editor play mode loads the original bundles
    with original fileIDs; binding uses the kept importer metas + the serialized type table.
-4. **Package resolution needs the registry** on first open (7 pinned versions, each backed by
-   embedded-literal evidence; `com.unity.profiling.core`/`ai.navigation`/`recorder`/`memoryprofiler`/
-   `formats.fbx`/`scriptablebuildpipeline`/`addressables` are all registry packages, not editor-bundled
-   built-ins). Offline first open → the package resolution step errors until online; nothing else in
-   the project needs the network.
+4. **Package resolution is offline now (supersedes the registry note):** `scripts/vendor_packages.ps1`
+   fetches pinned versions (+ transitive deps) anonymously from packages.unity.com and embeds them
+   under `Packages/`. Final embedded set = `com.unity.addressables` 1.21.19 +
+   `com.unity.scriptablebuildpipeline` 1.21.21 + `com.unity.ai.navigation` 1.1.5; dependency closure
+   verified package.json-by-package.json with zero unsatisfied edges. Dropped as optional (nothing
+   references them; restore from `build/reftype` if the serializer ever asks): recorder,
+   formats.fbx/autodesk.fbx, memoryprofiler, profiling.core, editorcoroutines. Timeline stays loose
+   for its 81 baked GUIDs; as a package it would also collide with the loose dll's assembly name and
+   its only consumers were the dropped optional trio. Manifest = built-in modules only + embedded
+   packages; first open needs no package registry.
 5. **Editor-side assemblies missing** (they were never in the player): TMP and UnityEngine.UI
    inspector drawers, Timeline editors, addressables editor UI after install (the package ships its
    own editor assembly — fine). Runtime components serialize/load normally; inspectors for those

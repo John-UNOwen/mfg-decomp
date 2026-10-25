@@ -77,13 +77,14 @@ $dllKeep = 'DOTween','Springbone.Runtime','UniRx','UniTask','UniTask.Addressable
   'UnityEngine.UI','Unity.ProBuilder','Unity.ProBuilder.Csg','Unity.ProBuilder.KdTree','Unity.ProBuilder.Poly2Tri',
   'Unity.ProBuilder.Stl','zxing.unity'
 $manifestPackages = [ordered]@{
+  # boot-critical only; vendored offline by scripts/vendor_packages.ps1 (embedded into Packages/)
+  # Recorder/Formats.Fbx/MemoryProfiler/Profiling.Core stay dropped: their shipped dlls are deleted
+  # above-to-package-equivalent and no recovered assembly references them; restore from build/reftype
+  # if the serializer ever demands them. Timeline is NOT here: Unity.Timeline.dll stays loose (81 baked
+  # GUID refs) and a package would double the assembly name.
   'com.unity.addressables'            = '1.21.19'
   'com.unity.scriptablebuildpipeline' = '1.21.21'
   'com.unity.ai.navigation'           = '1.1.5'
-  'com.unity.recorder'                = '4.0.2'
-  'com.unity.memoryprofiler'          = '1.1.0'
-  'com.unity.profiling.core'          = '1.0.2'
-  'com.unity.formats.fbx'             = '4.2.1'
 }
 
 # ---------- helpers ----------
@@ -383,7 +384,13 @@ $manifestPath = Join-Path $proj 'Packages\manifest.json'
 $mj = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $deps = [ordered]@{}
 foreach ($p in $mj.dependencies.PSObject.Properties) { $deps[$p.Name] = $p.Value }
-foreach ($k in $manifestPackages.Keys) { $deps[$k] = $manifestPackages[$k] }
+foreach ($k in $manifestPackages.Keys) {
+  # skip if already vendored as an embedded package folder (Packages/<name>) - embedded wins and
+  # a redundant manifest pin only risks a version fight; also skip names whose assembly we keep loose
+  if (Test-Path (Join-Path (Split-Path $manifestPath) $k)) { $deps.Remove($k) | Out-Null; continue }
+  if ($k -eq 'com.unity.timeline') { $deps.Remove($k) | Out-Null; continue }  # Unity.Timeline.dll stays loose (81 baked GUID refs)
+  $deps[$k] = $manifestPackages[$k]
+}
 $orderedDeps = [ordered]@{}
 foreach ($k in ($deps.Keys | Sort-Object)) { $orderedDeps[$k] = $deps[$k] }
 $manifestJson = ([pscustomobject]@{ dependencies = [pscustomobject]$orderedDeps } | ConvertTo-Json -Depth 5)

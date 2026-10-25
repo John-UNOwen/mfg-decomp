@@ -323,3 +323,7 @@ re-export from AssetRipper would rebuild the map from scratch.
 - First refresh also runs AssemblyUpdater over the loose Plugins DLLs (Timeline, zxing,
   userfully...); that is expected, let it finish.
 
+- The decompiled trees carry the game-era generated file
+  UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs (AC + firstpass). Unity 2022 generates the
+  same class itself, so the copies must go; prepare_project.ps1 now deletes them (they caused
+  CS0101/CS0579/CS0111 even on a clean Library).

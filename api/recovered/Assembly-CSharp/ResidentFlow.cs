@@ -222,6 +222,12 @@ public class ResidentFlow : BaseFlow
 		Input.multiTouchEnabled = false;
 		DisableUnityAnalyticsCompletely();
 		ApplyCommandLineArgs();
+		if (Environment.GetCommandLineArgs().Contains("-GAMELOG"))
+		{
+			// Rebuild debug flag: arcade builds silence the Unity logger for cabinet cosmetics;
+			// pass -GAMELOG to keep it on so headless runs can observe the boot sequence.
+			UnityEngine.Debug.unityLogger.logEnabled = true;
+		}
 		ApplyEnvironmentVariables();
 		_ = GameUtility.IsCloudStreaming;
 		UnityEngine.Debug.Log($"[{DateTime.Now}]ResidnetFlow:Initialize2");

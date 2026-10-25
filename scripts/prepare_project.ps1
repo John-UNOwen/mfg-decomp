@@ -341,6 +341,14 @@ foreach ($asmName in $treeMap.Keys) {
 
 # The old AssetRipper Assembly-CSharp export (Assets\Scripts) is deleted in phase 3.
 
+# Unity 2022 compiles its own UnitySourceGeneratedAssemblyMonoScriptTypes_v1 into both
+# assemblies through Roslyn source generators; the decompiled copies in the copied trees
+# would define the same class a second time (CS0101/CS0579/CS0111). Delete them.
+foreach ($g in @((Join-Path $proj 'Assets\Assembly-CSharp\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs'),
+                 (Join-Path $proj 'Assets\Plugins\Assembly-CSharp-firstpass\UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs'))) {
+  foreach ($f in @($g, "$g.meta")) { if (Test-Path $f) { Remove-Item $f -Force } }
+}
+
 # ---------- phase 3: loose dll disposition ----------
 
 $pluginsDir = Join-Path $proj 'Assets\Plugins'

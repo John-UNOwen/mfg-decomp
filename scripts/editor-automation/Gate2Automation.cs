@@ -57,11 +57,12 @@ namespace MfgRebuild
             try
             {
                 string project = System.IO.Directory.GetParent(Application.dataPath).FullName;
-                string src = System.IO.Path.Combine(project, "Assets", "StreamingAssets", "aa", "settings.json");
+                string srcDir = System.IO.Path.Combine(project, "Assets", "StreamingAssets", "aa");
                 string dstDir = System.IO.Path.Combine(project, "Library", "com.unity.addressables", "aa", "Windows");
                 System.IO.Directory.CreateDirectory(dstDir);
-                System.IO.File.Copy(src, System.IO.Path.Combine(dstDir, "settings.json"), overwrite: true);
-                Side($"aa settings provisioned -> {dstDir}");
+                foreach (string f in new[] { "settings.json", "catalog.json" })
+                    System.IO.File.Copy(System.IO.Path.Combine(srcDir, f), System.IO.Path.Combine(dstDir, f), overwrite: true);
+                Side($"aa files provisioned -> {dstDir}");
             }
             catch (System.Exception e)
             {
@@ -87,7 +88,12 @@ namespace MfgRebuild
             {
                 try
                 {
-                    System.IO.File.AppendAllText(@"C:\mfgtmp\play.log.txt", $"[{type}] {Truncate(msg, 400)}\n---\n");
+                    string line = $"[{type}] {Truncate(msg, 400)}";
+                    if (type != UnityEngine.LogType.Log && type != UnityEngine.LogType.Exception)
+                        line += $"\n{Truncate(stack, 600)}";
+                    else if (type == UnityEngine.LogType.Exception)
+                        line += $"\n{Truncate(stack, 400)}";
+                    System.IO.File.AppendAllText(@"C:\mfgtmp\play.log.txt", line + "\n---\n");
                 }
                 catch { }
             };

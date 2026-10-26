@@ -32,10 +32,12 @@ namespace WebFront
         private static int Main()
         {
             Directory.CreateDirectory(Root);
-            var listener = new TcpListener(IPAddress.Loopback, Port);
+            // WEBFRONT_BIND=any serves on all interfaces (guest VM browser play); default loopback.
+            var bind = Environment.GetEnvironmentVariable("WEBFRONT_BIND") == "any" ? IPAddress.Any : IPAddress.Loopback;
+            var listener = new TcpListener(bind, Port);
             try { listener.Start(); }
             catch (SocketException e) { Console.Error.WriteLine("bind failed: " + e.Message); return 1; }
-            Console.WriteLine("webfront listening on http://127.0.0.1:" + Port + " root=" + Root + " upstream=" + Upstream);
+            Console.WriteLine("webfront listening on http://" + bind + ":" + Port + " root=" + Root + " upstream=" + Upstream);
 
             while (true)
             {

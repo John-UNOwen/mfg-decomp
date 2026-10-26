@@ -72,8 +72,11 @@ internal static class Program
             return 1;
         }
 
-        Log("START port=" + port + " specs=" + SpecDir + " log=" + LogPath + " san=" + Cert.SanNames);
-        var listener = new TcpListener(IPAddress.Loopback, port);
+        // MFG_BIND=any serves on all interfaces (needed when a guest VM or another
+        // machine plays against this front); default stays loopback-only.
+        var bind = Environment.GetEnvironmentVariable("MFG_BIND") == "any" ? IPAddress.Any : IPAddress.Loopback;
+        Log("START port=" + port + " bind=" + bind + " specs=" + SpecDir + " log=" + LogPath + " san=" + Cert.SanNames);
+        var listener = new TcpListener(bind, port);
         try
         {
             listener.Start();

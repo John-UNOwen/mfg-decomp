@@ -326,11 +326,23 @@ namespace MfgRebuild
             {
                 var webglT = typeof(PlayerSettings).GetNestedType("WebGL", System.Reflection.BindingFlags.Public);
                 if (webglT == null) { Side("webgl nested class missing"); }
-                else foreach (var pair in new object[][] { new object[] { "initialMemorySize", 512 }, new object[] { "maximumMemorySize", 3584 }, new object[] { "memoryGrowthMode", 2 }, new object[] { "geometricGrowthStep", 8 }, new object[] { "geometricGrowthCap", 512 } })
+                else
+                {
+                    var allP = webglT.GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                    var names = new string[allP.Length]; for (int i = 0; i < allP.Length; i++) names[i] = allP[i].Name;
+                    Array.Sort(names);
+                    Side("webgl static props: " + string.Join(",", names));
+                }
+                if (webglT != null) foreach (var pair in new object[][] { new object[] { "initialMemorySize", 512 }, new object[] { "maximumMemorySize", 3584 }, new object[] { "memoryGrowthMode", 2 }, new object[] { "geometricGrowthStep", 8 }, new object[] { "geometricGrowthCap", 512 } })
                 {
                     var p = webglT.GetProperty((string)pair[0], System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
                     if (p == null || !p.CanWrite) { Side($"webgl {pair[0]}: property missing"); continue; }
-                    try { p.SetValue(null, Convert.ChangeType(pair[1], p.PropertyType)); Side($"webgl {pair[0]}={pair[1]}"); }
+                    try
+                    {
+                        if (p.PropertyType.IsEnum) p.SetValue(null, Enum.ToObject(p.PropertyType, Convert.ToInt32(pair[1])));
+                        else p.SetValue(null, Convert.ChangeType(pair[1], p.PropertyType));
+                        Side($"webgl {pair[0]}={pair[1]}");
+                    }
                     catch (Exception e) { Side($"webgl {pair[0]}: {e.Message}"); }
                 }
             }
@@ -346,16 +358,22 @@ namespace MfgRebuild
                 }
                 catch { }
             }
-            foreach (var name in new[] { "FullWithStackTraces", "FullExplicitStackTraces", "ExtractStackTraceOnly" })
+            // 2022.3 renamed the exception enum members, so discover the names at runtime
+            // and pick whichever full-support mode exists; None would stub ___cxa_* with
+            // abort() and every caught C# exception becomes a wasm abort.
+            var eT = typeof(WebGLExceptionSupport);
+            var eNames = Enum.GetNames(eT);
+            Side($"exception enum names: {string.Join(",", eNames)}");
+            foreach (var name in new[] { "FullWithStackTraces", "FullWithExplicitStackTraces", "Full", "ExtractStackTraceOnly" })
             {
+                if (Array.IndexOf(eNames, name) < 0) continue;
                 try
                 {
-                    var es = Enum.Parse(typeof(WebGLExceptionSupport), name);
-                    PlayerSettings.WebGL.exceptionSupport = (WebGLExceptionSupport)es;
+                    PlayerSettings.WebGL.exceptionSupport = (WebGLExceptionSupport)Enum.Parse(eT, name);
                     Side($"webgl exceptions={name}");
                     break;
                 }
-                catch { }
+                catch (Exception e) { Side($"webgl exceptions={name}: {e.Message}"); }
             }
         }
 

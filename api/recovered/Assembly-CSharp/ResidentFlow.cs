@@ -529,6 +529,14 @@ public class ResidentFlow : BaseFlow
 
 	private void ExecExeResidientFileLoad()
 	{
+#if UNITY_WEBGL
+		// packer file-cache prewarm: execexe.dll is a Windows module, kernel32 P/Invokes
+		// do not exist in the browser, and the addressables streaming handles these files.
+		if (true)
+		{
+			return;
+		}
+#endif
 		foreach (string item in new List<string> { "Characters/Chara1/SsrMangan.webm", "Characters/Chara2/SsrMangan.webm", "Characters/Chara3/SsrMangan.webm", "Characters/Chara4/SsrMangan.webm" })
 		{
 			EXECEXE.WaitForSingleObject(EXECEXE.CreateFileCache(Path.Combine(Application.streamingAssetsPath, item)), uint.MaxValue);

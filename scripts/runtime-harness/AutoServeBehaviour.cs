@@ -100,6 +100,11 @@ namespace MfgRebuild
             "Home|exactf|BtReturn",
             "Home|exact|ModeButton",
             "Home|exactf|ModeButton rep",
+            "Home|exactf|BtRule",
+            "Home|exactf|BtLowRate",
+            // The mode window's taku tiles are instantiated from ModeBunner prefabs and are all
+            // named exactly "Bt"; the first one is the default 四神士牌戦 start.
+            "Home|exactf|Bt rep",
             "Home|exactf|BtStart rep",
             "CharaSelect|containsf|Bt rep",
         };

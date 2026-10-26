@@ -155,17 +155,19 @@ namespace MfgRebuild
 
         private static IEnumerable<string> RuleLines()
         {
+            var lines = new List<string>();
             try
             {
                 if (File.Exists(CfgPath))
                 {
-                    foreach (string raw in File.ReadAllLines(CfgPath)) yield return raw;
+                    lines.AddRange(File.ReadAllLines(CfgPath));
                 }
             }
             catch (Exception e)
             {
                 Debug.Log($"AUTOSERVE cfg read failed: {e.Message}");
             }
+            foreach (string raw in lines) yield return raw;
 #if UNITY_WEBGL
             // The browser has no C:\mfgtmp; bake the working desktop steering rules in so the
             // story/mode/home flow advances without an external cfg file.

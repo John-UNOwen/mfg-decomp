@@ -318,6 +318,17 @@ namespace MfgRebuild
         {
             try { PlayerSettings.WebGL.template = "APPLICATION:Default"; } catch (Exception e) { Side($"webgl template: {e.Message}"); }
             try { PlayerSettings.WebGL.memorySize = 256; } catch (Exception e) { Side($"webgl memorySize: {e.Message}"); }
+            // AssetRipper left the 2022.2+ incremental-memory fields at zero, and the wasm
+            // linker takes INITIAL_MEMORY from webGLInitialMemorySize: emcc then aborts with
+            // "INITIAL_MEMORY must be larger than TOTAL_STACK, was 0". Set a fixed 512 MB heap.
+            var webglT = typeof(PlayerSettings).GetProperty("WebGL", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public).GetValue(null);
+            foreach (var pair in new object[][] { new object[] { "initialMemorySize", 512 }, new object[] { "maximumMemorySize", 512 } })
+            {
+                var p = webglT.GetType().GetProperty((string)pair[0]);
+                if (p == null || !p.CanWrite) { Side($"webgl {pair[0]}: property missing"); continue; }
+                try { p.SetValue(webglT, Convert.ChangeType(pair[1], p.PropertyType)); Side($"webgl {pair[0]}={pair[1]}"); }
+                catch (Exception e) { Side($"webgl {pair[0]}: {e.Message}"); }
+            }
             foreach (var name in new[] { "Disabled", "Gzip" })
             {
                 try

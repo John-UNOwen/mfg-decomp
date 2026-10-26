@@ -7,7 +7,13 @@ param(
     [switch]$Serve,
     [string]$Build = 'C:\mfg\build\unity-project\out\webgl',
     [string]$Webroot = 'C:\mfgtmp\webroot',
-    [string]$Upstream = 'http://127.0.0.1:8080'
+    [string]$Upstream = 'http://127.0.0.1:8080',
+    # URL the injected player args use for the front; webfront proxies /aog to $Upstream.
+    # For a browser in another machine (appsandbox guest) pass its reachable form,
+    # e.g. http://192.168.2.27:8090/aog.
+    [string]$FrontUrl = 'http://127.0.0.1:8090/aog',
+    # 'any' serves on all interfaces so guest VMs can load the page; 'loopback' local only.
+    [string]$Bind = 'any'
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -21,7 +27,7 @@ Copy-Item $Build $Webroot -Recurse
 $idx = Get-ChildItem $Webroot -Filter 'index.html' | Select-Object -First 1
 $html = Get-Content $idx.FullName -Raw
 if ($html -notmatch 'arguments:') {
-    $args2 = 'arguments: ["-KONAMINET", "-FRONTURL", "http://127.0.0.1:8090/aog", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE"], '
+    $args2 = 'arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE"], '
     $html = $html -replace '(createUnityInstance\(([^,]+),\s*)', ('$1' + $args2)
     Set-Content $idx.FullName $html -NoNewline
     'patched index.html createUnityInstance arguments'
@@ -31,10 +37,11 @@ if ($html -notmatch 'arguments:') {
 if ($Serve) {
     $env:WEBFRONT_ROOT = $Webroot
     $env:WEBFRONT_UPSTREAM = $Upstream
+    $env:WEBFRONT_BIND = $Bind
     Start-Process -FilePath (Join-Path $root 'webfront\bin\Release\net8.0\WebFront.exe') `
         -WorkingDirectory (Join-Path $root 'webfront\bin\Release\net8.0') `
         -RedirectStandardError (Join-Path $Webroot 'webfront.err.txt') `
         -RedirectStandardOutput (Join-Path $Webroot 'webfront.out.txt') `
         -WindowStyle Hidden
-    'webfront started (WEBFRONT_UPSTREAM=' + $Upstream + ')'
+    'webfront started (bind=' + $Bind + ' WEBFRONT_UPSTREAM=' + $Upstream + ')'
 }

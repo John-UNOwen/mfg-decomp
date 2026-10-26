@@ -31,6 +31,15 @@ public class EXECEXE
 		m_hExecexe = IntPtr.Zero;
 		m_fnCreateFileCache = null;
 		m_fnDebugPuts = null;
+#if UNITY_WEBGL
+		// execexe.dll is the shipped packer's native cache module; kernel32 P/Invokes do not
+		// exist in the browser, and an unguarded DllNotFoundException here broke the boot
+		// scene. Zero handles already mean the CreateFileCache/DebugPuts helpers no-op.
+		if (true)
+		{
+			return;
+		}
+#endif
 		m_hExecexe = GetModuleHandle("execexe.dll");
 		if (!(m_hExecexe == IntPtr.Zero))
 		{

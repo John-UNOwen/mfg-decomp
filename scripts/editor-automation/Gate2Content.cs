@@ -326,7 +326,7 @@ namespace MfgRebuild
             {
                 var webglT = typeof(PlayerSettings).GetNestedType("WebGL", System.Reflection.BindingFlags.Public);
                 if (webglT == null) { Side("webgl nested class missing"); }
-                else foreach (var pair in new object[][] { new object[] { "initialMemorySize", 512 }, new object[] { "maximumMemorySize", 512 } })
+                else foreach (var pair in new object[][] { new object[] { "initialMemorySize", 2048 }, new object[] { "maximumMemorySize", 2048 } })
                 {
                     var p = webglT.GetProperty((string)pair[0], System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
                     if (p == null || !p.CanWrite) { Side($"webgl {pair[0]}: property missing"); continue; }
@@ -397,3 +397,4 @@ namespace MfgRebuild
         }
     }
 }
+

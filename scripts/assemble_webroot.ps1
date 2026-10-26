@@ -23,14 +23,20 @@ if (Test-Path $Webroot) { Remove-Item $Webroot -Recurse -Force }
 Copy-Item $Build $Webroot -Recurse
 # belt and suspenders: inject explicit player args into the generated index.html so
 # Environment.GetCommandLineArgs in the browser sees the rebuild flag cluster regardless
-# of how URL-query-to-argv mapping behaves in this loader version.
+# of how URL-query-to-argv mapping behaves in this loader version. The 2022.3 loader reads
+# config.arguments, so the key goes inside the config object, not the call parameters.
 $idx = Get-ChildItem $Webroot -Filter 'index.html' | Select-Object -First 1
 $html = Get-Content $idx.FullName -Raw
 if ($html -notmatch 'arguments:') {
-    $args2 = 'arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE"], '
-    $html = $html -replace '(createUnityInstance\(([^,]+),\s*)', ('$1' + $args2)
-    Set-Content $idx.FullName $html -NoNewline
-    'patched index.html createUnityInstance arguments'
+    $args2 = 'var config = { arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE"],'
+    if ($html -match 'var config = \{') {
+        $html = $html -replace 'var config = \{', $args2
+    } else {
+        # fallback for loaders without the config literal: pass an args object as second parameter
+        $html = $html -replace '(createUnityInstance\(([^,]+),\s*)', ('$1' + '{ arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE"] }, ')
+    }
+    Set-Content $idx.FullName $html -Encoding UTF8 -NoNewline
+    'patched index.html config.arguments'
 } else { 'index.html already has arguments' }
 # brotli sidecars
 & (Join-Path $root 'scripts\brotli-sidecar\bin\Release\net8.0\sidecar.exe') $Webroot

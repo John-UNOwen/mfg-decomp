@@ -6,8 +6,11 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using KAMUNITY;
 using UnityEngine;
+#if UNITY_WEBGL
+using UnityEngine.Networking;
+#endif
 
-namespace Konami.System.Net;
+namespace Konami.System.Net {
 
 public class HttpWebRequestor
 {
@@ -149,6 +152,55 @@ public class HttpWebRequestor
 		{
 			return;
 		}
+#if UNITY_WEBGL
+		// Rebuild: HttpWebRequest's BeginGet* pair needs threads and sockets, both absent in
+		// the browser (BeginGetRequestStream threw DllNotFoundException on every front call).
+		// UnityWebRequest is the supported XHR transport; the completed callback fills the
+		// same result fields the coroutine pump already polls (IsDone/Progress/Responce*).
+		{
+			UnityWebRequest uwr;
+			if (form != null)
+			{
+				uwr = new UnityWebRequest(url, "POST");
+				uwr.uploadData = form;
+				uwr.SetRequestHeader("Content-Type", RequestContentType);
+			}
+			else
+			{
+				uwr = UnityWebRequest.Get(url);
+			}
+			if (userAgent.Length > 0)
+			{
+				uwr.SetRequestHeader("User-Agent", userAgent);
+			}
+			uwr.timeout = 60;
+			UnityWebRequestAsyncOperation op = uwr.SendWebRequest();
+			op.completed += delegate
+			{
+				if (IsDone)
+				{
+					return;
+				}
+				if (uwr.result == UnityWebRequest.Result.Success)
+				{
+					ResponceBytes = uwr.downloadHandler.data;
+					ResponceText = uwr.downloadHandler.text;
+					ResponceContentType = uwr.GetResponseHeader("Content-Type") ?? "";
+					totalLength = ResponceBytes?.LongLength ?? 0;
+					currentLength = totalLength;
+					done();
+				}
+				else
+				{
+					StatusCode statusCode = StatusCode.ConnectionBeginError;
+					string statusMessage = RequestStatus.GetStatusMessage(statusCode);
+					done("wgl:" + uwr.responseCode + ":" + uwr.error, statusMessage, statusCode);
+				}
+				uwr.Dispose();
+			};
+			return;
+		}
+#endif
 		try
 		{
 			CertificateValidation.Init();
@@ -425,4 +477,5 @@ public class HttpWebRequestor
 			done("rdCb3:" + ex2.GetType().Name, statusMessage3, statusCode3);
 		}
 	}
+}
 }

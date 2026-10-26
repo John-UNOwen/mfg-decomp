@@ -40,6 +40,21 @@ if ($html -notmatch 'arguments:') {
     Set-Content $idx.FullName $html -Encoding UTF8 -NoNewline
     'patched index.html config.arguments'
 } else { 'index.html already has arguments' }
+# The 2022.3 loader factory freezes `var arguments_=[]` at script load, before any
+# config.arguments can reach it, so Environment.GetCommandLineArgs() in the wasm is empty.
+# Rewrite the first `var arguments_=[]` in the built framework.js to parse the page URL
+# query into argv tokens (-FLAG and -KEY=VALUE pairs), honoring a pre-set Module.arguments.
+$fw = Join-Path $Webroot 'Build\webgl.framework.js'
+if (Test-Path $fw) {
+    $fwText = Get-Content $fw -Raw
+    if ($fwText -notmatch 'MFG-URLARGV') {
+        $inject = 'var arguments_=/*MFG-URLARGV*/(function(){var out=[];try{var s=location.search.substring(1).split("&");for(var i=0;i<s.length;i++){if(!s[i])continue;var kv=s[i].split("=");var k=decodeURIComponent(kv[0].replace(/\+/g," "));if(kv.length>1){out.push(k);out.push(decodeURIComponent(kv[1].replace(/\+/g," ")))}else{out.push(k)}}if(typeof Module!=="undefined"&&Module["arguments"]){out=Module["arguments"].concat(out)}}catch(e){}return out})()'
+        $rx = [regex]'var arguments_=\[\]'
+        $fwText = $rx.Replace($fwText, $inject, 1)
+        Set-Content $fw $fwText -Encoding UTF8 -NoNewline
+        'patched framework.js url->argv'
+    } else { 'framework.js already url->argv patched' }
+}
 # brotli sidecars
 & (Join-Path $root 'scripts\brotli-sidecar\bin\Release\net8.0\sidecar.exe') $Webroot
 if ($Serve) {

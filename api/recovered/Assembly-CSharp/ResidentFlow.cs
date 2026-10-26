@@ -228,6 +228,13 @@ public class ResidentFlow : BaseFlow
 			// pass -GAMELOG to keep it on so headless runs can observe the boot sequence.
 			UnityEngine.Debug.unityLogger.logEnabled = true;
 		}
+#if UNITY_WEBGL
+		// KAMUNITY.Logger writes to a cabinet log file the browser never sees; echo the raw
+		// argv and derived switches through the Unity logger (re-enabled just above) so the
+		// puppeteer proof can verify the URL->argv mapping actually reached wasm main().
+		UnityEngine.Debug.Log("WEBGLARGS [" + string.Join(" | ", Environment.GetCommandLineArgs()) + "]");
+		UnityEngine.Debug.Log("WEBGLFLAGS konaminet=" + GameUtility.IsKonamiNetConnection + " io=" + GameUtility.IsIOEnable + " behavior=" + SystemConfigGameData.AppBehaviorType + " cloud=" + SystemConfigGameData.IsCloudStreaming);
+#endif
 		ApplyEnvironmentVariables();
 		_ = GameUtility.IsCloudStreaming;
 		UnityEngine.Debug.Log($"[{DateTime.Now}]ResidnetFlow:Initialize2");

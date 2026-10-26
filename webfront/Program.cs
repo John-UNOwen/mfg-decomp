@@ -68,7 +68,7 @@ namespace WebFront
                         string method = parts[0], target = parts[1];
 
                         int contentLength = 0;
-                        string origin = "", acceptEnc = "", contentType = "";
+                        string origin = "", acceptEnc = "", contentType = "", expect = "";
                         while ((line = reader.ReadLine()) != null && line.Length > 0)
                         {
                             int colon = line.IndexOf(':');
@@ -81,7 +81,16 @@ namespace WebFront
                                 case "origin": origin = value; break;
                                 case "accept-encoding": acceptEnc = value; break;
                                 case "content-type": contentType = value; break;
+                                case "expect": expect = value; break;
                             }
+                        }
+
+                        // node fetch and some HTTP clients hold the POST body until the
+                        // server sends 100 Continue; answer it before reading, else deadlock.
+                        if (contentLength > 0 && expect.Contains("100", StringComparison.OrdinalIgnoreCase))
+                        {
+                            writer.Write("HTTP/1.1 100 Continue\r\n\r\n");
+                            writer.Flush();
                         }
 
                         byte[] body = Array.Empty<byte>();

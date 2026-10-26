@@ -54,7 +54,7 @@ namespace WebFront
             {
                 using (client)
                 {
-                    client.ReceiveTimeout = 30000;
+                    client.ReceiveTimeout = 120000;
                     client.SendTimeout = 30000;
                     var net = client.GetStream();
                     using var reader = new StreamReader(net, UTF8Fallback, false, 8192, true);

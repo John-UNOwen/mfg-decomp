@@ -162,13 +162,14 @@ public class HttpWebRequestor
 			if (form != null)
 			{
 				uwr = new UnityWebRequest(url, "POST");
-				uwr.uploadData = form;
+				uwr.uploadHandler = new UploadHandlerRaw(form);
 				uwr.SetRequestHeader("Content-Type", RequestContentType);
 			}
 			else
 			{
 				uwr = UnityWebRequest.Get(url);
 			}
+			uwr.downloadHandler = new DownloadHandlerBuffer();
 			if (userAgent.Length > 0)
 			{
 				uwr.SetRequestHeader("User-Agent", userAgent);

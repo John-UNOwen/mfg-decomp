@@ -504,10 +504,15 @@ internal static class VoiceManager
 
 	private static async UniTask PlayVoiceChara(List<Category> categories, Player player, float delay = -1f, bool isCancelPrevVoice = true, float pan = -2000f)
 	{
-		List<string> gachaVoices = (from x in player.GachaVoiceItemEquip?.Select((VoiceInfo x) => x.Master)
+		List<string> gachaVoices = (from x in (player.GachaVoiceItemEquip ?? new List<VoiceInfo>())
+	.Select((VoiceInfo x) => x.Master)
 			where categories.Contains(x.Category)
 			select x)?.Select((Item x) => x.Label).ToList() ?? null;
 		List<string> list = CreatePlayVoiceList(categories, gachaVoices, player.m_level);
+		if (list == null || list.Count == 0)
+		{
+			return;
+		}
 		int index = m_randomValueCutin.Range(0, list.Count);
 		await SoundManager.PlayVoice(list[index], player.m_charaType, delay, isCancelPrevVoice, pan);
 	}
@@ -519,7 +524,8 @@ internal static class VoiceManager
 			await PlayVoiceChara(categories, player, delay);
 			return;
 		}
-		List<string> gachaVoices = (from x in player.GachaVoiceItemEquip?.Select((VoiceInfo x) => x.Master)
+		List<string> gachaVoices = (from x in (player.GachaVoiceItemEquip ?? new List<VoiceInfo>())
+	.Select((VoiceInfo x) => x.Master)
 			where categories.Contains(x.Category)
 			select x)?.Select((Item x) => x.Label).ToList() ?? null;
 		List<string> list = CreatePlayVoiceList(categories, gachaVoices, player.m_level);
@@ -531,10 +537,15 @@ internal static class VoiceManager
 
 	private static async UniTask PlayVoiceCha(List<Category> categories, Player player, float delay = -1f)
 	{
-		List<string> gachaVoices = (from x in player.GachaVoiceItemEquip?.Select((VoiceInfo x) => x.Master)
+		List<string> gachaVoices = (from x in (player.GachaVoiceItemEquip ?? new List<VoiceInfo>())
+	.Select((VoiceInfo x) => x.Master)
 			where categories.Contains(x.Category)
 			select x)?.Select((Item x) => x.Label).ToList() ?? null;
 		List<string> list = CreatePlayVoiceList(categories, gachaVoices, player.m_level, player.m_cha);
+		if (list == null || list.Count == 0)
+		{
+			return;
+		}
 		int index = m_randomValueCommand.Range(0, list.Count);
 		string item = list[index];
 		PlayVoiceHistories[player.m_cha].Add(item);
@@ -579,6 +590,10 @@ internal static class VoiceManager
 		Category category = category2;
 		List<string> gachaVoices2 = gachaVoices.Where((VoiceInfo x) => x.Master.Category == category)?.Select((VoiceInfo x) => x.Master.Label)?.ToList() ?? null;
 		List<string> list = JoinVoiceList(new List<Category> { category }, gachaVoices2);
+		if (list == null || list.Count == 0)
+		{
+			return;
+		}
 		int index = m_randomValueCommand.Range(0, list.Count);
 		string label = list[index];
 		SoundManager.PlayVoiceCha(isPlay, label, chara, cha).Forget();

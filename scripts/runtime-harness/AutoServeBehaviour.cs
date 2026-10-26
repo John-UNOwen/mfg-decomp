@@ -93,9 +93,12 @@ namespace MfgRebuild
             "StoryPlay|contains|Send rep",
             "StoryPlay|containsf|Btn rep",
             "Guide|containsf|Bt rep",
+            // Fresh-save Home boots inside the character-custom window (Touch/Head/Bust/Hip tabs).
+            // BtReturn closes it once; then the hub's ModeButton opens the mode window (its own
+            // confirm button is also named ModeButton, hence the forced repeat path) and BtStart
+            // confirms the mode pick into CharaSelect/kyoku.
+            "Home|exactf|BtReturn",
             "Home|exact|ModeButton",
-            // The mode window's 対局 confirm button GameObject is also named ModeButton; in the
-            // window traversal order it appears after the tabs, so fire it with the force path.
             "Home|exactf|ModeButton rep",
             "Home|exactf|BtStart rep",
             "CharaSelect|containsf|Bt rep",
@@ -124,20 +127,6 @@ namespace MfgRebuild
                 {
                     var fb = LiveButtons(active, force: true);
                     Debug.Log($"AUTOSERVE home force-set [{string.Join(",", fb.Keys)}]");
-                    var hf = FindFlow<HomeFlow>(active);
-                    if (hf != null)
-                    {
-                        var sb = new System.Text.StringBuilder();
-                        foreach (var fi in hf.GetType().GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
-                        {
-                            if (fi.Name.Length > 26) continue;
-                            object v = null;
-                            try { v = fi.GetValue(hf); } catch { }
-                            if (v == null || v is bool || v is int || v is string || v is System.Enum)
-                                sb.Append(fi.Name).Append('=').Append(v ?? "null").Append(' ');
-                        }
-                        Debug.Log("AUTOSERVE home state " + sb.ToString());
-                    }
                     return;
                 }
                 case "FirstCharaSelect" when !served.Contains("FirstCharaSelect"):

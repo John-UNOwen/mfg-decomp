@@ -12,7 +12,8 @@ using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Audio;
 
-namespace USnd;
+namespace USnd
+{
 
 public class AudioManager : MonoBehaviour
 {
@@ -2576,9 +2577,47 @@ public class AudioManager : MonoBehaviour
 		string audioClipName = GetAudioClipName(label);
 		if (audioClipName != null && !IsExistAudioClip(audioClipName))
 		{
-			AddAudioClip(await Addressables.LoadAssetAsync<AudioClip>(audioClipName + ".wav"));
-			SetAudioClipToLabel(label);
+			AudioClip audioClip = await LoadAudioClipCompat(audioClipName);
+			if (audioClip != null)
+			{
+				AddAudioClip(audioClip);
+				SetAudioClipToLabel(label);
+			}
 		}
+	}
+
+	// The label table asks for "<name>.wav" but the shipped content set stores clips under
+	// their real "<name>.ogg" paths. The original single await faulted on WebGL (missing key),
+	// which aborted the kyoku coroutine. Try the asked extension, then the real one, bounded by
+	// a timeout, and return null instead of throwing so callers keep progressing without audio.
+	private static async UniTask<AudioClip> LoadAudioClipCompat(string audioClipName)
+	{
+		string[] extensions = new string[2] { ".wav", ".ogg" };
+		for (int i = 0; i < extensions.Length; i++)
+		{
+			UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle<AudioClip> handle = Addressables.LoadAssetAsync<AudioClip>(audioClipName + extensions[i]);
+			await UniTask.WhenAny(
+				UniTask.WaitUntil(() => handle.IsDone, PlayerLoopTiming.Update),
+				UniTask.Delay(TimeSpan.FromSeconds(5.0), ignoreTimeScale: true, PlayerLoopTiming.Update));
+			if (handle.IsValid() && handle.IsDone)
+			{
+				AudioClip result;
+				try
+				{
+					result = handle.Result;
+				}
+				catch (Exception)
+				{
+					result = null;
+				}
+				if (result != null)
+				{
+					return result;
+				}
+				Addressables.Release(handle);
+			}
+		}
+		return null;
 	}
 
 	public static void SetAudioMixer(AudioMixer mixer)
@@ -6200,4 +6239,5 @@ public class AudioManager : MonoBehaviour
 			}
 		}
 	}
+}
 }

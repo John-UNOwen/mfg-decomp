@@ -19,6 +19,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
 if (-not (Test-Path $Build)) { throw "no webgl build at $Build" }
+# a serving webfront holds its own log files inside an old webroot: stop it before wiping
+Get-Process -Name WebFront -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.Id -Force }
 if (Test-Path $Webroot) { Remove-Item $Webroot -Recurse -Force }
 Copy-Item $Build $Webroot -Recurse
 # belt and suspenders: inject explicit player args into the generated index.html so
@@ -46,8 +48,8 @@ if ($Serve) {
     $env:WEBFRONT_BIND = $Bind
     Start-Process -FilePath (Join-Path $root 'webfront\bin\Release\net8.0\WebFront.exe') `
         -WorkingDirectory (Join-Path $root 'webfront\bin\Release\net8.0') `
-        -RedirectStandardError (Join-Path $Webroot 'webfront.err.txt') `
-        -RedirectStandardOutput (Join-Path $Webroot 'webfront.out.txt') `
+        -RedirectStandardError (Join-Path $env:TEMP 'webfront.err.txt') `
+        -RedirectStandardOutput (Join-Path $env:TEMP 'webfront.out.txt') `
         -WindowStyle Hidden
     'webfront started (bind=' + $Bind + ' WEBFRONT_UPSTREAM=' + $Upstream + ')'
 }

@@ -107,6 +107,9 @@ namespace MfgRebuild
             "Home|exactf|Bt rep",
             "Home|exactf|BtStart rep",
             "CharaSelect|containsf|Bt rep",
+            // Kyoku: the hand tiles expose CharaTouchAreaZi buttons; clicking one discards for the
+            // player turn so the mock engine can advance the match.
+            "MahjongPlay|containsf|Zi rep",
         };
 
         private void Builtins(string active, Dictionary<string, Button> buttons)

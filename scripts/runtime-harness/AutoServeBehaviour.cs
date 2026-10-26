@@ -84,6 +84,20 @@ namespace MfgRebuild
             }
         }
 
+        private static string[] WebglDefaultRuleLines = new string[]
+        {
+            "StoryPlay|containsf|Bt rep",
+            "StoryPlay|contains|Skip rep",
+            "StoryPlay|contains|Skip rep",
+            "StoryPlay|contains|Next rep",
+            "StoryPlay|contains|Send rep",
+            "StoryPlay|containsf|Btn rep",
+            "Guide|containsf|Bt rep",
+            "Home|exact|ModeButton",
+            "Home|exactf|BtStart rep",
+            "CharaSelect|containsf|Bt rep",
+        };
+
         private void Builtins(string active, Dictionary<string, Button> buttons)
         {
             switch (active)
@@ -139,13 +153,32 @@ namespace MfgRebuild
             }
         }
 
+        private static IEnumerable<string> RuleLines()
+        {
+            try
+            {
+                if (File.Exists(CfgPath))
+                {
+                    foreach (string raw in File.ReadAllLines(CfgPath)) yield return raw;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log($"AUTOSERVE cfg read failed: {e.Message}");
+            }
+#if UNITY_WEBGL
+            // The browser has no C:\mfgtmp; bake the working desktop steering rules in so the
+            // story/mode/home flow advances without an external cfg file.
+            foreach (string raw in WebglDefaultRuleLines) yield return raw;
+#endif
+        }
+
         private static List<Rule> LoadRules()
         {
             var rules = new List<Rule>();
             try
             {
-                if (!File.Exists(CfgPath)) return rules;
-                foreach (string raw in File.ReadAllLines(CfgPath))
+                foreach (string raw in RuleLines())
                 {
                     string line = raw.Trim();
                     if (line.Length == 0 || line.StartsWith("//")) continue;
@@ -166,7 +199,7 @@ namespace MfgRebuild
             }
             catch (Exception e)
             {
-                Debug.Log($"AUTOSERVE cfg read failed: {e.Message}");
+                Debug.Log($"AUTOSERVE cfg parse failed: {e.Message}");
             }
             return rules;
         }

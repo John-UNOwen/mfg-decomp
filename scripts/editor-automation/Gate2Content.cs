@@ -333,7 +333,7 @@ namespace MfgRebuild
                     Array.Sort(names);
                     Side("webgl static props: " + string.Join(",", names));
                 }
-                if (webglT != null) foreach (var pair in new object[][] { new object[] { "initialMemorySize", 512 }, new object[] { "maximumMemorySize", 3584 }, new object[] { "memoryGrowthMode", 2 }, new object[] { "geometricGrowthStep", 8 }, new object[] { "geometricGrowthCap", 512 } })
+                if (webglT != null) foreach (var pair in new object[][] { new object[] { "initialMemorySize", 512 }, new object[] { "maximumMemorySize", 3584 }, new object[] { "memoryGrowthMode", 2 }, new object[] { "geometricMemoryGrowthStep", 8 }, new object[] { "memoryGeometricGrowthCap", 512 } })
                 {
                     var p = webglT.GetProperty((string)pair[0], System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
                     if (p == null || !p.CanWrite) { Side($"webgl {pair[0]}: property missing"); continue; }
@@ -364,7 +364,7 @@ namespace MfgRebuild
             var eT = typeof(WebGLExceptionSupport);
             var eNames = Enum.GetNames(eT);
             Side($"exception enum names: {string.Join(",", eNames)}");
-            foreach (var name in new[] { "FullWithStackTraces", "FullWithExplicitStackTraces", "Full", "ExtractStackTraceOnly" })
+            foreach (var name in new[] { "FullWithStacktrace", "FullWithStackTraces", "FullWithExplicitStackTraces", "Full", "ExtractStackTraceOnly" })
             {
                 if (Array.IndexOf(eNames, name) < 0) continue;
                 try

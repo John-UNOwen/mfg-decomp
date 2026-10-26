@@ -315,10 +315,44 @@ internal class TileManager : MonoBehaviour
 			atomicTile.RefleshTextureType();
 		}
 		m_spriteAtlas?.Dispose();
-		m_spriteAtlas = await AssetLoader.LoadAssetAsync<SpriteAtlas>(AssetPathResolver.ResolveTileSurfaceSpriteAtlas(paiItemID), null, cancellationToken);
-		foreach (Pai value in Enum.GetValues(typeof(Pai)))
+		TileSprites.Clear();
+		try
 		{
-			TileSprites.Add(value, m_spriteAtlas.Asset.GetSprite(value.ToString()));
+			m_spriteAtlas = await AssetLoader.LoadAssetAsync<SpriteAtlas>(AssetPathResolver.ResolveTileSurfaceSpriteAtlas(paiItemID), null, cancellationToken);
+		}
+		catch (Exception)
+		{
+			// The regenerated content set carries no .spriteatlas entries; assembling the
+			// surface from the per-tile sprites in the addressable catalog keeps kyoku playable.
+			m_spriteAtlas = null;
+			UnityEngine.Debug.LogError("TileManager: sprite atlas load failed for " + AssetPathResolver.ResolveTileSurfaceSpriteAtlas(paiItemID) + ", using loose tile sprites");
+		}
+		if (m_spriteAtlas != null && m_spriteAtlas.Asset != null)
+		{
+			foreach (Pai value in Enum.GetValues(typeof(Pai)))
+			{
+				TileSprites.Add(value, m_spriteAtlas.Asset.GetSprite(value.ToString()));
+			}
+		}
+		else
+		{
+			foreach (Pai value2 in Enum.GetValues(typeof(Pai)))
+			{
+				string atlasKey = "Assets/MFG/CustomizeItem/TileSurface/" + paiItemID + "/2D/" + value2.ToString() + ".png";
+				try
+				{
+					IDisposableAsset<Sprite> disposableAsset4 = await AssetLoader.LoadAssetAsync<Sprite>(atlasKey, null, cancellationToken);
+					TileSprites.Add(value2, disposableAsset4.Asset);
+				}
+				catch (Exception)
+				{
+					UnityEngine.Debug.LogError("TileManager: loose tile sprite missing for key " + atlasKey);
+					if (!TileSprites.ContainsKey(value2))
+					{
+						TileSprites.Add(value2, null);
+					}
+				}
+			}
 		}
 	}
 

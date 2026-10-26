@@ -94,6 +94,9 @@ namespace MfgRebuild
             "StoryPlay|containsf|Btn rep",
             "Guide|containsf|Bt rep",
             "Home|exact|ModeButton",
+            // The mode window's 対局 confirm button GameObject is also named ModeButton; in the
+            // window traversal order it appears after the tabs, so fire it with the force path.
+            "Home|exactf|ModeButton rep",
             "Home|exactf|BtStart rep",
             "CharaSelect|containsf|Bt rep",
         };
@@ -115,6 +118,12 @@ namespace MfgRebuild
                 case "Login" when !served.Contains("Login"):
                 {
                     if (TryInvokeGet(buttons, "BtGuestStart", active)) served.Add("Login");
+                    return;
+                }
+                case "Home" when polls % 12 == 2:
+                {
+                    var fb = LiveButtons(active, force: true);
+                    Debug.Log($"AUTOSERVE home force-set [{string.Join(",", fb.Keys)}]");
                     return;
                 }
                 case "FirstCharaSelect" when !served.Contains("FirstCharaSelect"):

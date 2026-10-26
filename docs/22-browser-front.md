@@ -7,7 +7,7 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 
 ## Behavior
 
-- One origin on `http://127.0.0.1:8090` (port via `WEBFRONT_PORT`). Raw TcpListener, no http.sys/urlacl dependency; `Connection: close` per response.
+- One origin on `http://127.0.0.1:8090` (port via `WEBFRONT_PORT`). Raw TcpListener, no http.sys/urlacl dependency; HTTP/1.1 keep-alive so the addressable fan-out reuses a handful of loopback sockets (burst connection churn intermittently trips Windows with `ERR_NO_BUFFER_SPACE`), `100 Continue` answered before reading POST bodies.
 - `/aog/*` proxied to `WEBFRONT_UPSTREAM` (default `http:// <provider-host>`), path+body+content-type
   relayed untouched, `User-Agent` replaced with a neutral agent string (the provider only rejects
   UAs containing "Mozilla"), `Host` set by the outbound URI. OPTIONS on /aog/* answers 204 preflight.
@@ -26,16 +26,17 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
   satisfied without CORS gymnastics because everything is same-origin.
   Caveat: those staged bundles are the shipped StandaloneWindows64 builds. Correct for
   editor/standalone play mode (same platform), but NOT directly usable by a WebGL player: bundle
-  content is target-specific (desktop-compiled shaders, BC textures). WebGL needs the bundles
-  rebuilt for its target (docs/04 Phase 3 regeneration); they then get served from this same
-  webroot path unchanged.
+  content is target-specific (desktop-compiled shaders, BC textures). The WebGL build automation
+  regenerates the whole content set for the WebGL target during BuildPlayer (docs/23), so the
+  exported webgl tree under `out/webgl` carries its own `aa/WebGL` bundles; `assemble_webroot.ps1`
+  copies that tree and brotli-compresses every file for serving.
 - The game's front-server URL uses the rebuild's `-FRONTURL <url>` command-line option (added to
   `ResidentFlow.ApplyCommandLineArgs` on top of shipping `-KONAMINET`; calls the shipped but unused
-  `NetEnvironment.SetEnv` with the proxy hop off). Unity WebGL receives command line arguments from
-  the page URL query string, so
-  `http://localhost:8090/?-FRONTURL=http://localhost:8090/aog` configures the browser client with no
-  per-build code change (absolute URL keeps it same-origin; relative URLs are unreliable in
-  UnityWebRequest). Desktop examples below.
+  `NetEnvironment.SetEnv` with the proxy hop off). Desktop examples below. On WebGL the 2022.3
+  loader ignores `config.arguments` and freezes argv at script load, so `assemble_webroot.ps1`
+  patches `framework.js` to build argv from the page URL query string:
+  `http://127.0.0.1:8090/?-KONAMINET&-FRONTURL=http://127.0.0.1:8090/aog&...` configures the
+  browser client with no per-build code change (absolute URL keeps it same-origin).
 ## First-payload sizing (measured 2026-10-25)
 
 - Boot scene files are tiny (< 1 MB); nothing heavy in Resources. The shipped startup cost is the

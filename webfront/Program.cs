@@ -212,6 +212,9 @@ namespace WebFront
 
         private static string Mime(string f)
         {
+            // Classify brotli sidecars by the underlying name: .br must keep the base type,
+            // otherwise index.html.br arrives as octet-stream and the browser aborts the load.
+            if (f.EndsWith(".br", StringComparison.OrdinalIgnoreCase)) f = f.Substring(0, f.Length - 3);
             if (f.EndsWith(".html", StringComparison.OrdinalIgnoreCase)) return "text/html; charset=utf-8";
             if (f.EndsWith(".js", StringComparison.OrdinalIgnoreCase)) return "text/javascript";
             if (f.EndsWith(".wasm", StringComparison.OrdinalIgnoreCase)) return "application/wasm";

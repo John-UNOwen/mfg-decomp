@@ -375,6 +375,43 @@ namespace MfgRebuild
                 }
                 catch (Exception e) { Side($"webgl exceptions={name}: {e.Message}"); }
             }
+            try { AddAlwaysIncludedShaders(); } catch (Exception e) { Side($"always-included shaders: {e.Message}"); }
+        }
+
+        // The ripped game loads its character (UnityChanToonShader) and TextMeshPro shaders
+        // only from addressable bundles, so Unity's scene-based automatic variant stripping
+        // drops their keyword variants in the WebGL player: models render as untextured
+        // silhouettes and all TMP text disappears. Always-included shaders ship every variant
+        // Unity can enumerate, which is the documented fix for Addressables/runtime keywords.
+        private static void AddAlwaysIncludedShaders()
+        {
+            var folders = new[] { "Assets/Toon", "Assets/Shader", "Assets/Shaders", "Assets/TextMesh Pro" };
+            var wanted = new System.Collections.Generic.List<UnityEngine.Shader>();
+            foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:Shader", folders))
+            {
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var shader = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Shader>(path);
+                if (shader != null) wanted.Add(shader);
+            }
+            var settings = UnityEditor.AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            if (settings == null || settings.Length == 0) { Side("graphics settings object missing"); return; }
+            var so = new UnityEditor.SerializedObject(settings[0]);
+            var list = so.FindProperty("m_AlwaysIncludedShaders");
+            int added = 0;
+            foreach (var shader in wanted)
+            {
+                bool present = false;
+                for (int i = 0; i < list.arraySize; i++)
+                    if (list.GetArrayElementAtIndex(i).objectReferenceValue == (UnityEngine.Object)shader) { present = true; break; }
+                if (present) continue;
+                list.InsertArrayElementAtIndex(0);
+                list.GetArrayElementAtIndex(0).objectReferenceValue = shader;
+                added++;
+            }
+            so.ApplyModifiedProperties();
+            UnityEditor.EditorUtility.SetDirty(settings[0]);
+            UnityEditor.AssetDatabase.SaveAssets();
+            Side($"always-included shaders wanted={wanted.Count} added={added} total={list.arraySize}");
         }
 
         // GetAllWarningsAndErrors is editor-internal here, so read the report through the

@@ -431,10 +431,10 @@ namespace MfgRebuild
             for (int i = list.arraySize - 1; i >= 0; i--)
             {
                 var obj = list.GetArrayElementAtIndex(i).objectReferenceValue;
-                if (obj == null) { list.RemoveArrayElement(i); continue; }
+                if (obj == null) { list.DeleteArrayElementAtIndex(i); continue; }
                 var ep = UnityEditor.AssetDatabase.GetAssetPath(obj);
                 if (!string.IsNullOrEmpty(ep) && ep.StartsWith("Assets/") && !allow.Contains(obj))
-                    list.RemoveArrayElement(i);
+                    list.DeleteArrayElementAtIndex(i);
             }
             int added = 0;
             foreach (var shader in wanted)

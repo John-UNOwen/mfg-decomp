@@ -423,6 +423,19 @@ namespace MfgRebuild
             if (settings == null || settings.Length == 0) { Side("graphics settings object missing"); return; }
             var so = new UnityEditor.SerializedObject(settings[0]);
             var list = so.FindProperty("m_AlwaysIncludedShaders");
+            // Build27-era runs persisted a broad folder-scan set (editor ProBuilder/Shader-Graph
+            // junk) into this asset; strip any always-included entry that is a project asset
+            // outside the allowlist. Built-in shaders report an empty asset path and are kept.
+            var allow = new System.Collections.Generic.HashSet<UnityEngine.Object>();
+            foreach (var s in wanted) allow.Add(s);
+            for (int i = list.arraySize - 1; i >= 0; i--)
+            {
+                var obj = list.GetArrayElementAtIndex(i).objectReferenceValue;
+                if (obj == null) { list.RemoveArrayElement(i); continue; }
+                var ep = UnityEditor.AssetDatabase.GetAssetPath(obj);
+                if (!string.IsNullOrEmpty(ep) && ep.StartsWith("Assets/") && !allow.Contains(obj))
+                    list.RemoveArrayElement(i);
+            }
             int added = 0;
             foreach (var shader in wanted)
             {

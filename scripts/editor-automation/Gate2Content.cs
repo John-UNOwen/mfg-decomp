@@ -385,13 +385,39 @@ namespace MfgRebuild
         // Unity can enumerate, which is the documented fix for Addressables/runtime keywords.
         private static void AddAlwaysIncludedShaders()
         {
-            var folders = new[] { "Assets/Toon", "Assets/Shader", "Assets/Shaders", "Assets/TextMesh Pro" };
             var wanted = new System.Collections.Generic.List<UnityEngine.Shader>();
-            foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:Shader", folders))
+            // Only runtime shaders that live in addressable bundles and are otherwise stripped:
+            // the 12 UnityChanToon character shaders + TextMeshPro shaders + character eye/mouth/
+            // outline. Deliberately excludes editor-only junk a folder scan would pull in
+            // (ProBuilder, Hidden/Shader Graph FallbackError, utility blend shaders) which
+            // deadlocked the WebGL player at boot when force-included.
+            var paths = new[] {
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather.shader",
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather_Clipping.shader",
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather_Clipping_StencilMask.shader",
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather_Clipping_StencilOut.shader",
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather_StencilMask.shader",
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather_TransClipping.shader",
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather_TransClipping_StencilMask.shader",
+                "Assets/Toon/Shader/Toon_DoubleShadeWithFeather_TransClipping_StencilOut.shader",
+                "Assets/Toon/Shader/Toon_ShadingGradeMap_StencilMask.shader",
+                "Assets/Toon/Shader/Toon_ShadingGradeMap_TransClipping_StencilMask.shader",
+                "Assets/Toon/Shader/ToonColor_DoubleShadeWithFeather.shader",
+                "Assets/Toon/Shader/ToonColor_DoubleShadeWithFeather_Clipping.shader",
+                "Assets/Shader/TextMeshPro_Distance Field.shader",
+                "Assets/Shader/TextMeshPro_Mobile_Distance Field.shader",
+                "Assets/Shader/TextMeshPro_Sprite.shader",
+                "Assets/TextMesh Pro/Shaders/TMP_SDF.shader",
+                "Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader",
+                "Assets/TextMesh Pro/Shaders/TMP_Sprite.shader",
+                "Assets/Shaders/sg_cha_outline.shader",
+                "Assets/Shaders/Character/Eye.shader",
+                "Assets/Shaders/Character/Mouth.shader",
+            };
+            foreach (var path in paths)
             {
-                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
                 var shader = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Shader>(path);
-                if (shader != null) wanted.Add(shader);
+                if (shader != null) wanted.Add(shader); else Side("always-include missing: " + path);
             }
             var settings = UnityEditor.AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
             if (settings == null || settings.Length == 0) { Side("graphics settings object missing"); return; }

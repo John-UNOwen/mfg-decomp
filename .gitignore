@@ -52,3 +52,7 @@ scripts/brotli-sidecar/obj/
 scripts/brotli-sidecar/check/bin/
 scripts/brotli-sidecar/check/obj/
 out/brtest/
+
+__pycache__/
+build/project-merge-analysis/verify/*/bin/Release/
+build/project-merge-analysis/verify/*/obj/Release/

@@ -1,5 +1,5 @@
 {
-    "when":  "2026-10-24T20:17:23",
+    "when":  "2026-10-24T20:39:31",
     "phases":  "trees+metas, loose dll disposition, manifest+csc.rsp, bundle staging",
     "totals":  {
                    "assetsTotalFiles":  146599,
@@ -19,7 +19,7 @@
                    "looseItemsDeleted":  [
 
                                          ],
-                   "manifestEntries":  38
+                   "manifestEntries":  31
                },
     "assemblyStats":  {
                           "Assembly-CSharp":  {

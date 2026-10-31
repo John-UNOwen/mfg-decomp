@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj": {}
+    "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj": {}
   },
   "projects": {
-    "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj": {
+    "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
+        "projectUniqueName": "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
         "projectName": "Assembly-CSharp",
-        "projectPath": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
+        "projectPath": "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
         "packagesPath": "C:\\Users\\ <you>\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\ac9\\obj\\",
+        "outputPath": "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\ <you>\\AppData\\Roaming\\NuGet\\NuGet.Config"

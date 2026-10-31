@@ -183,6 +183,19 @@ public class HaiNavi : IDisposable
 			IsAnalyzing = true;
 			try
 			{
+#if UNITY_WEBGL
+				// Single-threaded WebGL (webGLThreadsSupport: 0) has no usable thread
+				// pool: UniTask.Run queues to worker threads that never run, so this
+				// await never completes and the kyoku flow hangs before tiles are dealt.
+				// Run the analysis inline on the main thread instead.
+				await ExcecuteBlockDivide();
+				EvaluateShanten();
+				EvaluateYakuPossibility();
+				EvaluateScore();
+				EvaluateShantenUpHai();
+				cancellationToken.ThrowIfCancellationRequested();
+				await UniTask.Yield();
+#else
 				await UniTask.Run(async delegate
 				{
 					await ExcecuteBlockDivide();
@@ -191,6 +204,7 @@ public class HaiNavi : IDisposable
 					EvaluateScore();
 					EvaluateShantenUpHai();
 				}, configureAwait: true, cancellationToken);
+#endif
 			}
 			catch (OperationCanceledException ex)
 			{

@@ -96,14 +96,20 @@ namespace WebFront
                         byte[] body = Array.Empty<byte>();
                         if (contentLength > 0)
                         {
-                            body = new byte[contentLength];
-                            int read = 0;
-                            while (read < contentLength)
+                            // Read through the SAME buffered reader: the header loop already pulled
+                            // body bytes into its internal buffer, so a raw net.Read here would find
+                            // an empty socket and hang until ReceiveTimeout while Forward relays nothing.
+                            // AOG bodies are urlencoded (ASCII), so char->byte is byte-exact.
+                            char[] chars = new char[contentLength];
+                            int got = 0;
+                            while (got < contentLength)
                             {
-                                int n = net.Read(body, read, contentLength - read);
+                                int n = reader.ReadBlock(chars, got, contentLength - got);
                                 if (n <= 0) break;
-                                read += n;
+                                got += n;
                             }
+                            body = new byte[got];
+                            for (int i = 0; i < got; i++) body[i] = (byte)chars[i];
                         }
 
                         string path = target.Split('?')[0];

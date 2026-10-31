@@ -375,7 +375,11 @@ namespace MfgRebuild
                 }
                 catch (Exception e) { Side($"webgl exceptions={name}: {e.Message}"); }
             }
-            try { AddAlwaysIncludedShaders(); } catch (Exception e) { Side($"always-included shaders: {e.Message}"); }
+            // Always-including toon/tmp/outline shader variants (added in the build46 window) ships
+            // every enumerable variant into the WebGL player and caused a scene-wide texture flicker.
+            // build45 did NOT do this yet rendered textured characters and TMP text fine, because those
+            // shaders are auto-included through material reference. Disabling restores build45.
+            // try { AddAlwaysIncludedShaders(); } catch (Exception e) { Side($"always-included shaders: {e.Message}"); }
         }
 
         // The ripped game loads its character (UnityChanToonShader) and TextMeshPro shaders

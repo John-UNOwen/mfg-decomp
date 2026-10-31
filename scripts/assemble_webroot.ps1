@@ -40,6 +40,21 @@ if ($html -notmatch 'arguments:') {
     Set-Content $idx.FullName $html -Encoding UTF8 -NoNewline
     'patched index.html config.arguments'
 } else { 'index.html already has arguments' }
+# Canvas: the shipped Default template pins the canvas to 960x600 (aspect 1.6), but the game's
+# CanvasScaler reference resolution is 1920x1080 (16:9), so that size clips the bottom UI (the
+# end-of-match/continue button falls off-screen). Make the canvas fill the browser window instead;
+# Unity matches the WebGL render target to the canvas DOM size, so a 16:9 window yields the full UI.
+$idx2 = Get-ChildItem $Webroot -Filter 'index.html' | Select-Object -First 1
+$html2 = Get-Content $idx2.FullName -Raw
+$html2 = $html2 -replace '<canvas id="unity-canvas" width=960 height=600 ', '<canvas id="unity-canvas" width=1280 height=720 '
+$css = '<style>/*MFG-CANVAS*/html,body{margin:0;padding:0;overflow:hidden;background:#000}' +
+  '#unity-container{position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;transform:none!important}' +
+  '#unity-canvas{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;' +
+  'width:min(100vw,177.78vh)!important;height:min(56.25vw,100vh)!important;display:block!important}' +
+  '#unity-loading-bar,#unity-logo,#unity-fullscreen-button,#unity-progress-bar-full{display:none!important}</style>'
+if ($html2 -notmatch 'MFG-CANVAS') { $html2 = $html2 -replace '</head>', ($css + '</head>') }
+Set-Content $idx2.FullName $html2 -Encoding UTF8 -NoNewline
+'patched index.html canvas->letterbox-fill'
 # The 2022.3 loader factory freezes `var arguments_=[]` at script load, before any
 # config.arguments can reach it, so Environment.GetCommandLineArgs() in the wasm is empty.
 # Rewrite the first `var arguments_=[]` in the built framework.js to parse the page URL

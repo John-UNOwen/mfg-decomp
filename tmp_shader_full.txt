@@ -1,0 +1,162 @@
+## DESKTOP build
+== desktop globalgamemanagers: 0 shaders
+== desktop globalgamemanagers.assets: 0 shaders
+== desktop globalgamemanagers.assets.resS: 0 shaders
+== desktop level5.resS: 0 shaders
+== desktop level58.resS: 0 shaders
+== desktop level6.resS: 0 shaders
+== desktop level7.resS: 0 shaders
+== desktop level8.resS: 0 shaders
+== desktop resources.assets: 10 shaders
+   pid=46 files=['resources.assets'] names=['']
+== desktop resources.assets.resS: 0 shaders
+== desktop sharedassets0.assets: 2 shaders
+== desktop sharedassets0.assets.resS: 0 shaders
+== desktop sharedassets1.assets: 1 shaders
+== desktop sharedassets1.assets.resS: 0 shaders
+== desktop sharedassets10.assets: 0 shaders
+== desktop sharedassets10.assets.resS: 0 shaders
+== desktop sharedassets11.assets: 1 shaders
+== desktop sharedassets11.assets.resS: 0 shaders
+== desktop sharedassets12.assets: 0 shaders
+== desktop sharedassets12.assets.resS: 0 shaders
+== desktop sharedassets13.assets: 0 shaders
+== desktop sharedassets13.assets.resS: 0 shaders
+== desktop sharedassets14.assets: 0 shaders
+== desktop sharedassets14.assets.resS: 0 shaders
+== desktop sharedassets15.assets: 1 shaders
+   MAT 'Hai' in sharedassets15.assets -> shader pid=190 file=sharedassets15.assets name=''
+   MAT 'HaiSe2' in sharedassets15.assets -> shader pid=38 file=resources.assets name=''
+   MAT 'HaiSkin2' in sharedassets15.assets -> shader pid=38 file=resources.assets name=''
+== desktop sharedassets15.assets.resS: 0 shaders
+== desktop sharedassets16.assets: 2 shaders
+== desktop sharedassets16.assets.resS: 0 shaders
+== desktop sharedassets17.assets: 2 shaders
+   MAT 'Cube' in sharedassets17.assets -> shader pid=190 file=sharedassets15.assets name=''
+   MAT 'Hai_Debug' in sharedassets17.assets -> shader pid=190 file=sharedassets15.assets name=''
+   MAT 'KiraRed' in sharedassets17.assets -> shader pid=53 file=sharedassets16.assets name=''
+== desktop sharedassets17.assets.resS: 0 shaders
+== desktop sharedassets18.assets: 1 shaders
+== desktop sharedassets18.assets.resS: 0 shaders
+== desktop sharedassets19.assets: 0 shaders
+== desktop sharedassets19.assets.resS: 0 shaders
+== desktop sharedassets2.assets: 0 shaders
+== desktop sharedassets2.assets.resS: 0 shaders
+== desktop sharedassets20.assets: 0 shaders
+== desktop sharedassets20.assets.resS: 0 shaders
+== desktop sharedassets21.assets: 0 shaders
+== desktop sharedassets21.assets.resS: 0 shaders
+== desktop sharedassets22.assets: 0 shaders
+== desktop sharedassets22.assets.resS: 0 shaders
+== desktop sharedassets23.assets: 0 shaders
+== desktop sharedassets23.assets.resS: 0 shaders
+== desktop sharedassets24.assets: 0 shaders
+== desktop sharedassets24.assets.resS: 0 shaders
+== desktop sharedassets25.assets: 0 shaders
+== desktop sharedassets25.assets.resS: 0 shaders
+== desktop sharedassets26.assets: 0 shaders
+== desktop sharedassets26.assets.resS: 0 shaders
+== desktop sharedassets27.assets: 0 shaders
+== desktop sharedassets27.assets.resS: 0 shaders
+== desktop sharedassets28.assets: 0 shaders
+== desktop sharedassets28.assets.resS: 0 shaders
+== desktop sharedassets29.assets: 0 shaders
+== desktop sharedassets29.assets.resS: 0 shaders
+== desktop sharedassets3.assets: 1 shaders
+== desktop sharedassets3.assets.resS: 0 shaders
+== desktop sharedassets30.assets: 0 shaders
+== desktop sharedassets30.assets.resS: 0 shaders
+== desktop sharedassets31.assets: 0 shaders
+== desktop sharedassets31.assets.resS: 0 shaders
+== desktop sharedassets32.assets: 0 shaders
+== desktop sharedassets32.assets.resS: 0 shaders
+== desktop sharedassets33.assets: 0 shaders
+== desktop sharedassets33.assets.resS: 0 shaders
+== desktop sharedassets34.assets: 0 shaders
+== desktop sharedassets34.assets.resS: 0 shaders
+== desktop sharedassets35.assets: 0 shaders
+== desktop sharedassets35.assets.resS: 0 shaders
+== desktop sharedassets36.assets: 0 shaders
+== desktop sharedassets36.assets.resS: 0 shaders
+== desktop sharedassets37.assets: 0 shaders
+== desktop sharedassets37.assets.resS: 0 shaders
+== desktop sharedassets38.assets: 0 shaders
+== desktop sharedassets38.assets.resS: 0 shaders
+== desktop sharedassets39.assets: 0 shaders
+== desktop sharedassets4.assets: 0 shaders
+== desktop sharedassets4.assets.resS: 0 shaders
+== desktop sharedassets40.assets: 0 shaders
+== desktop sharedassets41.assets: 0 shaders
+== desktop sharedassets41.assets.resS: 0 shaders
+== desktop sharedassets42.assets: 0 shaders
+== desktop sharedassets42.assets.resS: 0 shaders
+== desktop sharedassets43.assets: 0 shaders
+== desktop sharedassets43.assets.resS: 0 shaders
+== desktop sharedassets44.assets: 0 shaders
+== desktop sharedassets44.assets.resS: 0 shaders
+== desktop sharedassets45.assets: 0 shaders
+== desktop sharedassets45.assets.resS: 0 shaders
+== desktop sharedassets46.assets: 0 shaders
+== desktop sharedassets46.assets.resS: 0 shaders
+== desktop sharedassets47.assets: 0 shaders
+== desktop sharedassets47.assets.resS: 0 shaders
+== desktop sharedassets48.assets: 0 shaders
+== desktop sharedassets48.assets.resS: 0 shaders
+== desktop sharedassets49.assets: 0 shaders
+== desktop sharedassets5.assets: 0 shaders
+== desktop sharedassets50.assets: 0 shaders
+== desktop sharedassets50.assets.resS: 0 shaders
+== desktop sharedassets51.assets: 0 shaders
+== desktop sharedassets51.assets.resS: 0 shaders
+== desktop sharedassets52.assets: 0 shaders
+== desktop sharedassets52.assets.resS: 0 shaders
+== desktop sharedassets53.assets: 0 shaders
+== desktop sharedassets53.assets.resS: 0 shaders
+== desktop sharedassets54.assets: 0 shaders
+== desktop sharedassets54.assets.resS: 0 shaders
+== desktop sharedassets55.assets: 0 shaders
+== desktop sharedassets55.assets.resS: 0 shaders
+== desktop sharedassets56.assets: 0 shaders
+== desktop sharedassets56.assets.resS: 0 shaders
+== desktop sharedassets57.assets: 0 shaders
+== desktop sharedassets57.assets.resS: 0 shaders
+== desktop sharedassets58.assets: 0 shaders
+== desktop sharedassets59.assets: 0 shaders
+== desktop sharedassets59.assets.resS: 0 shaders
+== desktop sharedassets6.assets: 1 shaders
+== desktop sharedassets6.assets.resS: 0 shaders
+== desktop sharedassets60.assets: 1 shaders
+== desktop sharedassets61.assets: 0 shaders
+== desktop sharedassets61.assets.resS: 0 shaders
+== desktop sharedassets7.assets: 0 shaders
+== desktop sharedassets8.assets: 0 shaders
+== desktop sharedassets9.assets: 1 shaders
+== desktop sharedassets9.assets.resS: 0 shaders
+## WEBGL build
+sub-files: ['?']
+== webgl: 93 shaders
+   pid=46 files=['resources.assets'] names=['']
+   pid=10101 files=['unity_default_resources'] names=['']
+   pid=10753 files=['unity_builtin_extra'] names=['']
+   pid=10755 files=['unity_default_resources'] names=['']
+   pid=10757 files=['unity_builtin_extra'] names=['']
+   pid=10770 files=['unity_builtin_extra'] names=['']
+   pid=10783 files=['unity_builtin_extra'] names=['']
+   pid=15104 files=['unity_builtin_extra'] names=['']
+   pid=15105 files=['unity_builtin_extra'] names=['']
+   pid=15106 files=['unity_builtin_extra'] names=['']
+   pid=15304 files=['unity_builtin_extra'] names=['']
+   pid=15308 files=['unity_builtin_extra'] names=['']
+   pid=15309 files=['unity_builtin_extra'] names=['']
+   pid=15312 files=['unity_builtin_extra'] names=['']
+   pid=16000 files=['unity_builtin_extra'] names=['']
+   pid=16001 files=['unity_builtin_extra'] names=['']
+   pid=17000 files=['unity_builtin_extra'] names=['']
+   pid=19011 files=['unity_builtin_extra'] names=['']
+   pid=4800000 files=['unity_builtin_extra'] names=['']
+   MAT 'Hai' in sharedassets15.assets -> shader pid=190 file=sharedassets15.assets name=''
+   MAT 'HaiSe2' in sharedassets15.assets -> shader pid=38 file=resources.assets name=''
+   MAT 'HaiSkin2' in sharedassets15.assets -> shader pid=38 file=resources.assets name=''
+   MAT 'Cube' in sharedassets17.assets -> shader pid=190 file=sharedassets15.assets name=''
+   MAT 'Hai_Debug' in sharedassets17.assets -> shader pid=190 file=sharedassets15.assets name=''
+   MAT 'KiraRed' in sharedassets17.assets -> shader pid=53 file=sharedassets16.assets name=''

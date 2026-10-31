@@ -35,6 +35,15 @@ internal static class Program
     internal static readonly int[] TestTePai = ParseKindList(Environment.GetEnvironmentVariable("MFG_TEST_TEPAI"));
     internal static readonly int TestWinKind = int.TryParse(Environment.GetEnvironmentVariable("MFG_TEST_WIN"), out int wk) ? wk : -1;
     internal static readonly int TestSeat = int.TryParse(Environment.GetEnvironmentVariable("MFG_TEST_SEAT"), out int ts) ? ts : 0;
+    // Chara-select park knob for the eye-render check: with MOCK_HOLD_CS_WRITE_MS=<ms> the mock withholds
+    // its answer to the FIRST client_state_write whose body carries kind=player_game. That POST is the
+    // Player.Save await inside FirstCharaSelectFlow.Decide(), which has already paused the 60 s select
+    // timer and dropped the select window's black screen, so the decided character model stays on screen,
+    // camera-facing, with no countdown running, until the client's own request timeout
+    // (NetEnvironmentConnection.NetworkTimeout 30 s / HttpWebRequestor uwr.timeout 60 s) ends the park.
+    // Unset or 0 = today's behaviour: answer immediately.
+    internal static readonly int HoldCsWriteMs = int.TryParse(Environment.GetEnvironmentVariable("MOCK_HOLD_CS_WRITE_MS"), out int hm) ? hm : 0;
+    private static int HoldCsWriteTaken;
     // Forwarding mode: with MFG_UPSTREAM=http://host[:port] set, every request is relayed verbatim
     // to that front server (e.g. the publicly hosted provider) and the response passed back.
     // The local engine and spec templates stay unused. The listener keeps doing what the client
@@ -194,8 +203,33 @@ internal static class Program
         if (host.Length == 0) host = fallbackHost;
         Cert.Register(host);
 
+        // HTTP/1.1 says answer Expect: 100-continue before the client dares to send the body. Clients
+        // that get no answer stall first (curl about 1 s, .NET HttpClient until its own timeout), which
+        // looks like a slow server from their side.
+        if (headers.TryGetValue("Expect", out string expectHeader) && expectHeader.Contains("100"))
+        {
+            byte[] cont = Encoding.ASCII.GetBytes("HTTP/1.1 100 Continue\r\n\r\n");
+            stream.Write(cont, 0, cont.Length);
+            stream.Flush();
+        }
+
         byte[] rawBody = ReadBody(stream, headers);
         string body = rawBody.Length > 0 ? Encoding.UTF8.GetString(rawBody) : "";
+
+        // A browser page served from another port (the webfront static origin) may call this mock
+        // directly. Under the webfront's COEP: require-corp, a cross-origin response is only usable if
+        // it is CORS-cleared or carries a CORP allowance, so answer the CORS handshake here and let the
+        // page skip the webfront's /aog relay hop. Origin is echoed, not *, because a credentialed XHR
+        // rejects ACAO:*; 200-with-body is a valid preflight answer, so OPTIONS needs no special case.
+        string corsOrigin = headers.TryGetValue("Origin", out string originHeader) ? originHeader : "*";
+        string cors =
+            "Access-Control-Allow-Origin: " + corsOrigin + "\r\n" +
+            "Access-Control-Allow-Credentials: true\r\n" +
+            "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n" +
+            "Access-Control-Allow-Headers: content-type, x-requested-with, accept\r\n" +
+            "Access-Control-Max-Age: 86400\r\n" +
+            "Cross-Origin-Resource-Policy: cross-origin\r\n" +
+            "Vary: Origin\r\n";
 
         string specName = Route(target);
         long seq = Interlocked.Increment(ref SeqCounter);
@@ -210,9 +244,21 @@ internal static class Program
                      ?? FillTemplate(LoadSpec(specName), seq, body);
         byte[] payload = Encoding.UTF8.GetBytes(xml);
 
+        // Park knob (see HoldCsWriteMs): stall the first player_game state save so the client sits in
+        // FirstCharaSelectFlow.Decide() on a paused select timer with the character model on screen.
+        // Only this one request on this one connection is delayed; every other session keeps answering.
+        if (HoldCsWriteMs > 0 && specName == "client_state_write" && body.Contains("kind=player_game") &&
+            Interlocked.CompareExchange(ref HoldCsWriteTaken, 1, 0) == 0)
+        {
+            Log("HOLD seq=" + seq + " spec=client_state_write kind=player_game ms=" + HoldCsWriteMs +
+                " park=FirstCharaSelect (client awaits Player.Save, select timer paused)");
+            Thread.Sleep(HoldCsWriteMs);
+        }
+
         var head = new StringBuilder();
         head.Append("HTTP/1.1 200 OK\r\n");
         head.Append("Content-Type: text/xml; charset=utf-8\r\n");
+        head.Append(cors);
         head.Append("Content-Length: ").Append(payload.Length.ToString(CultureInfo.InvariantCulture)).Append("\r\n");
         head.Append("Connection: close\r\n");
         head.Append("\r\n");

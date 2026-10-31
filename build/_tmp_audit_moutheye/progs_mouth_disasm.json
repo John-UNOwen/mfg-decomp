@@ -1,0 +1,3063 @@
+{
+ "name": "Mouth",
+ "regions": 62,
+ "progs": [
+  {
+   "region": 2,
+   "region_size": 3084,
+   "dx": 1426,
+   "dxbc_len": 2708,
+   "secs": {
+    "ISGN": [
+     1470,
+     212
+    ],
+    "OSGN": [
+     1690,
+     272
+    ],
+    "SHDR": [
+     1970,
+     2156
+    ]
+   },
+   "asm": "mouth_asm02.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     5
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "58631663394a"
+  },
+  {
+   "region": 3,
+   "region_size": 3280,
+   "dx": 4530,
+   "dxbc_len": 2884,
+   "secs": {
+    "ISGN": [
+     4574,
+     212
+    ],
+    "OSGN": [
+     4794,
+     296
+    ],
+    "SHDR": [
+     5098,
+     2308
+    ]
+   },
+   "asm": "mouth_asm03.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "b9302128a4f2"
+  },
+  {
+   "region": 4,
+   "region_size": 3104,
+   "dx": 7810,
+   "dxbc_len": 2708,
+   "secs": {
+    "ISGN": [
+     7854,
+     212
+    ],
+    "OSGN": [
+     8074,
+     272
+    ],
+    "SHDR": [
+     8354,
+     2156
+    ]
+   },
+   "asm": "mouth_asm04.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     5
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "58631663394a"
+  },
+  {
+   "region": 5,
+   "region_size": 3300,
+   "dx": 10934,
+   "dxbc_len": 2884,
+   "secs": {
+    "ISGN": [
+     10978,
+     212
+    ],
+    "OSGN": [
+     11198,
+     296
+    ],
+    "SHDR": [
+     11502,
+     2308
+    ]
+   },
+   "asm": "mouth_asm05.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "b9302128a4f2"
+  },
+  {
+   "region": 8,
+   "region_size": 10940,
+   "dx": 15490,
+   "dxbc_len": 10604,
+   "secs": {
+    "ISGN": [
+     15534,
+     308
+    ],
+    "OSGN": [
+     15850,
+     44
+    ],
+    "SHDR": [
+     15902,
+     10184
+    ]
+   },
+   "asm": "mouth_asm08.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     86
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     12
+    ],
+    [
+     4,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "5267587ad7f0"
+  },
+  {
+   "region": 9,
+   "region_size": 11452,
+   "dx": 26450,
+   "dxbc_len": 11096,
+   "secs": {
+    "ISGN": [
+     26494,
+     332
+    ],
+    "OSGN": [
+     26834,
+     44
+    ],
+    "SHDR": [
+     26886,
+     10652
+    ]
+   },
+   "asm": "mouth_asm09.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     86
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "d81d6d570e7f"
+  },
+  {
+   "region": 17,
+   "region_size": 3308,
+   "dx": 40710,
+   "dxbc_len": 2932,
+   "secs": {
+    "ISGN": [
+     40754,
+     212
+    ],
+    "OSGN": [
+     40974,
+     296
+    ],
+    "SHDR": [
+     41278,
+     2356
+    ]
+   },
+   "asm": "mouth_asm17.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3697c85d88b7"
+  },
+  {
+   "region": 18,
+   "region_size": 3088,
+   "dx": 44022,
+   "dxbc_len": 2708,
+   "secs": {
+    "ISGN": [
+     44066,
+     212
+    ],
+    "OSGN": [
+     44286,
+     272
+    ],
+    "SHDR": [
+     44566,
+     2156
+    ]
+   },
+   "asm": "mouth_asm18.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     5
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "58631663394a"
+  },
+  {
+   "region": 19,
+   "region_size": 3304,
+   "dx": 47102,
+   "dxbc_len": 2932,
+   "secs": {
+    "ISGN": [
+     47146,
+     212
+    ],
+    "OSGN": [
+     47366,
+     296
+    ],
+    "SHDR": [
+     47670,
+     2356
+    ]
+   },
+   "asm": "mouth_asm19.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "351a213b77d3"
+  },
+  {
+   "region": 20,
+   "region_size": 3312,
+   "dx": 50414,
+   "dxbc_len": 2932,
+   "secs": {
+    "ISGN": [
+     50458,
+     212
+    ],
+    "OSGN": [
+     50678,
+     296
+    ],
+    "SHDR": [
+     50982,
+     2356
+    ]
+   },
+   "asm": "mouth_asm20.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3697c85d88b7"
+  },
+  {
+   "region": 21,
+   "region_size": 3320,
+   "dx": 53734,
+   "dxbc_len": 2932,
+   "secs": {
+    "ISGN": [
+     53778,
+     212
+    ],
+    "OSGN": [
+     53998,
+     296
+    ],
+    "SHDR": [
+     54302,
+     2356
+    ]
+   },
+   "asm": "mouth_asm21.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "f10b10852aca"
+  },
+  {
+   "region": 22,
+   "region_size": 3528,
+   "dx": 57058,
+   "dxbc_len": 3136,
+   "secs": {
+    "ISGN": [
+     57102,
+     212
+    ],
+    "OSGN": [
+     57322,
+     320
+    ],
+    "SHDR": [
+     57650,
+     2536
+    ]
+   },
+   "asm": "mouth_asm22.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "c4d6f6c4a897"
+  },
+  {
+   "region": 23,
+   "region_size": 3544,
+   "dx": 60602,
+   "dxbc_len": 3136,
+   "secs": {
+    "ISGN": [
+     60646,
+     212
+    ],
+    "OSGN": [
+     60866,
+     320
+    ],
+    "SHDR": [
+     61194,
+     2536
+    ]
+   },
+   "asm": "mouth_asm23.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     11
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "5953bab46b0f"
+  },
+  {
+   "region": 24,
+   "region_size": 3284,
+   "dx": 64138,
+   "dxbc_len": 2884,
+   "secs": {
+    "ISGN": [
+     64182,
+     212
+    ],
+    "OSGN": [
+     64402,
+     296
+    ],
+    "SHDR": [
+     64706,
+     2308
+    ]
+   },
+   "asm": "mouth_asm24.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "b9302128a4f2"
+  },
+  {
+   "region": 25,
+   "region_size": 3544,
+   "dx": 67430,
+   "dxbc_len": 3136,
+   "secs": {
+    "ISGN": [
+     67474,
+     212
+    ],
+    "OSGN": [
+     67694,
+     320
+    ],
+    "SHDR": [
+     68022,
+     2536
+    ]
+   },
+   "asm": "mouth_asm25.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     6
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "b91275431364"
+  },
+  {
+   "region": 26,
+   "region_size": 3412,
+   "dx": 70958,
+   "dxbc_len": 3020,
+   "secs": {
+    "ISGN": [
+     71002,
+     212
+    ],
+    "OSGN": [
+     71222,
+     320
+    ],
+    "SHDR": [
+     71550,
+     2420
+    ]
+   },
+   "asm": "mouth_asm26.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "83c33d69acc5"
+  },
+  {
+   "region": 27,
+   "region_size": 3428,
+   "dx": 74386,
+   "dxbc_len": 3020,
+   "secs": {
+    "ISGN": [
+     74430,
+     212
+    ],
+    "OSGN": [
+     74650,
+     320
+    ],
+    "SHDR": [
+     74978,
+     2420
+    ]
+   },
+   "asm": "mouth_asm27.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "83c33d69acc5"
+  },
+  {
+   "region": 28,
+   "region_size": 3416,
+   "dx": 77802,
+   "dxbc_len": 3020,
+   "secs": {
+    "ISGN": [
+     77846,
+     212
+    ],
+    "OSGN": [
+     78066,
+     320
+    ],
+    "SHDR": [
+     78394,
+     2420
+    ]
+   },
+   "asm": "mouth_asm28.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "83c33d69acc5"
+  },
+  {
+   "region": 29,
+   "region_size": 3432,
+   "dx": 81234,
+   "dxbc_len": 3020,
+   "secs": {
+    "ISGN": [
+     81278,
+     212
+    ],
+    "OSGN": [
+     81498,
+     320
+    ],
+    "SHDR": [
+     81826,
+     2420
+    ]
+   },
+   "asm": "mouth_asm29.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "83c33d69acc5"
+  },
+  {
+   "region": 40,
+   "region_size": 5576,
+   "dx": 106162,
+   "dxbc_len": 5240,
+   "secs": {
+    "ISGN": [
+     106206,
+     332
+    ],
+    "OSGN": [
+     106546,
+     44
+    ],
+    "SHDR": [
+     106598,
+     4796
+    ]
+   },
+   "asm": "mouth_asm40.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2de2e6c14326"
+  },
+  {
+   "region": 41,
+   "region_size": 5292,
+   "dx": 111742,
+   "dxbc_len": 4952,
+   "secs": {
+    "ISGN": [
+     111786,
+     308
+    ],
+    "OSGN": [
+     112102,
+     44
+    ],
+    "SHDR": [
+     112154,
+     4532
+    ]
+   },
+   "asm": "mouth_asm41.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     84
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "46d1c9cdb362"
+  },
+  {
+   "region": 42,
+   "region_size": 5816,
+   "dx": 117026,
+   "dxbc_len": 5484,
+   "secs": {
+    "ISGN": [
+     117070,
+     332
+    ],
+    "OSGN": [
+     117410,
+     44
+    ],
+    "SHDR": [
+     117462,
+     5040
+    ]
+   },
+   "asm": "mouth_asm42.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "270c6d50efad"
+  },
+  {
+   "region": 43,
+   "region_size": 5672,
+   "dx": 122850,
+   "dxbc_len": 5332,
+   "secs": {
+    "ISGN": [
+     122894,
+     332
+    ],
+    "OSGN": [
+     123234,
+     44
+    ],
+    "SHDR": [
+     123286,
+     4888
+    ]
+   },
+   "asm": "mouth_asm43.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [
+    "1"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "642ade9f7b5c"
+  },
+  {
+   "region": 44,
+   "region_size": 5560,
+   "dx": 128530,
+   "dxbc_len": 5212,
+   "secs": {
+    "ISGN": [
+     128574,
+     332
+    ],
+    "OSGN": [
+     128914,
+     44
+    ],
+    "SHDR": [
+     128966,
+     4768
+    ]
+   },
+   "asm": "mouth_asm44.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "d59553755e64"
+  },
+  {
+   "region": 45,
+   "region_size": 6580,
+   "dx": 134094,
+   "dxbc_len": 6228,
+   "secs": {
+    "ISGN": [
+     134138,
+     356
+    ],
+    "OSGN": [
+     134502,
+     44
+    ],
+    "SHDR": [
+     134554,
+     5760
+    ]
+   },
+   "asm": "mouth_asm45.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "6"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "beb8fac695e6"
+  },
+  {
+   "region": 46,
+   "region_size": 7956,
+   "dx": 140690,
+   "dxbc_len": 7588,
+   "secs": {
+    "ISGN": [
+     140734,
+     356
+    ],
+    "OSGN": [
+     141098,
+     44
+    ],
+    "SHDR": [
+     141150,
+     7120
+    ]
+   },
+   "asm": "mouth_asm46.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     93
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "6"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "92600cb43963"
+  },
+  {
+   "region": 47,
+   "region_size": 5840,
+   "dx": 148638,
+   "dxbc_len": 5480,
+   "secs": {
+    "ISGN": [
+     148682,
+     332
+    ],
+    "OSGN": [
+     149022,
+     44
+    ],
+    "SHDR": [
+     149074,
+     5036
+    ]
+   },
+   "asm": "mouth_asm47.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     84
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "0f132d83f974"
+  },
+  {
+   "region": 48,
+   "region_size": 6108,
+   "dx": 154486,
+   "dxbc_len": 5740,
+   "secs": {
+    "ISGN": [
+     154530,
+     356
+    ],
+    "OSGN": [
+     154894,
+     44
+    ],
+    "SHDR": [
+     154946,
+     5272
+    ]
+   },
+   "asm": "mouth_asm48.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "0ff3d5e9aeb7"
+  },
+  {
+   "region": 49,
+   "region_size": 6464,
+   "dx": 160578,
+   "dxbc_len": 6112,
+   "secs": {
+    "ISGN": [
+     160622,
+     356
+    ],
+    "OSGN": [
+     160986,
+     44
+    ],
+    "SHDR": [
+     161038,
+     5644
+    ]
+   },
+   "asm": "mouth_asm49.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [
+    "5"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "119928e9b38d"
+  },
+  {
+   "region": 50,
+   "region_size": 6880,
+   "dx": 167058,
+   "dxbc_len": 6512,
+   "secs": {
+    "ISGN": [
+     167102,
+     356
+    ],
+    "OSGN": [
+     167466,
+     44
+    ],
+    "SHDR": [
+     167518,
+     6044
+    ]
+   },
+   "asm": "mouth_asm50.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [
+    "5"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3a866c6464e9"
+  },
+  {
+   "region": 51,
+   "region_size": 6560,
+   "dx": 173926,
+   "dxbc_len": 6204,
+   "secs": {
+    "ISGN": [
+     173970,
+     356
+    ],
+    "OSGN": [
+     174334,
+     44
+    ],
+    "SHDR": [
+     174386,
+     5736
+    ]
+   },
+   "asm": "mouth_asm51.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [
+    "1",
+    "6"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "d7ee00576bb6"
+  },
+  {
+   "region": 52,
+   "region_size": 6976,
+   "dx": 180502,
+   "dxbc_len": 6604,
+   "secs": {
+    "ISGN": [
+     180546,
+     356
+    ],
+    "OSGN": [
+     180910,
+     44
+    ],
+    "SHDR": [
+     180962,
+     6136
+    ]
+   },
+   "asm": "mouth_asm52.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [
+    "1",
+    "6"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "63accb9b2a1b"
+  },
+  {
+   "region": 54,
+   "region_size": 1108,
+   "dx": 187342,
+   "dxbc_len": 972,
+   "secs": {
+    "ISGN": [
+     187386,
+     76
+    ],
+    "OSGN": [
+     187470,
+     104
+    ],
+    "SHDR": [
+     187582,
+     724
+    ]
+   },
+   "asm": "mouth_asm54.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     4
+    ],
+    [
+     2,
+     21
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3ba34123c15d"
+  },
+  {
+   "region": 55,
+   "region_size": 988,
+   "dx": 188446,
+   "dxbc_len": 856,
+   "secs": {
+    "ISGN": [
+     188490,
+     76
+    ],
+    "OSGN": [
+     188574,
+     104
+    ],
+    "SHDR": [
+     188686,
+     608
+    ]
+   },
+   "asm": "mouth_asm55.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     4
+    ],
+    [
+     2,
+     21
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3ae27aefb8b9"
+  },
+  {
+   "region": 57,
+   "region_size": 392,
+   "dx": 189466,
+   "dxbc_len": 272,
+   "secs": {
+    "ISGN": [
+     189510,
+     104
+    ],
+    "OSGN": [
+     189622,
+     44
+    ],
+    "SHDR": [
+     189674,
+     56
+    ]
+   },
+   "asm": "mouth_asm57.txt",
+   "stage": "PS_4_0",
+   "cbs": [],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "f86d288cb808"
+  },
+  {
+   "region": 58,
+   "region_size": 388,
+   "dx": 189854,
+   "dxbc_len": 272,
+   "secs": {
+    "ISGN": [
+     189898,
+     104
+    ],
+    "OSGN": [
+     190010,
+     44
+    ],
+    "SHDR": [
+     190062,
+     56
+    ]
+   },
+   "asm": "mouth_asm58.txt",
+   "stage": "PS_4_0",
+   "cbs": [],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "f86d288cb808"
+  },
+  {
+   "region": 60,
+   "region_size": 732,
+   "dx": 190294,
+   "dxbc_len": 636,
+   "secs": {
+    "ISGN": [
+     190338,
+     72
+    ],
+    "OSGN": [
+     190418,
+     76
+    ],
+    "SHDR": [
+     190502,
+     420
+    ]
+   },
+   "asm": "mouth_asm60.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     4
+    ],
+    [
+     1,
+     21
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "82ea3b6fc3e9"
+  },
+  {
+   "region": 61,
+   "region_size": 324,
+   "dx": 191026,
+   "dxbc_len": 244,
+   "secs": {
+    "ISGN": [
+     191070,
+     76
+    ],
+    "OSGN": [
+     191154,
+     44
+    ],
+    "SHDR": [
+     191206,
+     56
+    ]
+   },
+   "asm": "mouth_asm61.txt",
+   "stage": "PS_4_0",
+   "cbs": [],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "1333c16a02dc"
+  }
+ ],
+ "subs": [
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 2,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL"
+   ],
+   "region_region_idx": 2,
+   "region_dx_rank": null,
+   "region": 2,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 1,
+   "blob": 3,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN"
+   ],
+   "region_region_idx": 3,
+   "region_dx_rank": null,
+   "region": 3,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 2,
+   "blob": 4,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "VERTEXLIGHT_ON"
+   ],
+   "region_region_idx": 4,
+   "region_dx_rank": 2,
+   "region": 4,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 3,
+   "blob": 5,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN",
+    "VERTEXLIGHT_ON"
+   ],
+   "region_region_idx": 5,
+   "region_dx_rank": 3,
+   "region": 5,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 8,
+   "gpst": 17,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL"
+   ],
+   "region_region_idx": 8,
+   "region_dx_rank": null,
+   "region": 8,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "PS",
+   "sub": 1,
+   "blob": 9,
+   "gpst": 17,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN"
+   ],
+   "region_region_idx": 9,
+   "region_dx_rank": null,
+   "region": 9,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 17,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT"
+   ],
+   "region_region_idx": 17,
+   "region_dx_rank": null,
+   "region": 17,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 1,
+   "blob": 18,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 18,
+   "region_dx_rank": null,
+   "region": 18,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 2,
+   "blob": 19,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT"
+   ],
+   "region_region_idx": 19,
+   "region_dx_rank": null,
+   "region": 19,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 3,
+   "blob": 20,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE"
+   ],
+   "region_region_idx": 20,
+   "region_dx_rank": null,
+   "region": 20,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 4,
+   "blob": 21,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 21,
+   "region_dx_rank": null,
+   "region": 21,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 5,
+   "blob": 22,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH"
+   ],
+   "region_region_idx": 22,
+   "region_dx_rank": null,
+   "region": 22,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 6,
+   "blob": 23,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH",
+    "SHADOWS_SOFT"
+   ],
+   "region_region_idx": 23,
+   "region_dx_rank": null,
+   "region": 23,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 7,
+   "blob": 24,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 24,
+   "region_dx_rank": null,
+   "region": 24,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 8,
+   "blob": 25,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 25,
+   "region_dx_rank": null,
+   "region": 25,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 9,
+   "blob": 26,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 26,
+   "region_dx_rank": null,
+   "region": 26,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 10,
+   "blob": 27,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 27,
+   "region_dx_rank": null,
+   "region": 27,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 11,
+   "blob": 28,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 28,
+   "region_dx_rank": 17,
+   "region": 28,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 12,
+   "blob": 29,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 29,
+   "region_dx_rank": 18,
+   "region": 29,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 40,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT"
+   ],
+   "region_region_idx": 40,
+   "region_dx_rank": null,
+   "region": 40,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 1,
+   "blob": 41,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 41,
+   "region_dx_rank": null,
+   "region": 41,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 2,
+   "blob": 42,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT"
+   ],
+   "region_region_idx": 42,
+   "region_dx_rank": null,
+   "region": 42,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 3,
+   "blob": 43,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE"
+   ],
+   "region_region_idx": 43,
+   "region_dx_rank": null,
+   "region": 43,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 4,
+   "blob": 44,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 44,
+   "region_dx_rank": null,
+   "region": 44,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 5,
+   "blob": 45,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH"
+   ],
+   "region_region_idx": 45,
+   "region_dx_rank": null,
+   "region": 45,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 6,
+   "blob": 46,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH",
+    "SHADOWS_SOFT"
+   ],
+   "region_region_idx": 46,
+   "region_dx_rank": null,
+   "region": 46,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 7,
+   "blob": 47,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 47,
+   "region_dx_rank": null,
+   "region": 47,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 8,
+   "blob": 48,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 48,
+   "region_dx_rank": null,
+   "region": 48,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 9,
+   "blob": 49,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 49,
+   "region_dx_rank": null,
+   "region": 49,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 10,
+   "blob": 50,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 50,
+   "region_dx_rank": null,
+   "region": 50,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 11,
+   "blob": 51,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 51,
+   "region_dx_rank": null,
+   "region": 51,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 12,
+   "blob": 52,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "MOUTH_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 52,
+   "region_dx_rank": null,
+   "region": 52,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 2,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 54,
+   "gpst": 15,
+   "kws": [
+    "SHADOWS_DEPTH",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 54,
+   "region_dx_rank": null,
+   "region": 54,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 2,
+   "kind": "VS",
+   "sub": 1,
+   "blob": 55,
+   "gpst": 15,
+   "kws": [
+    "SHADOWS_CUBE",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 55,
+   "region_dx_rank": null,
+   "region": 55,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 2,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 57,
+   "gpst": 17,
+   "kws": [
+    "SHADOWS_DEPTH",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 57,
+   "region_dx_rank": null,
+   "region": 57,
+   "kw_prefix_match": false,
+   "extra_prefix_toks": [
+    "_IS_CLIPPING_OFF6"
+   ]
+  },
+  {
+   "passid": 2,
+   "kind": "PS",
+   "sub": 1,
+   "blob": 58,
+   "gpst": 17,
+   "kws": [
+    "SHADOWS_CUBE",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 58,
+   "region_dx_rank": null,
+   "region": 58,
+   "kw_prefix_match": false,
+   "extra_prefix_toks": [
+    "_IS_CLIPPING_OFF6"
+   ]
+  },
+  {
+   "passid": 3,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 60,
+   "gpst": 15,
+   "kws": [],
+   "region_region_idx": 60,
+   "region_dx_rank": null,
+   "region": 60,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 3,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 61,
+   "gpst": 17,
+   "kws": [],
+   "region_region_idx": 61,
+   "region_dx_rank": null,
+   "region": 61,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  }
+ ],
+ "hypothesis": "region_idx"
+}

@@ -1,0 +1,160 @@
+=== mouth hypothesis: region_idx
+P02 VS_4_0   len=  2708 cbs=[[0, 5], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=58631663394a
+    -> pass0 VS sub0 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL']
+P03 VS_4_0   len=  2884 cbs=[[0, 6], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=b9302128a4f2
+    -> pass0 VS sub1 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN']
+P04 VS_4_0   len=  2708 cbs=[[0, 5], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=58631663394a
+    -> pass0 VS sub2 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'VERTEXLIGHT_ON']
+P05 VS_4_0   len=  2884 cbs=[[0, 6], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=b9302128a4f2
+    -> pass0 VS sub3 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN', 'VERTEXLIGHT_ON']
+P08 PS_4_0   len= 10604 cbs=[[0, 86], [1, 5], [2, 47], [3, 12], [4, 7]] t2d=['0', '1', '2', '3', '4', '5', '6', '7'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6', '7', '8'] h=5267587ad7f0
+    -> pass0 PS sub0 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL']
+P09 PS_4_0   len= 11096 cbs=[[0, 86], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4', '5', '6', '7', '8'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] h=d81d6d570e7f
+    -> pass0 PS sub1 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN']
+P17 VS_4_0   len=  2932 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=3697c85d88b7
+    -> pass1 VS sub0 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT']
+P18 VS_4_0   len=  2708 cbs=[[0, 5], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=58631663394a
+    -> pass1 VS sub1 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', '_IS_PASS_FWDDELTA']
+P19 VS_4_0   len=  2932 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=351a213b77d3
+    -> pass1 VS sub2 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT']
+P20 VS_4_0   len=  2932 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=3697c85d88b7
+    -> pass1 VS sub3 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE']
+P21 VS_4_0   len=  2932 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=f10b10852aca
+    -> pass1 VS sub4 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P22 VS_4_0   len=  3136 cbs=[[0, 6], [1, 5], [2, 12], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=c4d6f6c4a897
+    -> pass1 VS sub5 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH']
+P23 VS_4_0   len=  3136 cbs=[[0, 11], [1, 5], [2, 12], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=5953bab46b0f
+    -> pass1 VS sub6 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH', 'SHADOWS_SOFT']
+P24 VS_4_0   len=  2884 cbs=[[0, 6], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=b9302128a4f2
+    -> pass1 VS sub7 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA']
+P25 VS_4_0   len=  3136 cbs=[[0, 6], [1, 6], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=b91275431364
+    -> pass1 VS sub8 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P26 VS_4_0   len=  3020 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=83c33d69acc5
+    -> pass1 VS sub9 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_CUBE']
+P27 VS_4_0   len=  3020 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=83c33d69acc5
+    -> pass1 VS sub10 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P28 VS_4_0   len=  3020 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=83c33d69acc5
+    -> pass1 VS sub11 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_CUBE']
+P29 VS_4_0   len=  3020 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=83c33d69acc5
+    -> pass1 VS sub12 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P40 PS_4_0   len=  5240 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2', '3'] tc=[] sm=['0', '1', '2', '3', '4'] h=2de2e6c14326
+    -> pass1 PS sub0 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT']
+P41 PS_4_0   len=  4952 cbs=[[0, 84], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2'] tc=[] sm=['0', '1', '2', '3'] h=46d1c9cdb362
+    -> pass1 PS sub1 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', '_IS_PASS_FWDDELTA']
+P42 PS_4_0   len=  5484 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2', '3', '4'] tc=[] sm=['0', '1', '2', '3', '4', '5'] h=270c6d50efad
+    -> pass1 PS sub2 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT']
+P43 PS_4_0   len=  5332 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '2', '3', '4'] tc=['1'] sm=['0', '1', '2', '3', '4', '5'] h=642ade9f7b5c
+    -> pass1 PS sub3 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE']
+P44 PS_4_0   len=  5212 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2', '3'] tc=[] sm=['0', '1', '2', '3', '4'] h=d59553755e64
+    -> pass1 PS sub4 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P45 PS_4_0   len=  6228 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4', '6'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6'] h=beb8fac695e6
+    -> pass1 PS sub5 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH']
+P46 PS_4_0   len=  7588 cbs=[[0, 93], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4', '6'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6'] h=92600cb43963
+    -> pass1 PS sub6 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH', 'SHADOWS_SOFT']
+P47 PS_4_0   len=  5480 cbs=[[0, 84], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3'] tc=[] sm=['0', '1', '2', '3', '4'] h=0f132d83f974
+    -> pass1 PS sub7 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA']
+P48 PS_4_0   len=  5740 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4'] tc=[] sm=['0', '1', '2', '3', '4', '5'] h=0ff3d5e9aeb7
+    -> pass1 PS sub8 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P49 PS_4_0   len=  6112 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3'] tc=['5'] sm=['0', '1', '2', '3', '4', '5'] h=119928e9b38d
+    -> pass1 PS sub9 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_CUBE']
+P50 PS_4_0   len=  6512 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3'] tc=['5'] sm=['0', '1', '2', '3', '4', '5'] h=3a866c6464e9
+    -> pass1 PS sub10 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P51 PS_4_0   len=  6204 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '2', '3', '4'] tc=['1', '6'] sm=['0', '1', '2', '3', '4', '5', '6'] h=d7ee00576bb6
+    -> pass1 PS sub11 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_CUBE']
+P52 PS_4_0   len=  6604 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '2', '3', '4'] tc=['1', '6'] sm=['0', '1', '2', '3', '4', '5', '6'] h=63accb9b2a1b
+    -> pass1 PS sub12 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'MOUTH_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P54 VS_4_0   len=   972 cbs=[[0, 6], [1, 4], [2, 21]] t2d=[] tc=[] sm=[] h=3ba34123c15d
+    -> pass2 VS sub0 kws=['SHADOWS_DEPTH', '_IS_CLIPPING_OFF']
+P55 VS_4_0   len=   856 cbs=[[0, 6], [1, 4], [2, 21]] t2d=[] tc=[] sm=[] h=3ae27aefb8b9
+    -> pass2 VS sub1 kws=['SHADOWS_CUBE', '_IS_CLIPPING_OFF']
+P57 PS_4_0   len=   272 cbs=[] t2d=[] tc=[] sm=[] h=f86d288cb808
+    -> pass2 PS sub0 kws=['SHADOWS_DEPTH', '_IS_CLIPPING_OFF']
+P58 PS_4_0   len=   272 cbs=[] t2d=[] tc=[] sm=[] h=f86d288cb808
+    -> pass2 PS sub1 kws=['SHADOWS_CUBE', '_IS_CLIPPING_OFF']
+P60 VS_4_0   len=   636 cbs=[[0, 4], [1, 21]] t2d=[] tc=[] sm=[] h=82ea3b6fc3e9
+    -> pass3 VS sub0 kws=[]
+P61 PS_4_0   len=   244 cbs=[] t2d=[] tc=[] sm=[] h=1333c16a02dc
+    -> pass3 PS sub0 kws=[]
+non-program regions: [0, 1, 6, 7, 10, 11, 12, 13, 14, 15, 16, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 53, 56, 59]
+=== eye hypothesis: region_idx
+P02 VS_4_0   len=  2844 cbs=[[0, 5], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=2eea3e8ffaec
+    -> pass0 VS sub0 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL']
+P03 VS_4_0   len=  3020 cbs=[[0, 6], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=2cd4b5d1dc68
+    -> pass0 VS sub1 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN']
+P04 VS_4_0   len=  2844 cbs=[[0, 5], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=2eea3e8ffaec
+    -> pass0 VS sub2 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'VERTEXLIGHT_ON']
+P05 VS_4_0   len=  3020 cbs=[[0, 6], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=2cd4b5d1dc68
+    -> pass0 VS sub3 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN', 'VERTEXLIGHT_ON']
+P08 PS_4_0   len= 11328 cbs=[[0, 86], [1, 5], [2, 47], [3, 12], [4, 7]] t2d=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'] h=53b62f76fdde
+    -> pass0 PS sub0 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL']
+P09 PS_4_0   len= 11820 cbs=[[0, 86], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] h=9bf1a0e66f95
+    -> pass0 PS sub1 kws=['_IS_PASS_FWDBASE', '_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN']
+P17 VS_4_0   len=  3068 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=a81a80ec139d
+    -> pass1 VS sub0 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT']
+P18 VS_4_0   len=  2844 cbs=[[0, 5], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=2eea3e8ffaec
+    -> pass1 VS sub1 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', '_IS_PASS_FWDDELTA']
+P19 VS_4_0   len=  3068 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=52d1e080214f
+    -> pass1 VS sub2 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT']
+P20 VS_4_0   len=  3068 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=a81a80ec139d
+    -> pass1 VS sub3 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE']
+P21 VS_4_0   len=  3068 cbs=[[0, 6], [1, 5], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=fa94671d2528
+    -> pass1 VS sub4 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P22 VS_4_0   len=  3272 cbs=[[0, 6], [1, 5], [2, 12], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=ab855ca5a0a3
+    -> pass1 VS sub5 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH']
+P23 VS_4_0   len=  3272 cbs=[[0, 11], [1, 5], [2, 12], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=e23c5bf5bc52
+    -> pass1 VS sub6 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH', 'SHADOWS_SOFT']
+P24 VS_4_0   len=  3020 cbs=[[0, 6], [1, 8], [2, 21], [3, 1]] t2d=[] tc=[] sm=[] h=2cd4b5d1dc68
+    -> pass1 VS sub7 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA']
+P25 VS_4_0   len=  3272 cbs=[[0, 6], [1, 6], [2, 8], [3, 21], [4, 1]] t2d=[] tc=[] sm=[] h=83ddb0e50e94
+    -> pass1 VS sub8 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P26 VS_4_0   len=  3156 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=5a817414f08c
+    -> pass1 VS sub9 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_CUBE']
+P27 VS_4_0   len=  3156 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=5a817414f08c
+    -> pass1 VS sub10 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P28 VS_4_0   len=  3156 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=5a817414f08c
+    -> pass1 VS sub11 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_CUBE']
+P29 VS_4_0   len=  3156 cbs=[[0, 6], [1, 5], [2, 2], [3, 8], [4, 21], [5, 1]] t2d=[] tc=[] sm=[] h=5a817414f08c
+    -> pass1 VS sub12 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P40 PS_4_0   len=  5288 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2', '3'] tc=[] sm=['0', '1', '2', '3', '4'] h=2de2e6c14326
+    -> pass1 PS sub0 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT']
+P41 PS_4_0   len=  5000 cbs=[[0, 84], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2'] tc=[] sm=['0', '1', '2', '3'] h=46d1c9cdb362
+    -> pass1 PS sub1 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', '_IS_PASS_FWDDELTA']
+P42 PS_4_0   len=  5532 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2', '3', '4'] tc=[] sm=['0', '1', '2', '3', '4', '5'] h=270c6d50efad
+    -> pass1 PS sub2 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT']
+P43 PS_4_0   len=  5380 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '2', '3', '4'] tc=['1'] sm=['0', '1', '2', '3', '4', '5'] h=642ade9f7b5c
+    -> pass1 PS sub3 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE']
+P44 PS_4_0   len=  5260 cbs=[[0, 88], [1, 5], [2, 47], [3, 7]] t2d=['0', '1', '2', '3'] tc=[] sm=['0', '1', '2', '3', '4'] h=d59553755e64
+    -> pass1 PS sub4 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P45 PS_4_0   len=  6276 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4', '6'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6'] h=beb8fac695e6
+    -> pass1 PS sub5 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH']
+P46 PS_4_0   len=  7636 cbs=[[0, 93], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4', '6'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6'] h=92600cb43963
+    -> pass1 PS sub6 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'SPOT', 'SHADOWS_DEPTH', 'SHADOWS_SOFT']
+P47 PS_4_0   len=  5528 cbs=[[0, 84], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3'] tc=[] sm=['0', '1', '2', '3', '4'] h=0f132d83f974
+    -> pass1 PS sub7 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'DIRECTIONAL', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA']
+P48 PS_4_0   len=  5788 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3', '4'] tc=[] sm=['0', '1', '2', '3', '4', '5'] h=0ff3d5e9aeb7
+    -> pass1 PS sub8 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', 'SHADOWS_SCREEN', '_IS_PASS_FWDDELTA', 'DIRECTIONAL_COOKIE']
+P49 PS_4_0   len=  6160 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3'] tc=['5'] sm=['0', '1', '2', '3', '4', '5'] h=119928e9b38d
+    -> pass1 PS sub9 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_CUBE']
+P50 PS_4_0   len=  6560 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '1', '2', '3'] tc=['5'] sm=['0', '1', '2', '3', '4', '5'] h=3a866c6464e9
+    -> pass1 PS sub10 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P51 PS_4_0   len=  6252 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '2', '3', '4'] tc=['1', '6'] sm=['0', '1', '2', '3', '4', '5', '6'] h=d7ee00576bb6
+    -> pass1 PS sub11 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_CUBE']
+P52 PS_4_0   len=  6652 cbs=[[0, 88], [1, 5], [2, 47], [3, 26], [4, 12], [5, 7]] t2d=['0', '2', '3', '4'] tc=['1', '6'] sm=['0', '1', '2', '3', '4', '5', '6'] h=63accb9b2a1b
+    -> pass1 PS sub12 kws=['_IS_TRANSCLIPPING_OFF', 'USE_DISSOLVE', '_FACE_MODE_', 'EYE_MODE', 'USE_2ND_SHADE', 'USE_MATERIALMASK', 'USE_EMISSIVE_TEX', 'USE_MASK_TEX', 'SPECULAR_OFF', 'CHROMA_OFF', 'NORMALMAP_OFF', 'MATCAP_OFF', '_IS_PASS_FWDDELTA', 'POINT_COOKIE', 'SHADOWS_SOFT', 'SHADOWS_CUBE']
+P54 VS_4_0   len=   972 cbs=[[0, 6], [1, 4], [2, 21]] t2d=[] tc=[] sm=[] h=3ba34123c15d
+    -> pass2 VS sub0 kws=['SHADOWS_DEPTH', '_IS_CLIPPING_OFF']
+P55 VS_4_0   len=   856 cbs=[[0, 6], [1, 4], [2, 21]] t2d=[] tc=[] sm=[] h=3ae27aefb8b9
+    -> pass2 VS sub1 kws=['SHADOWS_CUBE', '_IS_CLIPPING_OFF']
+P57 PS_4_0   len=   272 cbs=[] t2d=[] tc=[] sm=[] h=f86d288cb808
+    -> pass2 PS sub0 kws=['SHADOWS_DEPTH', '_IS_CLIPPING_OFF']
+P58 PS_4_0   len=   272 cbs=[] t2d=[] tc=[] sm=[] h=f86d288cb808
+    -> pass2 PS sub1 kws=['SHADOWS_CUBE', '_IS_CLIPPING_OFF']
+P60 VS_4_0   len=  1832 cbs=[[0, 7], [1, 21]] t2d=[] tc=[] sm=[] h=d6e6d1844c2e
+    -> pass3 VS sub0 kws=['USE_DISSOLVE', '_FACE_MODE_', 'STENCIL_MASK']
+P62 PS_4_0   len=  7404 cbs=[[0, 29], [1, 47], [2, 3], [3, 12], [4, 7]] t2d=['0', '1', '2', '3', '4', '5', '6', '7'] tc=[] sm=['0', '1', '2', '3', '4', '5', '6', '7', '8'] h=c14d724a67f9
+    -> pass3 PS sub0 kws=['USE_DISSOLVE', '_FACE_MODE_', 'STENCIL_MASK']
+P63 VS_4_0   len=   636 cbs=[[0, 4], [1, 21]] t2d=[] tc=[] sm=[] h=82ea3b6fc3e9
+    -> pass4 VS sub0 kws=[]
+P64 PS_4_0   len=   244 cbs=[] t2d=[] tc=[] sm=[] h=1333c16a02dc
+    -> pass4 PS sub0 kws=[]
+non-program regions: [0, 1, 6, 7, 10, 11, 12, 13, 14, 15, 16, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 53, 56, 59, 61]

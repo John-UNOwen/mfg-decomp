@@ -1,0 +1,14 @@
+{
+ "note": "Targeted UnityPy extraction; catalog resolver (extract_missing_unitypy.py) cannot map this entry: this build's catalog m_InternalIds are separate bundle-file ids and bare asset paths (no '.bundle/<path>' concatenation).",
+ "rows": [
+  {
+   "asset_path": "Assets/MFG/Fonts/DFG-PopMix-W5 CharaSelectNum1.mat",
+   "bundle": "3633e69d040cf55c4855557f2daec047.bundle",
+   "path_id": 8204823393702252719,
+   "type": "Material",
+   "name_in_bundle": "DFG-PopMix-W5 1",
+   "json": null,
+   "bin_bytes": 1844
+  }
+ ]
+}

@@ -1,0 +1,3216 @@
+{
+ "name": "Eye",
+ "regions": 65,
+ "progs": [
+  {
+   "region": 2,
+   "region_size": 3232,
+   "dx": 1458,
+   "dxbc_len": 2844,
+   "secs": {
+    "ISGN": [
+     1502,
+     212
+    ],
+    "OSGN": [
+     1722,
+     320
+    ],
+    "SHDR": [
+     2050,
+     2244
+    ]
+   },
+   "asm": "eye_asm02.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     5
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2eea3e8ffaec"
+  },
+  {
+   "region": 3,
+   "region_size": 3428,
+   "dx": 4710,
+   "dxbc_len": 3020,
+   "secs": {
+    "ISGN": [
+     4754,
+     212
+    ],
+    "OSGN": [
+     4974,
+     344
+    ],
+    "SHDR": [
+     5326,
+     2396
+    ]
+   },
+   "asm": "eye_asm03.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2cd4b5d1dc68"
+  },
+  {
+   "region": 4,
+   "region_size": 3252,
+   "dx": 8138,
+   "dxbc_len": 2844,
+   "secs": {
+    "ISGN": [
+     8182,
+     212
+    ],
+    "OSGN": [
+     8402,
+     320
+    ],
+    "SHDR": [
+     8730,
+     2244
+    ]
+   },
+   "asm": "eye_asm04.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     5
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2eea3e8ffaec"
+  },
+  {
+   "region": 5,
+   "region_size": 3448,
+   "dx": 11410,
+   "dxbc_len": 3020,
+   "secs": {
+    "ISGN": [
+     11454,
+     212
+    ],
+    "OSGN": [
+     11674,
+     344
+    ],
+    "SHDR": [
+     12026,
+     2396
+    ]
+   },
+   "asm": "eye_asm05.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2cd4b5d1dc68"
+  },
+  {
+   "region": 8,
+   "region_size": 11660,
+   "dx": 16298,
+   "dxbc_len": 11328,
+   "secs": {
+    "ISGN": [
+     16342,
+     356
+    ],
+    "OSGN": [
+     16706,
+     44
+    ],
+    "SHDR": [
+     16758,
+     10860
+    ]
+   },
+   "asm": "eye_asm08.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     86
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     12
+    ],
+    [
+     4,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "53b62f76fdde"
+  },
+  {
+   "region": 9,
+   "region_size": 12172,
+   "dx": 27978,
+   "dxbc_len": 11820,
+   "secs": {
+    "ISGN": [
+     28022,
+     380
+    ],
+    "OSGN": [
+     28410,
+     44
+    ],
+    "SHDR": [
+     28462,
+     11328
+    ]
+   },
+   "asm": "eye_asm09.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     86
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "9bf1a0e66f95"
+  },
+  {
+   "region": 17,
+   "region_size": 3456,
+   "dx": 42958,
+   "dxbc_len": 3068,
+   "secs": {
+    "ISGN": [
+     43002,
+     212
+    ],
+    "OSGN": [
+     43222,
+     344
+    ],
+    "SHDR": [
+     43574,
+     2444
+    ]
+   },
+   "asm": "eye_asm17.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "a81a80ec139d"
+  },
+  {
+   "region": 18,
+   "region_size": 3236,
+   "dx": 46418,
+   "dxbc_len": 2844,
+   "secs": {
+    "ISGN": [
+     46462,
+     212
+    ],
+    "OSGN": [
+     46682,
+     320
+    ],
+    "SHDR": [
+     47010,
+     2244
+    ]
+   },
+   "asm": "eye_asm18.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     5
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2eea3e8ffaec"
+  },
+  {
+   "region": 19,
+   "region_size": 3452,
+   "dx": 49646,
+   "dxbc_len": 3068,
+   "secs": {
+    "ISGN": [
+     49690,
+     212
+    ],
+    "OSGN": [
+     49910,
+     344
+    ],
+    "SHDR": [
+     50262,
+     2444
+    ]
+   },
+   "asm": "eye_asm19.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "52d1e080214f"
+  },
+  {
+   "region": 20,
+   "region_size": 3460,
+   "dx": 53106,
+   "dxbc_len": 3068,
+   "secs": {
+    "ISGN": [
+     53150,
+     212
+    ],
+    "OSGN": [
+     53370,
+     344
+    ],
+    "SHDR": [
+     53722,
+     2444
+    ]
+   },
+   "asm": "eye_asm20.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "a81a80ec139d"
+  },
+  {
+   "region": 21,
+   "region_size": 3468,
+   "dx": 56574,
+   "dxbc_len": 3068,
+   "secs": {
+    "ISGN": [
+     56618,
+     212
+    ],
+    "OSGN": [
+     56838,
+     344
+    ],
+    "SHDR": [
+     57190,
+     2444
+    ]
+   },
+   "asm": "eye_asm21.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "fa94671d2528"
+  },
+  {
+   "region": 22,
+   "region_size": 3676,
+   "dx": 60046,
+   "dxbc_len": 3272,
+   "secs": {
+    "ISGN": [
+     60090,
+     212
+    ],
+    "OSGN": [
+     60310,
+     368
+    ],
+    "SHDR": [
+     60686,
+     2624
+    ]
+   },
+   "asm": "eye_asm22.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "ab855ca5a0a3"
+  },
+  {
+   "region": 23,
+   "region_size": 3692,
+   "dx": 63738,
+   "dxbc_len": 3272,
+   "secs": {
+    "ISGN": [
+     63782,
+     212
+    ],
+    "OSGN": [
+     64002,
+     368
+    ],
+    "SHDR": [
+     64378,
+     2624
+    ]
+   },
+   "asm": "eye_asm23.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     11
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "e23c5bf5bc52"
+  },
+  {
+   "region": 24,
+   "region_size": 3432,
+   "dx": 67422,
+   "dxbc_len": 3020,
+   "secs": {
+    "ISGN": [
+     67466,
+     212
+    ],
+    "OSGN": [
+     67686,
+     344
+    ],
+    "SHDR": [
+     68038,
+     2396
+    ]
+   },
+   "asm": "eye_asm24.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     2,
+     21
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2cd4b5d1dc68"
+  },
+  {
+   "region": 25,
+   "region_size": 3692,
+   "dx": 70862,
+   "dxbc_len": 3272,
+   "secs": {
+    "ISGN": [
+     70906,
+     212
+    ],
+    "OSGN": [
+     71126,
+     368
+    ],
+    "SHDR": [
+     71502,
+     2624
+    ]
+   },
+   "asm": "eye_asm25.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     6
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     3,
+     21
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "83ddb0e50e94"
+  },
+  {
+   "region": 26,
+   "region_size": 3560,
+   "dx": 74538,
+   "dxbc_len": 3156,
+   "secs": {
+    "ISGN": [
+     74582,
+     212
+    ],
+    "OSGN": [
+     74802,
+     368
+    ],
+    "SHDR": [
+     75178,
+     2508
+    ]
+   },
+   "asm": "eye_asm26.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "5a817414f08c"
+  },
+  {
+   "region": 27,
+   "region_size": 3576,
+   "dx": 78114,
+   "dxbc_len": 3156,
+   "secs": {
+    "ISGN": [
+     78158,
+     212
+    ],
+    "OSGN": [
+     78378,
+     368
+    ],
+    "SHDR": [
+     78754,
+     2508
+    ]
+   },
+   "asm": "eye_asm27.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "5a817414f08c"
+  },
+  {
+   "region": 28,
+   "region_size": 3564,
+   "dx": 81678,
+   "dxbc_len": 3156,
+   "secs": {
+    "ISGN": [
+     81722,
+     212
+    ],
+    "OSGN": [
+     81942,
+     368
+    ],
+    "SHDR": [
+     82318,
+     2508
+    ]
+   },
+   "asm": "eye_asm28.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "5a817414f08c"
+  },
+  {
+   "region": 29,
+   "region_size": 3580,
+   "dx": 85258,
+   "dxbc_len": 3156,
+   "secs": {
+    "ISGN": [
+     85302,
+     212
+    ],
+    "OSGN": [
+     85522,
+     368
+    ],
+    "SHDR": [
+     85898,
+     2508
+    ]
+   },
+   "asm": "eye_asm29.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     21
+    ],
+    [
+     5,
+     1
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "5a817414f08c"
+  },
+  {
+   "region": 40,
+   "region_size": 5620,
+   "dx": 110334,
+   "dxbc_len": 5288,
+   "secs": {
+    "ISGN": [
+     110378,
+     380
+    ],
+    "OSGN": [
+     110766,
+     44
+    ],
+    "SHDR": [
+     110818,
+     4796
+    ]
+   },
+   "asm": "eye_asm40.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "2de2e6c14326"
+  },
+  {
+   "region": 41,
+   "region_size": 5336,
+   "dx": 115958,
+   "dxbc_len": 5000,
+   "secs": {
+    "ISGN": [
+     116002,
+     356
+    ],
+    "OSGN": [
+     116366,
+     44
+    ],
+    "SHDR": [
+     116418,
+     4532
+    ]
+   },
+   "asm": "eye_asm41.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     84
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "46d1c9cdb362"
+  },
+  {
+   "region": 42,
+   "region_size": 5860,
+   "dx": 121286,
+   "dxbc_len": 5532,
+   "secs": {
+    "ISGN": [
+     121330,
+     380
+    ],
+    "OSGN": [
+     121718,
+     44
+    ],
+    "SHDR": [
+     121770,
+     5040
+    ]
+   },
+   "asm": "eye_asm42.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "270c6d50efad"
+  },
+  {
+   "region": 43,
+   "region_size": 5716,
+   "dx": 127154,
+   "dxbc_len": 5380,
+   "secs": {
+    "ISGN": [
+     127198,
+     380
+    ],
+    "OSGN": [
+     127586,
+     44
+    ],
+    "SHDR": [
+     127638,
+     4888
+    ]
+   },
+   "asm": "eye_asm43.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [
+    "1"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "642ade9f7b5c"
+  },
+  {
+   "region": 44,
+   "region_size": 5604,
+   "dx": 132878,
+   "dxbc_len": 5260,
+   "secs": {
+    "ISGN": [
+     132922,
+     380
+    ],
+    "OSGN": [
+     133310,
+     44
+    ],
+    "SHDR": [
+     133362,
+     4768
+    ]
+   },
+   "asm": "eye_asm44.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "d59553755e64"
+  },
+  {
+   "region": 45,
+   "region_size": 6624,
+   "dx": 138486,
+   "dxbc_len": 6276,
+   "secs": {
+    "ISGN": [
+     138530,
+     404
+    ],
+    "OSGN": [
+     138942,
+     44
+    ],
+    "SHDR": [
+     138994,
+     5760
+    ]
+   },
+   "asm": "eye_asm45.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "6"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "beb8fac695e6"
+  },
+  {
+   "region": 46,
+   "region_size": 8000,
+   "dx": 145126,
+   "dxbc_len": 7636,
+   "secs": {
+    "ISGN": [
+     145170,
+     404
+    ],
+    "OSGN": [
+     145582,
+     44
+    ],
+    "SHDR": [
+     145634,
+     7120
+    ]
+   },
+   "asm": "eye_asm46.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     93
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "6"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "92600cb43963"
+  },
+  {
+   "region": 47,
+   "region_size": 5884,
+   "dx": 153118,
+   "dxbc_len": 5528,
+   "secs": {
+    "ISGN": [
+     153162,
+     380
+    ],
+    "OSGN": [
+     153550,
+     44
+    ],
+    "SHDR": [
+     153602,
+     5036
+    ]
+   },
+   "asm": "eye_asm47.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     84
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "0f132d83f974"
+  },
+  {
+   "region": 48,
+   "region_size": 6152,
+   "dx": 159010,
+   "dxbc_len": 5788,
+   "secs": {
+    "ISGN": [
+     159054,
+     404
+    ],
+    "OSGN": [
+     159466,
+     44
+    ],
+    "SHDR": [
+     159518,
+     5272
+    ]
+   },
+   "asm": "eye_asm48.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "0ff3d5e9aeb7"
+  },
+  {
+   "region": 49,
+   "region_size": 6508,
+   "dx": 165146,
+   "dxbc_len": 6160,
+   "secs": {
+    "ISGN": [
+     165190,
+     404
+    ],
+    "OSGN": [
+     165602,
+     44
+    ],
+    "SHDR": [
+     165654,
+     5644
+    ]
+   },
+   "asm": "eye_asm49.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [
+    "5"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "119928e9b38d"
+  },
+  {
+   "region": 50,
+   "region_size": 6924,
+   "dx": 171670,
+   "dxbc_len": 6560,
+   "secs": {
+    "ISGN": [
+     171714,
+     404
+    ],
+    "OSGN": [
+     172126,
+     44
+    ],
+    "SHDR": [
+     172178,
+     6044
+    ]
+   },
+   "asm": "eye_asm50.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3"
+   ],
+   "texcube": [
+    "5"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3a866c6464e9"
+  },
+  {
+   "region": 51,
+   "region_size": 6604,
+   "dx": 178582,
+   "dxbc_len": 6252,
+   "secs": {
+    "ISGN": [
+     178626,
+     404
+    ],
+    "OSGN": [
+     179038,
+     44
+    ],
+    "SHDR": [
+     179090,
+     5736
+    ]
+   },
+   "asm": "eye_asm51.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [
+    "1",
+    "6"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "d7ee00576bb6"
+  },
+  {
+   "region": 52,
+   "region_size": 7020,
+   "dx": 185202,
+   "dxbc_len": 6652,
+   "secs": {
+    "ISGN": [
+     185246,
+     404
+    ],
+    "OSGN": [
+     185658,
+     44
+    ],
+    "SHDR": [
+     185710,
+     6136
+    ]
+   },
+   "asm": "eye_asm52.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     88
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     47
+    ],
+    [
+     3,
+     26
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "2",
+    "3",
+    "4"
+   ],
+   "texcube": [
+    "1",
+    "6"
+   ],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "63accb9b2a1b"
+  },
+  {
+   "region": 54,
+   "region_size": 1108,
+   "dx": 192090,
+   "dxbc_len": 972,
+   "secs": {
+    "ISGN": [
+     192134,
+     76
+    ],
+    "OSGN": [
+     192218,
+     104
+    ],
+    "SHDR": [
+     192330,
+     724
+    ]
+   },
+   "asm": "eye_asm54.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     4
+    ],
+    [
+     2,
+     21
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3ba34123c15d"
+  },
+  {
+   "region": 55,
+   "region_size": 988,
+   "dx": 193194,
+   "dxbc_len": 856,
+   "secs": {
+    "ISGN": [
+     193238,
+     76
+    ],
+    "OSGN": [
+     193322,
+     104
+    ],
+    "SHDR": [
+     193434,
+     608
+    ]
+   },
+   "asm": "eye_asm55.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     6
+    ],
+    [
+     1,
+     4
+    ],
+    [
+     2,
+     21
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "3ae27aefb8b9"
+  },
+  {
+   "region": 57,
+   "region_size": 392,
+   "dx": 194214,
+   "dxbc_len": 272,
+   "secs": {
+    "ISGN": [
+     194258,
+     104
+    ],
+    "OSGN": [
+     194370,
+     44
+    ],
+    "SHDR": [
+     194422,
+     56
+    ]
+   },
+   "asm": "eye_asm57.txt",
+   "stage": "PS_4_0",
+   "cbs": [],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "f86d288cb808"
+  },
+  {
+   "region": 58,
+   "region_size": 388,
+   "dx": 194602,
+   "dxbc_len": 272,
+   "secs": {
+    "ISGN": [
+     194646,
+     104
+    ],
+    "OSGN": [
+     194758,
+     44
+    ],
+    "SHDR": [
+     194810,
+     56
+    ]
+   },
+   "asm": "eye_asm58.txt",
+   "stage": "PS_4_0",
+   "cbs": [],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "f86d288cb808"
+  },
+  {
+   "region": 60,
+   "region_size": 2016,
+   "dx": 195090,
+   "dxbc_len": 1832,
+   "secs": {
+    "ISGN": [
+     195134,
+     212
+    ],
+    "OSGN": [
+     195354,
+     272
+    ],
+    "SHDR": [
+     195634,
+     1280
+    ]
+   },
+   "asm": "eye_asm60.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     7
+    ],
+    [
+     1,
+     21
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "d6e6d1844c2e"
+  },
+  {
+   "region": 62,
+   "region_size": 7532,
+   "dx": 197282,
+   "dxbc_len": 7404,
+   "secs": {
+    "ISGN": [
+     197326,
+     272
+    ],
+    "OSGN": [
+     197606,
+     44
+    ],
+    "SHDR": [
+     197658,
+     7020
+    ]
+   },
+   "asm": "eye_asm62.txt",
+   "stage": "PS_4_0",
+   "cbs": [
+    [
+     0,
+     29
+    ],
+    [
+     1,
+     47
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     12
+    ],
+    [
+     4,
+     7
+    ]
+   ],
+   "tex2d": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7"
+   ],
+   "texcube": [],
+   "sampler": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8"
+   ],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "c14d724a67f9"
+  },
+  {
+   "region": 63,
+   "region_size": 732,
+   "dx": 204766,
+   "dxbc_len": 636,
+   "secs": {
+    "ISGN": [
+     204810,
+     72
+    ],
+    "OSGN": [
+     204890,
+     76
+    ],
+    "SHDR": [
+     204974,
+     420
+    ]
+   },
+   "asm": "eye_asm63.txt",
+   "stage": "VS_4_0",
+   "cbs": [
+    [
+     0,
+     4
+    ],
+    [
+     1,
+     21
+    ]
+   ],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "82ea3b6fc3e9"
+  },
+  {
+   "region": 64,
+   "region_size": 324,
+   "dx": 205498,
+   "dxbc_len": 244,
+   "secs": {
+    "ISGN": [
+     205542,
+     76
+    ],
+    "OSGN": [
+     205626,
+     44
+    ],
+    "SHDR": [
+     205678,
+     56
+    ]
+   },
+   "asm": "eye_asm64.txt",
+   "stage": "PS_4_0",
+   "cbs": [],
+   "tex2d": [],
+   "texcube": [],
+   "sampler": [],
+   "insgn": null,
+   "osgn": null,
+   "shdr_hash": "1333c16a02dc"
+  }
+ ],
+ "subs": [
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 2,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL"
+   ],
+   "region_region_idx": 2,
+   "region_dx_rank": null,
+   "region": 2,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 1,
+   "blob": 3,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN"
+   ],
+   "region_region_idx": 3,
+   "region_dx_rank": null,
+   "region": 3,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 2,
+   "blob": 4,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "VERTEXLIGHT_ON"
+   ],
+   "region_region_idx": 4,
+   "region_dx_rank": 2,
+   "region": 4,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "VS",
+   "sub": 3,
+   "blob": 5,
+   "gpst": 15,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN",
+    "VERTEXLIGHT_ON"
+   ],
+   "region_region_idx": 5,
+   "region_dx_rank": 3,
+   "region": 5,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 8,
+   "gpst": 17,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL"
+   ],
+   "region_region_idx": 8,
+   "region_dx_rank": null,
+   "region": 8,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 0,
+   "kind": "PS",
+   "sub": 1,
+   "blob": 9,
+   "gpst": 17,
+   "kws": [
+    "_IS_PASS_FWDBASE",
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN"
+   ],
+   "region_region_idx": 9,
+   "region_dx_rank": null,
+   "region": 9,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 17,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT"
+   ],
+   "region_region_idx": 17,
+   "region_dx_rank": null,
+   "region": 17,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 1,
+   "blob": 18,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 18,
+   "region_dx_rank": null,
+   "region": 18,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 2,
+   "blob": 19,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT"
+   ],
+   "region_region_idx": 19,
+   "region_dx_rank": null,
+   "region": 19,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 3,
+   "blob": 20,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE"
+   ],
+   "region_region_idx": 20,
+   "region_dx_rank": null,
+   "region": 20,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 4,
+   "blob": 21,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 21,
+   "region_dx_rank": null,
+   "region": 21,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 5,
+   "blob": 22,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH"
+   ],
+   "region_region_idx": 22,
+   "region_dx_rank": null,
+   "region": 22,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 6,
+   "blob": 23,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH",
+    "SHADOWS_SOFT"
+   ],
+   "region_region_idx": 23,
+   "region_dx_rank": null,
+   "region": 23,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 7,
+   "blob": 24,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 24,
+   "region_dx_rank": null,
+   "region": 24,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 8,
+   "blob": 25,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 25,
+   "region_dx_rank": null,
+   "region": 25,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 9,
+   "blob": 26,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 26,
+   "region_dx_rank": null,
+   "region": 26,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 10,
+   "blob": 27,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 27,
+   "region_dx_rank": null,
+   "region": 27,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 11,
+   "blob": 28,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 28,
+   "region_dx_rank": 17,
+   "region": 28,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "VS",
+   "sub": 12,
+   "blob": 29,
+   "gpst": 15,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 29,
+   "region_dx_rank": 18,
+   "region": 29,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 40,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT"
+   ],
+   "region_region_idx": 40,
+   "region_dx_rank": null,
+   "region": 40,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 1,
+   "blob": 41,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 41,
+   "region_dx_rank": null,
+   "region": 41,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 2,
+   "blob": 42,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT"
+   ],
+   "region_region_idx": 42,
+   "region_dx_rank": null,
+   "region": 42,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 3,
+   "blob": 43,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE"
+   ],
+   "region_region_idx": 43,
+   "region_dx_rank": null,
+   "region": 43,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 4,
+   "blob": 44,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 44,
+   "region_dx_rank": null,
+   "region": 44,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 5,
+   "blob": 45,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH"
+   ],
+   "region_region_idx": 45,
+   "region_dx_rank": null,
+   "region": 45,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 6,
+   "blob": 46,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "SPOT",
+    "SHADOWS_DEPTH",
+    "SHADOWS_SOFT"
+   ],
+   "region_region_idx": 46,
+   "region_dx_rank": null,
+   "region": 46,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 7,
+   "blob": 47,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "DIRECTIONAL",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA"
+   ],
+   "region_region_idx": 47,
+   "region_dx_rank": null,
+   "region": 47,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 8,
+   "blob": 48,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "SHADOWS_SCREEN",
+    "_IS_PASS_FWDDELTA",
+    "DIRECTIONAL_COOKIE"
+   ],
+   "region_region_idx": 48,
+   "region_dx_rank": null,
+   "region": 48,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 9,
+   "blob": 49,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 49,
+   "region_dx_rank": null,
+   "region": 49,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 10,
+   "blob": 50,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 50,
+   "region_dx_rank": null,
+   "region": 50,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 11,
+   "blob": 51,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 51,
+   "region_dx_rank": null,
+   "region": 51,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 1,
+   "kind": "PS",
+   "sub": 12,
+   "blob": 52,
+   "gpst": 17,
+   "kws": [
+    "_IS_TRANSCLIPPING_OFF",
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "EYE_MODE",
+    "USE_2ND_SHADE",
+    "USE_MATERIALMASK",
+    "USE_EMISSIVE_TEX",
+    "USE_MASK_TEX",
+    "SPECULAR_OFF",
+    "CHROMA_OFF",
+    "NORMALMAP_OFF",
+    "MATCAP_OFF",
+    "_IS_PASS_FWDDELTA",
+    "POINT_COOKIE",
+    "SHADOWS_SOFT",
+    "SHADOWS_CUBE"
+   ],
+   "region_region_idx": 52,
+   "region_dx_rank": null,
+   "region": 52,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 2,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 54,
+   "gpst": 15,
+   "kws": [
+    "SHADOWS_DEPTH",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 54,
+   "region_dx_rank": null,
+   "region": 54,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 2,
+   "kind": "VS",
+   "sub": 1,
+   "blob": 55,
+   "gpst": 15,
+   "kws": [
+    "SHADOWS_CUBE",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 55,
+   "region_dx_rank": null,
+   "region": 55,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 2,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 57,
+   "gpst": 17,
+   "kws": [
+    "SHADOWS_DEPTH",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 57,
+   "region_dx_rank": null,
+   "region": 57,
+   "kw_prefix_match": false,
+   "extra_prefix_toks": [
+    "_IS_CLIPPING_OFF6"
+   ]
+  },
+  {
+   "passid": 2,
+   "kind": "PS",
+   "sub": 1,
+   "blob": 58,
+   "gpst": 17,
+   "kws": [
+    "SHADOWS_CUBE",
+    "_IS_CLIPPING_OFF"
+   ],
+   "region_region_idx": 58,
+   "region_dx_rank": null,
+   "region": 58,
+   "kw_prefix_match": false,
+   "extra_prefix_toks": [
+    "_IS_CLIPPING_OFF6"
+   ]
+  },
+  {
+   "passid": 3,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 60,
+   "gpst": 15,
+   "kws": [
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "STENCIL_MASK"
+   ],
+   "region_region_idx": 60,
+   "region_dx_rank": null,
+   "region": 60,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 3,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 62,
+   "gpst": 17,
+   "kws": [
+    "USE_DISSOLVE",
+    "_FACE_MODE_",
+    "STENCIL_MASK"
+   ],
+   "region_region_idx": 62,
+   "region_dx_rank": null,
+   "region": 62,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 4,
+   "kind": "VS",
+   "sub": 0,
+   "blob": 63,
+   "gpst": 15,
+   "kws": [],
+   "region_region_idx": 63,
+   "region_dx_rank": null,
+   "region": 63,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  },
+  {
+   "passid": 4,
+   "kind": "PS",
+   "sub": 0,
+   "blob": 64,
+   "gpst": 17,
+   "kws": [],
+   "region_region_idx": 64,
+   "region_dx_rank": null,
+   "region": 64,
+   "kw_prefix_match": true,
+   "extra_prefix_toks": []
+  }
+ ],
+ "hypothesis": "region_idx"
+}

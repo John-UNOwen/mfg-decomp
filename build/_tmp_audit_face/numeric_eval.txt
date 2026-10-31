@@ -1,0 +1,36 @@
+
+== LC=(1,1,1) neutral (our rebuild)
+pale pixel, front, lit   : HL=0.950 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (219, 154, 137) / (219, 154, 137) / (255, 255, 255)  -> FinalBaseColor=(219, 154, 137)  final(+rim)=(219, 154, 137)
+pale pixel, silhouette,lit: HL=0.975 m1=0.00 m2=0.00 rim=0.47
+    base/1st/2nd = (219, 154, 137) / (219, 154, 137) / (255, 255, 255)  -> FinalBaseColor=(219, 154, 137)  final(+rim)=(255, 255, 255)
+pale pixel, front, unlit  : HL=0.550 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (219, 154, 137) / (219, 154, 137) / (255, 255, 255)  -> FinalBaseColor=(219, 154, 137)  final(+rim)=(219, 154, 137)
+white pixel, front, lit   : HL=0.950 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (255, 255, 255) / (255, 255, 255) / (255, 255, 255)  -> FinalBaseColor=(255, 255, 255)  final(+rim)=(255, 255, 255)
+white pixel, silhouet,lit : HL=0.975 m1=0.00 m2=0.00 rim=0.47
+    base/1st/2nd = (255, 255, 255) / (255, 255, 255) / (255, 255, 255)  -> FinalBaseColor=(255, 255, 255)  final(+rim)=(255, 255, 255)
+
+== LC=(1.0,0.95,0.75) warm example
+pale pixel, front, lit   : HL=0.950 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (219, 146, 103) / (219, 146, 103) / (255, 242, 191)  -> FinalBaseColor=(219, 146, 103)  final(+rim)=(219, 146, 103)
+pale pixel, silhouette,lit: HL=0.975 m1=0.00 m2=0.00 rim=0.47
+    base/1st/2nd = (219, 146, 103) / (219, 146, 103) / (255, 242, 191)  -> FinalBaseColor=(219, 146, 103)  final(+rim)=(255, 255, 194)
+pale pixel, front, unlit  : HL=0.550 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (219, 146, 103) / (219, 146, 103) / (255, 242, 191)  -> FinalBaseColor=(219, 146, 103)  final(+rim)=(219, 146, 103)
+white pixel, front, lit   : HL=0.950 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (255, 242, 191) / (255, 242, 191) / (255, 242, 191)  -> FinalBaseColor=(255, 242, 191)  final(+rim)=(255, 242, 191)
+white pixel, silhouet,lit : HL=0.975 m1=0.00 m2=0.00 rim=0.47
+    base/1st/2nd = (255, 242, 191) / (255, 242, 191) / (255, 242, 191)  -> FinalBaseColor=(255, 242, 191)  final(+rim)=(255, 255, 255)
+
+== LC=(1.0,0.88,0.70) warm example 2
+pale pixel, front, lit   : HL=0.950 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (219, 136, 96) / (219, 136, 96) / (255, 224, 178)  -> FinalBaseColor=(219, 136, 96)  final(+rim)=(219, 136, 96)
+pale pixel, silhouette,lit: HL=0.975 m1=0.00 m2=0.00 rim=0.47
+    base/1st/2nd = (219, 136, 96) / (219, 136, 96) / (255, 224, 178)  -> FinalBaseColor=(219, 136, 96)  final(+rim)=(255, 242, 181)
+pale pixel, front, unlit  : HL=0.550 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (219, 136, 96) / (219, 136, 96) / (255, 224, 178)  -> FinalBaseColor=(219, 136, 96)  final(+rim)=(219, 136, 96)
+white pixel, front, lit   : HL=0.950 m1=0.00 m2=0.00 rim=0.00
+    base/1st/2nd = (255, 224, 178) / (255, 224, 178) / (255, 224, 178)  -> FinalBaseColor=(255, 224, 178)  final(+rim)=(255, 224, 178)
+white pixel, silhouet,lit : HL=0.975 m1=0.00 m2=0.00 rim=0.47
+    base/1st/2nd = (255, 224, 178) / (255, 224, 178) / (255, 224, 178)  -> FinalBaseColor=(255, 224, 178)  final(+rim)=(255, 255, 255)

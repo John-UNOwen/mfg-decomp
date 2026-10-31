@@ -1,0 +1,1982 @@
+{
+ "shader": "Mouth",
+ "n_regions": 62,
+ "n_programs": 38,
+ "stage_agreement": {
+  "vs": "20/20",
+  "ps": "18/18"
+ },
+ "first_variant_regions": {
+  "pass0_VS": 2,
+  "pass0_PS": 8,
+  "pass1_VS": 17,
+  "pass1_PS": 40,
+  "pass2_VS": 54,
+  "pass2_PS": 57,
+  "pass3_VS": 60,
+  "pass3_PS": 61
+ },
+ "passes": [
+  {
+   "idx": 0,
+   "name": "",
+   "vs_blobs": [
+    2,
+    3,
+    4,
+    5
+   ],
+   "ps_blobs": [
+    8,
+    9
+   ],
+   "pass_keywords": []
+  },
+  {
+   "idx": 1,
+   "name": "",
+   "vs_blobs": [
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29
+   ],
+   "ps_blobs": [
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52
+   ],
+   "pass_keywords": []
+  },
+  {
+   "idx": 2,
+   "name": "",
+   "vs_blobs": [
+    54,
+    55
+   ],
+   "ps_blobs": [
+    57,
+    58
+   ],
+   "pass_keywords": []
+  },
+  {
+   "idx": 3,
+   "name": "",
+   "vs_blobs": [
+    60
+   ],
+   "ps_blobs": [
+    61
+   ],
+   "pass_keywords": []
+  }
+ ],
+ "programs": [
+  {
+   "region": 2,
+   "stage": "VS",
+   "size": 3084,
+   "dx_off": 1426,
+   "dxbc_len": 2708,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     1470,
+     212
+    ],
+    "OSGN": [
+     1690,
+     272
+    ],
+    "SHDR": [
+     1970,
+     2156
+    ]
+   },
+   "shdr_hash": "2ab9a502fb7e",
+   "json_refs": [
+    {
+     "pass": 0,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_PASS_FWDBASE",
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  },
+  {
+   "region": 3,
+   "stage": "VS",
+   "size": 3280,
+   "dx_off": 4530,
+   "dxbc_len": 2884,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     4574,
+     212
+    ],
+    "OSGN": [
+     4794,
+     296
+    ],
+    "SHDR": [
+     5098,
+     2308
+    ]
+   },
+   "shdr_hash": "662d6fa0c667",
+   "json_refs": [
+    {
+     "pass": 0,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_PASS_FWDBASE",
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "SHADOWS_SCREEN"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 1
+    }
+   ]
+  },
+  {
+   "region": 4,
+   "stage": "VS",
+   "size": 3104,
+   "dx_off": 7810,
+   "dxbc_len": 2708,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     7854,
+     212
+    ],
+    "OSGN": [
+     8074,
+     272
+    ],
+    "SHDR": [
+     8354,
+     2156
+    ]
+   },
+   "shdr_hash": "2ab9a502fb7e",
+   "json_refs": [
+    {
+     "pass": 0,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_PASS_FWDBASE",
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "VERTEXLIGHT_ON"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 2
+    }
+   ]
+  },
+  {
+   "region": 5,
+   "stage": "VS",
+   "size": 3300,
+   "dx_off": 10934,
+   "dxbc_len": 2884,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     10978,
+     212
+    ],
+    "OSGN": [
+     11198,
+     296
+    ],
+    "SHDR": [
+     11502,
+     2308
+    ]
+   },
+   "shdr_hash": "662d6fa0c667",
+   "json_refs": [
+    {
+     "pass": 0,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_PASS_FWDBASE",
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "SHADOWS_SCREEN",
+      "VERTEXLIGHT_ON"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 3
+    }
+   ]
+  },
+  {
+   "region": 8,
+   "stage": "PS",
+   "size": 10940,
+   "dx_off": 15490,
+   "dxbc_len": 10604,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     15534,
+     308
+    ],
+    "OSGN": [
+     15850,
+     44
+    ],
+    "SHDR": [
+     15902,
+     10184
+    ]
+   },
+   "shdr_hash": "a222dc2712c7",
+   "json_refs": [
+    {
+     "pass": 0,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_PASS_FWDBASE",
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL"
+     ],
+     "globals_size": 1376,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  },
+  {
+   "region": 9,
+   "stage": "PS",
+   "size": 11452,
+   "dx_off": 26450,
+   "dxbc_len": 11096,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     26494,
+     332
+    ],
+    "OSGN": [
+     26834,
+     44
+    ],
+    "SHDR": [
+     26886,
+     10652
+    ]
+   },
+   "shdr_hash": "fff587468549",
+   "json_refs": [
+    {
+     "pass": 0,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_PASS_FWDBASE",
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "SHADOWS_SCREEN"
+     ],
+     "globals_size": 1376,
+     "group": 3,
+     "sub": 1
+    }
+   ]
+  },
+  {
+   "region": 17,
+   "stage": "VS",
+   "size": 3308,
+   "dx_off": 40710,
+   "dxbc_len": 2932,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     40754,
+     212
+    ],
+    "OSGN": [
+     40974,
+     296
+    ],
+    "SHDR": [
+     41278,
+     2356
+    ]
+   },
+   "shdr_hash": "9691a66cdc57",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  },
+  {
+   "region": 18,
+   "stage": "VS",
+   "size": 3088,
+   "dx_off": 44022,
+   "dxbc_len": 2708,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     44066,
+     212
+    ],
+    "OSGN": [
+     44286,
+     272
+    ],
+    "SHDR": [
+     44566,
+     2156
+    ]
+   },
+   "shdr_hash": "2ab9a502fb7e",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "_IS_PASS_FWDDELTA"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 1
+    }
+   ]
+  },
+  {
+   "region": 19,
+   "stage": "VS",
+   "size": 3304,
+   "dx_off": 47102,
+   "dxbc_len": 2932,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     47146,
+     212
+    ],
+    "OSGN": [
+     47366,
+     296
+    ],
+    "SHDR": [
+     47670,
+     2356
+    ]
+   },
+   "shdr_hash": "fa8c59a04b94",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "SPOT"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 2
+    }
+   ]
+  },
+  {
+   "region": 20,
+   "stage": "VS",
+   "size": 3312,
+   "dx_off": 50414,
+   "dxbc_len": 2932,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     50458,
+     212
+    ],
+    "OSGN": [
+     50678,
+     296
+    ],
+    "SHDR": [
+     50982,
+     2356
+    ]
+   },
+   "shdr_hash": "9691a66cdc57",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT_COOKIE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 3
+    }
+   ]
+  },
+  {
+   "region": 21,
+   "stage": "VS",
+   "size": 3320,
+   "dx_off": 53734,
+   "dxbc_len": 2932,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     53778,
+     212
+    ],
+    "OSGN": [
+     53998,
+     296
+    ],
+    "SHDR": [
+     54302,
+     2356
+    ]
+   },
+   "shdr_hash": "b681083e8c87",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "DIRECTIONAL_COOKIE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 4
+    }
+   ]
+  },
+  {
+   "region": 22,
+   "stage": "VS",
+   "size": 3528,
+   "dx_off": 57058,
+   "dxbc_len": 3136,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     57102,
+     212
+    ],
+    "OSGN": [
+     57322,
+     320
+    ],
+    "SHDR": [
+     57650,
+     2536
+    ]
+   },
+   "shdr_hash": "e50c52d7e4f6",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "SPOT",
+      "SHADOWS_DEPTH"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 5
+    }
+   ]
+  },
+  {
+   "region": 23,
+   "stage": "VS",
+   "size": 3544,
+   "dx_off": 60602,
+   "dxbc_len": 3136,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     60646,
+     212
+    ],
+    "OSGN": [
+     60866,
+     320
+    ],
+    "SHDR": [
+     61194,
+     2536
+    ]
+   },
+   "shdr_hash": "3b421cdb72b6",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "SPOT",
+      "SHADOWS_DEPTH",
+      "SHADOWS_SOFT"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 6
+    }
+   ]
+  },
+  {
+   "region": 24,
+   "stage": "VS",
+   "size": 3284,
+   "dx_off": 64138,
+   "dxbc_len": 2884,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     64182,
+     212
+    ],
+    "OSGN": [
+     64402,
+     296
+    ],
+    "SHDR": [
+     64706,
+     2308
+    ]
+   },
+   "shdr_hash": "662d6fa0c667",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "SHADOWS_SCREEN",
+      "_IS_PASS_FWDDELTA"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 7
+    }
+   ]
+  },
+  {
+   "region": 25,
+   "stage": "VS",
+   "size": 3544,
+   "dx_off": 67430,
+   "dxbc_len": 3136,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     67474,
+     212
+    ],
+    "OSGN": [
+     67694,
+     320
+    ],
+    "SHDR": [
+     68022,
+     2536
+    ]
+   },
+   "shdr_hash": "4c0f83a57b37",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "SHADOWS_SCREEN",
+      "_IS_PASS_FWDDELTA",
+      "DIRECTIONAL_COOKIE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 8
+    }
+   ]
+  },
+  {
+   "region": 26,
+   "stage": "VS",
+   "size": 3412,
+   "dx_off": 70958,
+   "dxbc_len": 3020,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     71002,
+     212
+    ],
+    "OSGN": [
+     71222,
+     320
+    ],
+    "SHDR": [
+     71550,
+     2420
+    ]
+   },
+   "shdr_hash": "ba157758c505",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 9
+    }
+   ]
+  },
+  {
+   "region": 27,
+   "stage": "VS",
+   "size": 3428,
+   "dx_off": 74386,
+   "dxbc_len": 3020,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     74430,
+     212
+    ],
+    "OSGN": [
+     74650,
+     320
+    ],
+    "SHDR": [
+     74978,
+     2420
+    ]
+   },
+   "shdr_hash": "ba157758c505",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT",
+      "SHADOWS_SOFT",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 10
+    }
+   ]
+  },
+  {
+   "region": 28,
+   "stage": "VS",
+   "size": 3416,
+   "dx_off": 77802,
+   "dxbc_len": 3020,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     77846,
+     212
+    ],
+    "OSGN": [
+     78066,
+     320
+    ],
+    "SHDR": [
+     78394,
+     2420
+    ]
+   },
+   "shdr_hash": "ba157758c505",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT_COOKIE",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 11
+    }
+   ]
+  },
+  {
+   "region": 29,
+   "stage": "VS",
+   "size": 3432,
+   "dx_off": 81234,
+   "dxbc_len": 3020,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     81278,
+     212
+    ],
+    "OSGN": [
+     81498,
+     320
+    ],
+    "SHDR": [
+     81826,
+     2420
+    ]
+   },
+   "shdr_hash": "ba157758c505",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT_COOKIE",
+      "SHADOWS_SOFT",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 12
+    }
+   ]
+  },
+  {
+   "region": 40,
+   "stage": "PS",
+   "size": 5576,
+   "dx_off": 106162,
+   "dxbc_len": 5240,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     106206,
+     332
+    ],
+    "OSGN": [
+     106546,
+     44
+    ],
+    "SHDR": [
+     106598,
+     4796
+    ]
+   },
+   "shdr_hash": "8a246dbd91ba",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  },
+  {
+   "region": 41,
+   "stage": "PS",
+   "size": 5292,
+   "dx_off": 111742,
+   "dxbc_len": 4952,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     111786,
+     308
+    ],
+    "OSGN": [
+     112102,
+     44
+    ],
+    "SHDR": [
+     112154,
+     4532
+    ]
+   },
+   "shdr_hash": "338f2df2453c",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "_IS_PASS_FWDDELTA"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 1
+    }
+   ]
+  },
+  {
+   "region": 42,
+   "stage": "PS",
+   "size": 5816,
+   "dx_off": 117026,
+   "dxbc_len": 5484,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     117070,
+     332
+    ],
+    "OSGN": [
+     117410,
+     44
+    ],
+    "SHDR": [
+     117462,
+     5040
+    ]
+   },
+   "shdr_hash": "12221b8d7529",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "SPOT"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 2
+    }
+   ]
+  },
+  {
+   "region": 43,
+   "stage": "PS",
+   "size": 5672,
+   "dx_off": 122850,
+   "dxbc_len": 5332,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     122894,
+     332
+    ],
+    "OSGN": [
+     123234,
+     44
+    ],
+    "SHDR": [
+     123286,
+     4888
+    ]
+   },
+   "shdr_hash": "5671b7069ffc",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT_COOKIE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 3
+    }
+   ]
+  },
+  {
+   "region": 44,
+   "stage": "PS",
+   "size": 5560,
+   "dx_off": 128530,
+   "dxbc_len": 5212,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     128574,
+     332
+    ],
+    "OSGN": [
+     128914,
+     44
+    ],
+    "SHDR": [
+     128966,
+     4768
+    ]
+   },
+   "shdr_hash": "872d6f010371",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "DIRECTIONAL_COOKIE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 4
+    }
+   ]
+  },
+  {
+   "region": 45,
+   "stage": "PS",
+   "size": 6580,
+   "dx_off": 134094,
+   "dxbc_len": 6228,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     134138,
+     356
+    ],
+    "OSGN": [
+     134502,
+     44
+    ],
+    "SHDR": [
+     134554,
+     5760
+    ]
+   },
+   "shdr_hash": "40b896820b81",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "SPOT",
+      "SHADOWS_DEPTH"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 5
+    }
+   ]
+  },
+  {
+   "region": 46,
+   "stage": "PS",
+   "size": 7956,
+   "dx_off": 140690,
+   "dxbc_len": 7588,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     140734,
+     356
+    ],
+    "OSGN": [
+     141098,
+     44
+    ],
+    "SHDR": [
+     141150,
+     7120
+    ]
+   },
+   "shdr_hash": "bc45cc75aba3",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "SPOT",
+      "SHADOWS_DEPTH",
+      "SHADOWS_SOFT"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 6
+    }
+   ]
+  },
+  {
+   "region": 47,
+   "stage": "PS",
+   "size": 5840,
+   "dx_off": 148638,
+   "dxbc_len": 5480,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     148682,
+     332
+    ],
+    "OSGN": [
+     149022,
+     44
+    ],
+    "SHDR": [
+     149074,
+     5036
+    ]
+   },
+   "shdr_hash": "b825fd22404b",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "DIRECTIONAL",
+      "SHADOWS_SCREEN",
+      "_IS_PASS_FWDDELTA"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 7
+    }
+   ]
+  },
+  {
+   "region": 48,
+   "stage": "PS",
+   "size": 6108,
+   "dx_off": 154486,
+   "dxbc_len": 5740,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     154530,
+     356
+    ],
+    "OSGN": [
+     154894,
+     44
+    ],
+    "SHDR": [
+     154946,
+     5272
+    ]
+   },
+   "shdr_hash": "7d477fa1aa95",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "SHADOWS_SCREEN",
+      "_IS_PASS_FWDDELTA",
+      "DIRECTIONAL_COOKIE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 8
+    }
+   ]
+  },
+  {
+   "region": 49,
+   "stage": "PS",
+   "size": 6464,
+   "dx_off": 160578,
+   "dxbc_len": 6112,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     160622,
+     356
+    ],
+    "OSGN": [
+     160986,
+     44
+    ],
+    "SHDR": [
+     161038,
+     5644
+    ]
+   },
+   "shdr_hash": "aeef36a44a41",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 9
+    }
+   ]
+  },
+  {
+   "region": 50,
+   "stage": "PS",
+   "size": 6880,
+   "dx_off": 167058,
+   "dxbc_len": 6512,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     167102,
+     356
+    ],
+    "OSGN": [
+     167466,
+     44
+    ],
+    "SHDR": [
+     167518,
+     6044
+    ]
+   },
+   "shdr_hash": "de6cccb16384",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT",
+      "SHADOWS_SOFT",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 10
+    }
+   ]
+  },
+  {
+   "region": 51,
+   "stage": "PS",
+   "size": 6560,
+   "dx_off": 173926,
+   "dxbc_len": 6204,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     173970,
+     356
+    ],
+    "OSGN": [
+     174334,
+     44
+    ],
+    "SHDR": [
+     174386,
+     5736
+    ]
+   },
+   "shdr_hash": "c4ce336a254d",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT_COOKIE",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 11
+    }
+   ]
+  },
+  {
+   "region": 52,
+   "stage": "PS",
+   "size": 6976,
+   "dx_off": 180502,
+   "dxbc_len": 6604,
+   "kw_prefix": [
+    "CHROMA_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     180546,
+     356
+    ],
+    "OSGN": [
+     180910,
+     44
+    ],
+    "SHDR": [
+     180962,
+     6136
+    ]
+   },
+   "shdr_hash": "ce4c0f08ca7f",
+   "json_refs": [
+    {
+     "pass": 1,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "_IS_TRANSCLIPPING_OFF",
+      "USE_DISSOLVE",
+      "_FACE_MODE_",
+      "MOUTH_MODE",
+      "USE_2ND_SHADE",
+      "USE_MATERIALMASK",
+      "USE_EMISSIVE_TEX",
+      "USE_MASK_TEX",
+      "SPECULAR_OFF",
+      "CHROMA_OFF",
+      "NORMALMAP_OFF",
+      "MATCAP_OFF",
+      "_IS_PASS_FWDDELTA",
+      "POINT_COOKIE",
+      "SHADOWS_SOFT",
+      "SHADOWS_CUBE"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 12
+    }
+   ]
+  },
+  {
+   "region": 54,
+   "stage": "VS",
+   "size": 1108,
+   "dx_off": 187342,
+   "dxbc_len": 972,
+   "kw_prefix": [
+    "SHADOWS_DEPTH"
+   ],
+   "sections": {
+    "ISGN": [
+     187386,
+     76
+    ],
+    "OSGN": [
+     187470,
+     104
+    ],
+    "SHDR": [
+     187582,
+     724
+    ]
+   },
+   "shdr_hash": "cc5d7493e30d",
+   "json_refs": [
+    {
+     "pass": 2,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "SHADOWS_DEPTH",
+      "_IS_CLIPPING_OFF"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  },
+  {
+   "region": 55,
+   "stage": "VS",
+   "size": 988,
+   "dx_off": 188446,
+   "dxbc_len": 856,
+   "kw_prefix": [
+    "SHADOWS_CUBE",
+    "_IS_CLIPPING_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     188490,
+     76
+    ],
+    "OSGN": [
+     188574,
+     104
+    ],
+    "SHDR": [
+     188686,
+     608
+    ]
+   },
+   "shdr_hash": "7905c9561196",
+   "json_refs": [
+    {
+     "pass": 2,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [
+      "SHADOWS_CUBE",
+      "_IS_CLIPPING_OFF"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 1
+    }
+   ]
+  },
+  {
+   "region": 57,
+   "stage": "PS",
+   "size": 392,
+   "dx_off": 189466,
+   "dxbc_len": 272,
+   "kw_prefix": [
+    "SHADOWS_DEPTH"
+   ],
+   "sections": {
+    "ISGN": [
+     189510,
+     104
+    ],
+    "OSGN": [
+     189622,
+     44
+    ],
+    "SHDR": [
+     189674,
+     56
+    ]
+   },
+   "shdr_hash": "f00c7437de70",
+   "json_refs": [
+    {
+     "pass": 2,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "SHADOWS_DEPTH",
+      "_IS_CLIPPING_OFF"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  },
+  {
+   "region": 58,
+   "stage": "PS",
+   "size": 388,
+   "dx_off": 189854,
+   "dxbc_len": 272,
+   "kw_prefix": [
+    "SHADOWS_CUBE",
+    "_IS_CLIPPING_OFF"
+   ],
+   "sections": {
+    "ISGN": [
+     189898,
+     104
+    ],
+    "OSGN": [
+     190010,
+     44
+    ],
+    "SHDR": [
+     190062,
+     56
+    ]
+   },
+   "shdr_hash": "f00c7437de70",
+   "json_refs": [
+    {
+     "pass": 2,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [
+      "SHADOWS_CUBE",
+      "_IS_CLIPPING_OFF"
+     ],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 1
+    }
+   ]
+  },
+  {
+   "region": 60,
+   "stage": "VS",
+   "size": 732,
+   "dx_off": 190294,
+   "dxbc_len": 636,
+   "kw_prefix": [],
+   "sections": {
+    "ISGN": [
+     190338,
+     72
+    ],
+    "OSGN": [
+     190418,
+     76
+    ],
+    "SHDR": [
+     190502,
+     420
+    ]
+   },
+   "shdr_hash": "e285a69b28b3",
+   "json_refs": [
+    {
+     "pass": 3,
+     "pass_name": "",
+     "kind": "VS",
+     "kws": [],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  },
+  {
+   "region": 61,
+   "stage": "PS",
+   "size": 324,
+   "dx_off": 191026,
+   "dxbc_len": 244,
+   "kw_prefix": [],
+   "sections": {
+    "ISGN": [
+     191070,
+     76
+    ],
+    "OSGN": [
+     191154,
+     44
+    ],
+    "SHDR": [
+     191206,
+     56
+    ]
+   },
+   "shdr_hash": "2f381390925d",
+   "json_refs": [
+    {
+     "pass": 3,
+     "pass_name": "",
+     "kind": "PS",
+     "kws": [],
+     "globals_size": 0,
+     "group": 3,
+     "sub": 0
+    }
+   ]
+  }
+ ]
+}

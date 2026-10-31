@@ -1,0 +1,196 @@
+== PASS[0] nameIndices count=31 ; sample values: {'$Globals': 1, 'UnityPerCamera': 2, 'UnityPerDraw': 3, 'UnityPerFrame': 4, '_BaseColor': 18, '_ClippingMask': 16}
+  -- m_ProgVertex
+    CBIND reg0 -> cbuffer '$Globals' (nameIdx 1) arrSize=1
+    CBIND reg1 -> cbuffer 'UnityPerCamera' (nameIdx 2) arrSize=1
+    CBIND reg2 -> cbuffer 'UnityPerDraw' (nameIdx 3) arrSize=1
+    CBIND reg3 -> cbuffer 'UnityPerFrame' (nameIdx 4) arrSize=1
+    CB '$Globals' size=272 partial=True nVec=5 nMat=0 nStruct=0
+      vec  '_Outline_Width' dim=1 arr=0  (nameIdx 5)
+      vec  '_Farthest_Distance' dim=1 arr=0  (nameIdx 6)
+      vec  '_Nearest_Distance' dim=1 arr=0  (nameIdx 7)
+      vec  '_Outline_Sampler_ST' dim=4 arr=0  (nameIdx 8)
+      vec  '_Offset_Z' dim=1 arr=0  (nameIdx 9)
+    CB 'UnityPerCamera' size=144 partial=True nVec=1 nMat=0 nStruct=0
+      vec  '_WorldSpaceCameraPos' dim=3 arr=0  (nameIdx 10)
+    CB 'UnityPerDraw' size=176 partial=True nVec=0 nMat=2 nStruct=0
+      mat  'unity_ObjectToWorld' rows=0 cols=0
+      mat  'unity_WorldToObject' rows=0 cols=0
+    CB 'UnityPerFrame' size=368 partial=True nVec=0 nMat=1 nStruct=0
+      mat  'unity_MatrixVP' rows=0 cols=0
+  -- m_ProgFragment
+    CBIND reg0 -> cbuffer '$Globals' (nameIdx 1) arrSize=1
+    CBIND reg1 -> cbuffer 'UnityPerFrame' (nameIdx 4) arrSize=1
+    CB '$Globals' size=272 partial=True nVec=13 nMat=0 nStruct=0
+      vec  '_LightColor0' dim=4 arr=0  (nameIdx 17)
+      vec  '_BaseColor' dim=4 arr=0  (nameIdx 18)
+      vec  '_Unlit_Intensity' dim=1 arr=0  (nameIdx 19)
+      vec  '_Is_LightColor_Outline' dim=1 arr=0  (nameIdx 20)
+      vec  '_MainTex_ST' dim=4 arr=0  (nameIdx 21)
+      vec  '_Outline_Color' dim=4 arr=0  (nameIdx 22)
+      vec  '_Is_BlendBaseColor' dim=1 arr=0  (nameIdx 23)
+      vec  '_OutlineTex_ST' dim=4 arr=0  (nameIdx 24)
+      vec  '_Is_OutlineTex' dim=1 arr=0  (nameIdx 25)
+      vec  '_ClippingMask_ST' dim=4 arr=0  (nameIdx 26)
+      vec  '_Clipping_Level' dim=1 arr=0  (nameIdx 27)
+      vec  '_Inverse_Clipping' dim=1 arr=0  (nameIdx 28)
+      vec  '_IsBaseMapAlphaAsClippingMask' dim=1 arr=0  (nameIdx 29)
+    CB 'UnityPerFrame' size=368 partial=True nVec=1 nMat=0 nStruct=0
+      vec  'unity_AmbientSky' dim=4 arr=0  (nameIdx 30)
+== PASS[1] nameIndices count=107 ; sample values: {'$Globals': 6, 'UnityLighting': 8, 'UnityPerCamera': 7, 'UnityPerDraw': 0, 'UnityPerFrame': 1, 'UnityProbeVolume': 9}
+  -- m_ProgVertex
+    CB 'UnityPerDraw' size=176 partial=True nVec=0 nMat=2 nStruct=0
+      mat  'unity_ObjectToWorld' rows=0 cols=0
+      mat  'unity_WorldToObject' rows=0 cols=0
+    CB 'UnityPerFrame' size=368 partial=True nVec=0 nMat=2 nStruct=0
+      mat  'unity_MatrixV' rows=0 cols=0
+      mat  'unity_MatrixVP' rows=0 cols=0
+  -- m_ProgFragment
+    CBIND reg0 -> cbuffer '$Globals' (nameIdx 6) arrSize=1
+    CBIND reg1 -> cbuffer 'UnityPerCamera' (nameIdx 7) arrSize=1
+    CBIND reg2 -> cbuffer 'UnityLighting' (nameIdx 8) arrSize=1
+    CB '$Globals' size=880 partial=True nVec=83 nMat=0 nStruct=0
+      vec  '_LightColor0' dim=4 arr=0  (nameIdx 10)
+      vec  '_MainTex_ST' dim=4 arr=0  (nameIdx 11)
+      vec  '_BaseColor' dim=4 arr=0  (nameIdx 12)
+      vec  '_Use_BaseAs1st' dim=1 arr=0  (nameIdx 13)
+      vec  '_Use_1stAs2nd' dim=1 arr=0  (nameIdx 14)
+      vec  '_Is_LightColor_Base' dim=1 arr=0  (nameIdx 15)
+      vec  '_1st_ShadeMap_ST' dim=4 arr=0  (nameIdx 16)
+      vec  '_1st_ShadeColor' dim=4 arr=0  (nameIdx 17)
+      vec  '_Is_LightColor_1st_Shade' dim=1 arr=0  (nameIdx 18)
+      vec  '_2nd_ShadeMap_ST' dim=4 arr=0  (nameIdx 19)
+      vec  '_2nd_ShadeColor' dim=4 arr=0  (nameIdx 20)
+      vec  '_Is_LightColor_2nd_Shade' dim=1 arr=0  (nameIdx 21)
+      vec  '_NormalMap_ST' dim=4 arr=0  (nameIdx 22)
+      vec  '_Is_NormalMapToBase' dim=1 arr=0  (nameIdx 23)
+      vec  '_Set_SystemShadowsToBase' dim=1 arr=0  (nameIdx 24)
+      vec  '_Tweak_SystemShadowsLevel' dim=1 arr=0  (nameIdx 25)
+      vec  '_BaseColor_Step' dim=1 arr=0  (nameIdx 26)
+      vec  '_BaseShade_Feather' dim=1 arr=0  (nameIdx 27)
+      vec  '_Set_1st_ShadePosition_ST' dim=4 arr=0  (nameIdx 28)
+      vec  '_ShadeColor_Step' dim=1 arr=0  (nameIdx 29)
+      vec  '_1st2nd_Shades_Feather' dim=1 arr=0  (nameIdx 30)
+      vec  '_Set_2nd_ShadePosition_ST' dim=4 arr=0  (nameIdx 31)
+      vec  '_HighColor' dim=4 arr=0  (nameIdx 32)
+      vec  '_HighColor_Tex_ST' dim=4 arr=0  (nameIdx 33)
+      vec  '_Is_LightColor_HighColor' dim=1 arr=0  (nameIdx 34)
+      vec  '_Is_NormalMapToHighColor' dim=1 arr=0  (nameIdx 35)
+      vec  '_HighColor_Power' dim=1 arr=0  (nameIdx 36)
+      vec  '_Is_SpecularToHighColor' dim=1 arr=0  (nameIdx 37)
+      vec  '_Is_BlendAddToHiColor' dim=1 arr=0  (nameIdx 38)
+      vec  '_Is_UseTweakHighColorOnShadow' dim=1 arr=0  (nameIdx 39)
+      vec  '_TweakHighColorOnShadow' dim=1 arr=0  (nameIdx 40)
+      vec  '_Set_HighColorMask_ST' dim=4 arr=0  (nameIdx 41)
+      vec  '_Tweak_HighColorMaskLevel' dim=1 arr=0  (nameIdx 42)
+      vec  '_RimLight' dim=1 arr=0  (nameIdx 43)
+      vec  '_RimLightColor' dim=4 arr=0  (nameIdx 44)
+      vec  '_Is_LightColor_RimLight' dim=1 arr=0  (nameIdx 45)
+      vec  '_Is_NormalMapToRimLight' dim=1 arr=0  (nameIdx 46)
+      vec  '_RimLight_Power' dim=1 arr=0  (nameIdx 47)
+      vec  '_RimLight_InsideMask' dim=1 arr=0  (nameIdx 48)
+      vec  '_RimLight_FeatherOff' dim=1 arr=0  (nameIdx 49)
+      vec  '_LightDirection_MaskOn' dim=1 arr=0  (nameIdx 50)
+      vec  '_Tweak_LightDirection_MaskLevel' dim=1 arr=0  (nameIdx 51)
+      vec  '_Add_Antipodean_RimLight' dim=1 arr=0  (nameIdx 52)
+      vec  '_Ap_RimLightColor' dim=4 arr=0  (nameIdx 53)
+      vec  '_Is_LightColor_Ap_RimLight' dim=1 arr=0  (nameIdx 54)
+      vec  '_Ap_RimLight_Power' dim=1 arr=0  (nameIdx 55)
+      vec  '_Ap_RimLight_FeatherOff' dim=1 arr=0  (nameIdx 56)
+      vec  '_Set_RimLightMask_ST' dim=4 arr=0  (nameIdx 57)
+      vec  '_Tweak_RimLightMaskLevel' dim=1 arr=0  (nameIdx 58)
+      vec  '_MatCap' dim=1 arr=0  (nameIdx 59)
+      vec  '_MatCap_Sampler_ST' dim=4 arr=0  (nameIdx 60)
+      vec  '_MatCapColor' dim=4 arr=0  (nameIdx 61)
+      vec  '_Is_LightColor_MatCap' dim=1 arr=0  (nameIdx 62)
+      vec  '_Is_BlendAddToMatCap' dim=1 arr=0  (nameIdx 63)
+      vec  '_Tweak_MatCapUV' dim=1 arr=0  (nameIdx 64)
+      vec  '_Rotate_MatCapUV' dim=1 arr=0  (nameIdx 65)
+      vec  '_Is_NormalMapForMatCap' dim=1 arr=0  (nameIdx 66)
+      vec  '_NormalMapForMatCap_ST' dim=4 arr=0  (nameIdx 67)
+      vec  '_Rotate_NormalMapForMatCapUV' dim=1 arr=0  (nameIdx 68)
+      vec  '_Is_UseTweakMatCapOnShadow' dim=1 arr=0  (nameIdx 69)
+      vec  '_TweakMatCapOnShadow' dim=1 arr=0  (nameIdx 70)
+      vec  '_Set_MatcapMask_ST' dim=4 arr=0  (nameIdx 71)
+      vec  '_Tweak_MatcapMaskLevel' dim=1 arr=0  (nameIdx 72)
+      vec  '_Is_Ortho' dim=1 arr=0  (nameIdx 73)
+      vec  '_CameraRolling_Stabilizer' dim=1 arr=0  (nameIdx 74)
+      vec  '_BlurLevelMatcap' dim=1 arr=0  (nameIdx 75)
+      vec  '_Inverse_MatcapMask' dim=1 arr=0  (nameIdx 76)
+      vec  '_BumpScale' dim=1 arr=0  (nameIdx 77)
+      vec  '_BumpScaleMatcap' dim=1 arr=0  (nameIdx 78)
+      vec  '_Emissive_Tex_ST' dim=4 arr=0  (nameIdx 79)
+      vec  '_Emissive_Color' dim=4 arr=0  (nameIdx 80)
+      vec  '_Unlit_Intensity' dim=1 arr=0  (nameIdx 81)
+      vec  '_Is_Filter_LightColor' dim=1 arr=0  (nameIdx 82)
+      vec  '_Is_BLD' dim=1 arr=0  (nameIdx 83)
+      vec  '_Offset_X_Axis_BLD' dim=1 arr=0  (nameIdx 84)
+      vec  '_Offset_Y_Axis_BLD' dim=1 arr=0  (nameIdx 85)
+      vec  '_Inverse_Z_Axis_BLD' dim=1 arr=0  (nameIdx 86)
+      vec  '_ClippingMask_ST' dim=4 arr=0  (nameIdx 87)
+      vec  '_IsBaseMapAlphaAsClippingMask' dim=1 arr=0  (nameIdx 88)
+      vec  '_Clipping_Level' dim=1 arr=0  (nameIdx 89)
+      vec  '_Inverse_Clipping' dim=1 arr=0  (nameIdx 90)
+      vec  '_Tweak_transparency' dim=1 arr=0  (nameIdx 91)
+      vec  '_GI_Intensity' dim=1 arr=0  (nameIdx 92)
+    CB 'UnityPerCamera' size=144 partial=True nVec=1 nMat=0 nStruct=0
+      vec  '_WorldSpaceCameraPos' dim=3 arr=0  (nameIdx 93)
+    CB 'UnityLighting' size=768 partial=True nVec=9 nMat=0 nStruct=0
+      vec  '_WorldSpaceLightPos0' dim=4 arr=0  (nameIdx 94)
+      vec  'unity_SHAr' dim=4 arr=0  (nameIdx 95)
+      vec  'unity_SHAg' dim=4 arr=0  (nameIdx 96)
+      vec  'unity_SHAb' dim=4 arr=0  (nameIdx 97)
+      vec  'unity_SHBr' dim=4 arr=0  (nameIdx 98)
+      vec  'unity_SHBg' dim=4 arr=0  (nameIdx 99)
+      vec  'unity_SHBb' dim=4 arr=0  (nameIdx 100)
+      vec  'unity_SHC' dim=4 arr=0  (nameIdx 101)
+      vec  'unity_OcclusionMaskSelector' dim=4 arr=0  (nameIdx 102)
+    CB 'UnityPerDraw' size=176 partial=True nVec=0 nMat=1 nStruct=0
+      mat  'unity_ObjectToWorld' rows=0 cols=0
+    CB 'UnityPerFrame' size=368 partial=True nVec=0 nMat=1 nStruct=0
+      mat  'unity_MatrixV' rows=0 cols=0
+    CB 'UnityProbeVolume' size=112 partial=True nVec=3 nMat=1 nStruct=0
+      vec  'unity_ProbeVolumeParams' dim=4 arr=0  (nameIdx 103)
+      vec  'unity_ProbeVolumeSizeInv' dim=3 arr=0  (nameIdx 104)
+      vec  'unity_ProbeVolumeMin' dim=3 arr=0  (nameIdx 105)
+      mat  'unity_ProbeVolumeWorldToObject' rows=0 cols=0
+== PASS[2] nameIndices count=17 ; sample values: {'$Globals': 16, 'UnityLighting': 7, 'UnityPerCamera': 6, 'UnityPerDraw': 0, 'UnityPerFrame': 1, 'UnityProbeVolume': 8}
+  -- m_ProgVertex
+    CB 'UnityPerDraw' size=176 partial=True nVec=0 nMat=2 nStruct=0
+      mat  'unity_ObjectToWorld' rows=0 cols=0
+      mat  'unity_WorldToObject' rows=0 cols=0
+    CB 'UnityPerFrame' size=368 partial=True nVec=0 nMat=2 nStruct=0
+      mat  'unity_MatrixV' rows=0 cols=0
+      mat  'unity_MatrixVP' rows=0 cols=0
+  -- m_ProgFragment
+    CBIND reg0 -> cbuffer '$Globals' (nameIdx 16) arrSize=1
+    CBIND reg1 -> cbuffer 'UnityPerCamera' (nameIdx 6) arrSize=1
+    CBIND reg2 -> cbuffer 'UnityLighting' (nameIdx 7) arrSize=1
+    CB 'UnityPerCamera' size=144 partial=True nVec=1 nMat=0 nStruct=0
+      vec  '_WorldSpaceCameraPos' dim=3 arr=0  (nameIdx 9)
+    CB 'UnityLighting' size=768 partial=True nVec=2 nMat=0 nStruct=0
+      vec  '_WorldSpaceLightPos0' dim=4 arr=0  (nameIdx 10)
+      vec  'unity_OcclusionMaskSelector' dim=4 arr=0  (nameIdx 11)
+    CB 'UnityProbeVolume' size=112 partial=True nVec=3 nMat=1 nStruct=0
+      vec  'unity_ProbeVolumeParams' dim=4 arr=0  (nameIdx 12)
+      vec  'unity_ProbeVolumeSizeInv' dim=3 arr=0  (nameIdx 13)
+      vec  'unity_ProbeVolumeMin' dim=3 arr=0  (nameIdx 14)
+      mat  'unity_ProbeVolumeWorldToObject' rows=0 cols=0
+== PASS[3] nameIndices count=14 ; sample values: {'$Globals': 8, 'UnityPerDraw': 1, 'UnityPerFrame': 2, 'UnityShadows': 0, '_ClippingMask': 6, '_ClippingMask_ST': 9}
+  -- m_ProgVertex
+    CBIND reg0 -> cbuffer 'UnityShadows' (nameIdx 0) arrSize=1
+    CBIND reg1 -> cbuffer 'UnityPerDraw' (nameIdx 1) arrSize=1
+    CBIND reg2 -> cbuffer 'UnityPerFrame' (nameIdx 2) arrSize=1
+    CB 'UnityShadows' size=416 partial=True nVec=1 nMat=0 nStruct=0
+      vec  'unity_LightShadowBias' dim=4 arr=0  (nameIdx 3)
+    CB 'UnityPerDraw' size=176 partial=True nVec=0 nMat=1 nStruct=0
+      mat  'unity_ObjectToWorld' rows=0 cols=0
+    CB 'UnityPerFrame' size=368 partial=True nVec=0 nMat=1 nStruct=0
+      mat  'unity_MatrixVP' rows=0 cols=0
+  -- m_ProgFragment
+    CBIND reg0 -> cbuffer '$Globals' (nameIdx 8) arrSize=1
+    CB '$Globals' size=128 partial=True nVec=5 nMat=0 nStruct=0
+      vec  '_ClippingMask_ST' dim=4 arr=0  (nameIdx 9)
+      vec  '_Clipping_Level' dim=1 arr=0  (nameIdx 10)
+      vec  '_Inverse_Clipping' dim=1 arr=0  (nameIdx 11)
+      vec  '_MainTex_ST' dim=4 arr=0  (nameIdx 12)
+      vec  '_IsBaseMapAlphaAsClippingMask' dim=1 arr=0  (nameIdx 13)

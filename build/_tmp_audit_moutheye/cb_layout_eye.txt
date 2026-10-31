@@ -1,0 +1,223 @@
+== PASS[0] m_ProgVertex cb bindings: [(0, 0), (1, 1), (2, 2), (3, 3)]
+-- CB 'UnityPerCamera' reg=0 size=144
+   off=   64 slot=  4 comp=xyzw _WorldSpaceCameraPos dim=3 arr=0
+-- CB 'UnityPerDraw' reg=1 size=176
+   off=    0 slot=  0 comp= unity_ObjectToWorld dim=matNonexNone arr=0
+   off=   64 slot=  4 comp= unity_WorldToObject dim=matNonexNone arr=0
+-- CB 'UnityPerFrame' reg=2 size=368
+   off=  144 slot=  9 comp= unity_MatrixV dim=matNonexNone arr=0
+   off=  272 slot= 17 comp= unity_MatrixVP dim=matNonexNone arr=0
+-- CB 'UnityLightmaps' reg=3 size=32
+   off=    0 slot=  0 comp=xyzw unity_LightmapST dim=4 arr=0
+== PASS[0] m_ProgFragment cb bindings: [(10, 0), (0, 1), (11, 2)]
+-- CB '$Globals' reg=0 size=1376
+   off=   32 slot=  2 comp=xyzw _LightColor0 dim=4 arr=0
+   off=   64 slot=  4 comp=xyzw _DissolveTex_ST dim=4 arr=0
+   off=   80 slot=  5 comp=x _DissolveMinThreashold dim=1 arr=0
+   off=   84 slot=  5 comp=y _DissolveMaxThreashold dim=1 arr=0
+   off=   96 slot=  6 comp=xyzw _PupilTex_ST dim=4 arr=0
+   off=  112 slot=  7 comp=xyzw _EyeBrowTex_ST dim=4 arr=0
+   off=  128 slot=  8 comp=xyzw _EyeBrowMaskTex_ST dim=4 arr=0
+   off=  144 slot=  9 comp=xyzw _EyeTex_ST dim=4 arr=0
+   off=  160 slot= 10 comp=xyzw _EyeMaskTex_ST dim=4 arr=0
+   off=  176 slot= 11 comp=x _PupilIndex dim=1 arr=0
+   off=  180 slot= 11 comp=y _EyeBrowIndex dim=1 arr=0
+   off=  184 slot= 11 comp=z _EyeIndex dim=1 arr=0
+   off=  192 slot= 12 comp=x _PupliOffsetX dim=1 arr=0
+   off=  196 slot= 12 comp=y _EyeBrowOffsetX dim=1 arr=0
+   off=  200 slot= 12 comp=z _EyeOffsetX dim=1 arr=0
+   off=  208 slot= 13 comp=x _PupliOffsetY dim=1 arr=0
+   off=  212 slot= 13 comp=y _EyeBrowOffsetY dim=1 arr=0
+   off=  216 slot= 13 comp=z _EyeOffsetY dim=1 arr=0
+   off=  256 slot= 16 comp=xyzw _BaseColor dim=4 arr=0
+   off=  272 slot= 17 comp=xyzw _MainTex_ST dim=4 arr=0
+   off=  288 slot= 18 comp=xyzw _MaskTex_ST dim=4 arr=0
+   off=  304 slot= 19 comp=xyzw _RReplaceColor11 dim=4 arr=0
+   off=  320 slot= 20 comp=xyzw _RReplaceColor12 dim=4 arr=0
+   off=  336 slot= 21 comp=xyzw _RReplaceColor21 dim=4 arr=0
+   off=  352 slot= 22 comp=xyzw _RReplaceColor22 dim=4 arr=0
+   off=  368 slot= 23 comp=xyzw _RShadowColor dim=4 arr=0
+   off=  384 slot= 24 comp=x _RUseBaseColor dim=1 arr=0
+   off=  400 slot= 25 comp=x _RBlend dim=1 arr=0
+   off=  416 slot= 26 comp=xyzw _GReplaceColor11 dim=4 arr=0
+   off=  432 slot= 27 comp=xyzw _GReplaceColor12 dim=4 arr=0
+   off=  448 slot= 28 comp=xyzw _GReplaceColor21 dim=4 arr=0
+   off=  464 slot= 29 comp=xyzw _GReplaceColor22 dim=4 arr=0
+   off=  480 slot= 30 comp=xyzw _GShadowColor dim=4 arr=0
+   off=  496 slot= 31 comp=x _GUseBaseColor dim=1 arr=0
+   off=  512 slot= 32 comp=x _GBlend dim=1 arr=0
+   off=  516 slot= 32 comp=y _SkinType dim=1 arr=0
+   off=  528 slot= 33 comp=xyzw _BReplaceColor11 dim=4 arr=0
+   off=  544 slot= 34 comp=xyzw _BReplaceColor12 dim=4 arr=0
+   off=  560 slot= 35 comp=xyzw _BReplaceColor21 dim=4 arr=0
+   off=  576 slot= 36 comp=xyzw _BReplaceColor22 dim=4 arr=0
+   off=  592 slot= 37 comp=xyzw _BShadowColor dim=4 arr=0
+   off=  608 slot= 38 comp=x _BUseBaseColor dim=1 arr=0
+   off=  624 slot= 39 comp=x _BBlend dim=1 arr=0
+   off=  640 slot= 40 comp=xyzw _FaceShadowColor dim=4 arr=0
+   off=  724 slot= 45 comp=y _Use_1stAs2nd dim=1 arr=0
+   off=  736 slot= 46 comp=xyzw _MaterialMaskTex_ST dim=4 arr=0
+   off=  768 slot= 48 comp=xyzw _DissolveColor dim=4 arr=0
+   off=  784 slot= 49 comp=x _Is_LightColor_Base dim=1 arr=0
+   off=  800 slot= 50 comp=xyzw _1st_ShadeColor dim=4 arr=0
+   off=  816 slot= 51 comp=x _Is_LightColor_1st_Shade dim=1 arr=0
+   off=  832 slot= 52 comp=xyzw _2nd_ShadeColor dim=4 arr=0
+   off=  848 slot= 53 comp=x _Is_LightColor_2nd_Shade dim=1 arr=0
+   off=  856 slot= 53 comp=z _Set_SystemShadowsToBase dim=1 arr=0
+   off=  860 slot= 53 comp=w _Tweak_SystemShadowsLevel dim=1 arr=0
+   off=  864 slot= 54 comp=xyzw _ShadingGradeMap_ST dim=4 arr=0
+   off=  880 slot= 55 comp=x _Tweak_ShadingGradeMapLevel dim=1 arr=0
+   off=  884 slot= 55 comp=y _BlurLevelSGM dim=1 arr=0
+   off=  888 slot= 55 comp=z _1st_ShadeColor_Step dim=1 arr=0
+   off=  892 slot= 55 comp=w _1st_ShadeColor_Feather dim=1 arr=0
+   off=  896 slot= 56 comp=x _1stSkin_ShadeColor_Step dim=1 arr=0
+   off=  900 slot= 56 comp=y _1stSkin_ShadeColor_Feather dim=1 arr=0
+   off=  904 slot= 56 comp=z _2nd_ShadeColor_Step dim=1 arr=0
+   off=  908 slot= 56 comp=w _2nd_ShadeColor_Feather dim=1 arr=0
+   off=  912 slot= 57 comp=x _2ndSkin_ShadeColor_Step dim=1 arr=0
+   off=  916 slot= 57 comp=y _2ndSkin_ShadeColor_Feather dim=1 arr=0
+   off=  976 slot= 61 comp=x _RimLight dim=1 arr=0
+   off=  992 slot= 62 comp=xyzw _RimLightColor dim=4 arr=0
+   off= 1008 slot= 63 comp=x _Is_LightColor_RimLight dim=1 arr=0
+   off= 1016 slot= 63 comp=z _RimLight_Power dim=1 arr=0
+   off= 1020 slot= 63 comp=w _RimLight_InsideMask dim=1 arr=0
+   off= 1024 slot= 64 comp=x _RimLight_FeatherOff dim=1 arr=0
+   off= 1028 slot= 64 comp=y _LightDirection_MaskOn dim=1 arr=0
+   off= 1032 slot= 64 comp=z _Tweak_LightDirection_MaskLevel dim=1 arr=0
+   off= 1036 slot= 64 comp=w _Add_Antipodean_RimLight dim=1 arr=0
+   off= 1040 slot= 65 comp=xyzw _Ap_RimLightColor dim=4 arr=0
+   off= 1056 slot= 66 comp=x _Is_LightColor_Ap_RimLight dim=1 arr=0
+   off= 1060 slot= 66 comp=y _Ap_RimLight_Power dim=1 arr=0
+   off= 1064 slot= 66 comp=z _Ap_RimLight_FeatherOff dim=1 arr=0
+   off= 1068 slot= 66 comp=w _Tweak_RimLightMaskLevel dim=1 arr=0
+   off= 1072 slot= 67 comp=x _Inverse_RimLightMask dim=1 arr=0
+   off= 1076 slot= 67 comp=y _Emission_RimLight dim=1 arr=0
+   off= 1080 slot= 67 comp=z _Emission_RimLight_Power dim=1 arr=0
+   off= 1088 slot= 68 comp=xyzw _Emission_RimLight_Color dim=3 arr=0
+   off= 1184 slot= 74 comp=xyzw _Emissive_Tex_ST dim=4 arr=0
+   off= 1200 slot= 75 comp=xyzw _Emissive_Color dim=4 arr=0
+   off= 1216 slot= 76 comp=xyzw _EffectEmissive_Color dim=4 arr=0
+   off= 1324 slot= 82 comp=w _Unlit_Intensity dim=1 arr=0
+   off= 1332 slot= 83 comp=y _Is_Filter_LightColor dim=1 arr=0
+   off= 1356 slot= 84 comp=w _UseShadowOnly dim=1 arr=0
+   off= 1360 slot= 85 comp=x _GI_Intensity dim=1 arr=0
+-- CB 'UnityPerCamera' reg=1 size=144
+   off=   64 slot=  4 comp=xyzw _WorldSpaceCameraPos dim=3 arr=0
+-- CB 'UnityLighting' reg=2 size=768
+   off=    0 slot=  0 comp=xyzw _WorldSpaceLightPos0 dim=4 arr=0
+   off=  624 slot= 39 comp=xyzw unity_SHAr dim=4 arr=0
+   off=  640 slot= 40 comp=xyzw unity_SHAg dim=4 arr=0
+   off=  656 slot= 41 comp=xyzw unity_SHAb dim=4 arr=0
+   off=  672 slot= 42 comp=xyzw unity_SHBr dim=4 arr=0
+   off=  688 slot= 43 comp=xyzw unity_SHBg dim=4 arr=0
+   off=  704 slot= 44 comp=xyzw unity_SHBb dim=4 arr=0
+   off=  720 slot= 45 comp=xyzw unity_SHC dim=4 arr=0
+   off=  736 slot= 46 comp=xyzw unity_OcclusionMaskSelector dim=4 arr=0
+-- CB 'UnityPerFrame' reg=None size=368
+   off=  144 slot=  9 comp= unity_MatrixV dim=matNonexNone arr=0
+-- CB 'UnityProbeVolume' reg=None size=112
+   off=    0 slot=  0 comp=xyzw unity_ProbeVolumeParams dim=4 arr=0
+   off=   80 slot=  5 comp=xyzw unity_ProbeVolumeSizeInv dim=3 arr=0
+   off=   96 slot=  6 comp=xyzw unity_ProbeVolumeMin dim=3 arr=0
+   off=   16 slot=  1 comp= unity_ProbeVolumeWorldToObject dim=matNonexNone arr=0
+== PASS[1] m_ProgVertex cb bindings: []
+-- CB 'UnityPerCamera' reg=None size=144
+   off=   64 slot=  4 comp=xyzw _WorldSpaceCameraPos dim=3 arr=0
+-- CB 'UnityPerDraw' reg=None size=176
+   off=    0 slot=  0 comp= unity_ObjectToWorld dim=matNonexNone arr=0
+   off=   64 slot=  4 comp= unity_WorldToObject dim=matNonexNone arr=0
+-- CB 'UnityPerFrame' reg=None size=368
+   off=  144 slot=  9 comp= unity_MatrixV dim=matNonexNone arr=0
+   off=  272 slot= 17 comp= unity_MatrixVP dim=matNonexNone arr=0
+-- CB 'UnityLightmaps' reg=None size=32
+   off=    0 slot=  0 comp=xyzw unity_LightmapST dim=4 arr=0
+== PASS[1] m_ProgFragment cb bindings: [(18, 0), (0, 1), (10, 2)]
+-- CB 'UnityPerCamera' reg=1 size=144
+   off=   64 slot=  4 comp=xyzw _WorldSpaceCameraPos dim=3 arr=0
+-- CB 'UnityLighting' reg=2 size=768
+   off=    0 slot=  0 comp=xyzw _WorldSpaceLightPos0 dim=4 arr=0
+   off=  736 slot= 46 comp=xyzw unity_OcclusionMaskSelector dim=4 arr=0
+-- CB 'UnityProbeVolume' reg=None size=112
+   off=    0 slot=  0 comp=xyzw unity_ProbeVolumeParams dim=4 arr=0
+   off=   80 slot=  5 comp=xyzw unity_ProbeVolumeSizeInv dim=3 arr=0
+   off=   96 slot=  6 comp=xyzw unity_ProbeVolumeMin dim=3 arr=0
+   off=   16 slot=  1 comp= unity_ProbeVolumeWorldToObject dim=matNonexNone arr=0
+== PASS[2] m_ProgVertex cb bindings: [(0, 0), (1, 1), (2, 2)]
+-- CB 'UnityShadows' reg=0 size=416
+   off=   80 slot=  5 comp=xyzw unity_LightShadowBias dim=4 arr=0
+-- CB 'UnityPerDraw' reg=1 size=176
+   off=    0 slot=  0 comp= unity_ObjectToWorld dim=matNonexNone arr=0
+-- CB 'UnityPerFrame' reg=2 size=368
+   off=  272 slot= 17 comp= unity_MatrixVP dim=matNonexNone arr=0
+== PASS[3] m_ProgVertex cb bindings: [(0, 0), (1, 1)]
+-- CB 'UnityPerDraw' reg=0 size=176
+   off=    0 slot=  0 comp= unity_ObjectToWorld dim=matNonexNone arr=0
+   off=   64 slot=  4 comp= unity_WorldToObject dim=matNonexNone arr=0
+-- CB 'UnityPerFrame' reg=1 size=368
+   off=  272 slot= 17 comp= unity_MatrixVP dim=matNonexNone arr=0
+== PASS[3] m_ProgFragment cb bindings: [(14, 0), (15, 1), (0, 2), (1, 3), (16, 4)]
+-- CB '$Globals' reg=0 size=464
+   off=   32 slot=  2 comp=xyzw _LightColor0 dim=4 arr=0
+   off=   64 slot=  4 comp=xyzw _DissolveTex_ST dim=4 arr=0
+   off=   80 slot=  5 comp=x _DissolveMinThreashold dim=1 arr=0
+   off=   84 slot=  5 comp=y _DissolveMaxThreashold dim=1 arr=0
+   off=   96 slot=  6 comp=xyzw _PupilTex_ST dim=4 arr=0
+   off=  112 slot=  7 comp=xyzw _EyeBrowTex_ST dim=4 arr=0
+   off=  128 slot=  8 comp=xyzw _EyeBrowMaskTex_ST dim=4 arr=0
+   off=  144 slot=  9 comp=xyzw _EyeTex_ST dim=4 arr=0
+   off=  160 slot= 10 comp=xyzw _EyeMaskTex_ST dim=4 arr=0
+   off=  176 slot= 11 comp=x _PupilIndex dim=1 arr=0
+   off=  180 slot= 11 comp=y _EyeBrowIndex dim=1 arr=0
+   off=  184 slot= 11 comp=z _EyeIndex dim=1 arr=0
+   off=  192 slot= 12 comp=x _PupliOffsetX dim=1 arr=0
+   off=  196 slot= 12 comp=y _EyeBrowOffsetX dim=1 arr=0
+   off=  200 slot= 12 comp=z _EyeOffsetX dim=1 arr=0
+   off=  208 slot= 13 comp=x _PupliOffsetY dim=1 arr=0
+   off=  212 slot= 13 comp=y _EyeBrowOffsetY dim=1 arr=0
+   off=  216 slot= 13 comp=z _EyeOffsetY dim=1 arr=0
+   off=  256 slot= 16 comp=xyzw _BaseColor dim=4 arr=0
+   off=  272 slot= 17 comp=xyzw _DissolveColor dim=4 arr=0
+   off=  288 slot= 18 comp=x _DissolveSkinMode dim=1 arr=0
+   off=  304 slot= 19 comp=xyzw _NormalMap_ST dim=4 arr=0
+   off=  320 slot= 20 comp=xyzw _ShadingGradeMap_ST dim=4 arr=0
+   off=  352 slot= 22 comp=xyzw _Emissive_Color dim=4 arr=0
+   off=  368 slot= 23 comp=xyzw _EffectEmissive_Color dim=4 arr=0
+   off=  384 slot= 24 comp=xyzw _FaceShadowColor dim=4 arr=0
+   off=  400 slot= 25 comp=x _Tweak_SystemShadowsLevel dim=1 arr=0
+   off=  404 slot= 25 comp=y _1st_ShadeColor_Step dim=1 arr=0
+   off=  408 slot= 25 comp=z _1st_ShadeColor_Feather dim=1 arr=0
+   off=  412 slot= 25 comp=w _Tweak_ShadingGradeMapLevel dim=1 arr=0
+   off=  420 slot= 26 comp=y _BlurLevelSGM dim=1 arr=0
+   off=  424 slot= 26 comp=z _Unlit_Intensity dim=1 arr=0
+   off=  428 slot= 26 comp=w _Is_BLD dim=1 arr=0
+   off=  432 slot= 27 comp=x _Offset_X_Axis_BLD dim=1 arr=0
+   off=  436 slot= 27 comp=y _Offset_Y_Axis_BLD dim=1 arr=0
+   off=  440 slot= 27 comp=z _Inverse_Z_Axis_BLD dim=1 arr=0
+   off=  444 slot= 27 comp=w _Is_Filter_HiCutPointLightColor dim=1 arr=0
+   off=  448 slot= 28 comp=x _Is_Filter_LightColor dim=1 arr=0
+   off=  452 slot= 28 comp=y _Is_LightColor_Base dim=1 arr=0
+   off=  456 slot= 28 comp=z _GI_Intensity dim=1 arr=0
+-- CB 'UnityLighting' reg=1 size=768
+   off=    0 slot=  0 comp=xyzw _WorldSpaceLightPos0 dim=4 arr=0
+   off=  624 slot= 39 comp=xyzw unity_SHAr dim=4 arr=0
+   off=  640 slot= 40 comp=xyzw unity_SHAg dim=4 arr=0
+   off=  656 slot= 41 comp=xyzw unity_SHAb dim=4 arr=0
+   off=  672 slot= 42 comp=xyzw unity_SHBr dim=4 arr=0
+   off=  688 slot= 43 comp=xyzw unity_SHBg dim=4 arr=0
+   off=  704 slot= 44 comp=xyzw unity_SHBb dim=4 arr=0
+   off=  720 slot= 45 comp=xyzw unity_SHC dim=4 arr=0
+   off=  736 slot= 46 comp=xyzw unity_OcclusionMaskSelector dim=4 arr=0
+-- CB 'UnityPerDraw' reg=2 size=176
+   off=    0 slot=  0 comp= unity_ObjectToWorld dim=matNonexNone arr=0
+-- CB 'UnityPerFrame' reg=3 size=368
+   off=  144 slot=  9 comp= unity_MatrixV dim=matNonexNone arr=0
+-- CB 'UnityProbeVolume' reg=4 size=112
+   off=    0 slot=  0 comp=xyzw unity_ProbeVolumeParams dim=4 arr=0
+   off=   80 slot=  5 comp=xyzw unity_ProbeVolumeSizeInv dim=3 arr=0
+   off=   96 slot=  6 comp=xyzw unity_ProbeVolumeMin dim=3 arr=0
+   off=   16 slot=  1 comp= unity_ProbeVolumeWorldToObject dim=matNonexNone arr=0
+== PASS[4] m_ProgVertex cb bindings: [(0, 0), (1, 1)]
+-- CB 'UnityPerDraw' reg=0 size=176
+   off=    0 slot=  0 comp= unity_ObjectToWorld dim=matNonexNone arr=0
+-- CB 'UnityPerFrame' reg=1 size=368
+   off=  272 slot= 17 comp= unity_MatrixVP dim=matNonexNone arr=0

@@ -89,39 +89,23 @@ try:
 except Exception as exc:
     row["helpers_error"] = repr(exc)[:200]
 
-def conv(v, depth=0):
-    if depth > 6:
-        return str(v)
-    try:
-        if hasattr(v, "tolist"):
-            return v.tolist()
-    except Exception:
-        pass
-    if isinstance(v, (int, float, str, bool)) or v is None:
-        return v
-    if isinstance(v, (list, tuple)):
-        return [conv(x, depth + 1) for x in v]
-    if isinstance(v, dict):
-        return {str(k): conv(x, depth + 1) for k, x in v.items()}
-    d = {}
-    for k in dir(v):
-        if k.startswith("_"):
-            continue
-        try:
-            a = getattr(v, k)
-        except Exception:
-            continue
-        if callable(a):
-            continue
-        try:
-            d[k] = conv(a, depth + 1)
-        except Exception:
-            d[k] = str(a)
-    return d
+def attrs_dump(node):
+    # Saved properties only: walking the full UnityPy object tree follows the
+    # assets_file<->assetbundle backrefs and explodes into hundreds of MB of JSON.
+    sp = getattr(node, "m_SavedProperties", None)
+    out = {"name_in_bundle": getattr(node, "m_Name", None),
+           "shader": str(getattr(node, "m_Shader", None))}
+    props = {}
+    if sp is not None:
+        for attr, key in (("m_Floats", "floats"), ("m_Colors", "colors"), ("m_TexEnvs", "texenvs")):
+            v = getattr(sp, attr, None)
+            props[key] = [list(x) if not isinstance(x, dict) else x for x in (v or [])]
+    out["properties"] = props
+    return out
 
 try:
     if node is not None:
-        json.dump(conv(node), open(os.path.join(OUT, stem + ".attrs.json"), "w", encoding="utf-8"),
+        json.dump(attrs_dump(node), open(os.path.join(OUT, stem + ".attrs.json"), "w", encoding="utf-8"),
                   indent=1, ensure_ascii=False, default=str)
         print("attrs json ok")
 except Exception as exc:

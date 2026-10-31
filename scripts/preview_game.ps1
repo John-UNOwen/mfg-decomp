@@ -65,7 +65,7 @@ function Start-Front($port, $upstream, $bind) {
 
 function New-PlayPage($frontUrl) {
     $html = Get-Content (Join-Path $webroot 'index.html') -Raw
-    $new = $html.Replace(', "-AUTOSERVE"', '').Replace('"-AUTOSERVE", ', '').Replace('http://127.0.0.1:8090/aog', $frontUrl)
+    $new = $html.Replace(', "-AUTOSERVE"', ', "-ENTERCARD"').Replace('"-AUTOSERVE", ', '"-ENTERCARD", ').Replace('http://127.0.0.1:8090/aog', $frontUrl)
     if ($new -match '-AUTOSERVE') { throw 'play page rewrite failed (AUTOSERVE still present)' }
     Set-Content (Join-Path $webroot 'index_play.html') $new -Encoding UTF8 -NoNewline
     Remove-Item (Join-Path $webroot 'index_play.html.br') -Force -EA SilentlyContinue
@@ -76,7 +76,7 @@ if ($Stop) { Stop-Lane; 'preview stopped (RyuNET/mock/webfront killed; static se
 Stop-Lane
 
 # 1. webroot freshness
-$data = 'C:\mfg\out\webgl\Build\webgl.data'
+$data = 'C:\mfg\build\unity-project\out\webgl\Build\webgl.data'
 $stale = -not (Test-Path (Join-Path $webroot 'Build\webgl.data'))
 if (Test-Path $data) {
     $src = (Get-Item $data).LastWriteTime
@@ -137,6 +137,7 @@ if ($head.StatusCode -ne 200) { throw "page $url not served (status $($head.Stat
 $edge = Start-Process -FilePath $EdgeExe -PassThru -ArgumentList @(
     '--user-data-dir=' + $profileDir,
     '--no-first-run', '--no-default-browser-check', '--disable-features=msEdgeWelcomeExperience',
+    '--window-size=1600,976', '--window-position=80,40',
     '--app=' + $url
 )
 Start-Sleep -Seconds 3

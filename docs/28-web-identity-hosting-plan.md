@@ -53,7 +53,7 @@ Goal: `/signup` works with just username + password + confirm; the game account 
 
 1. Patch `webui/routes/auth.js` (dist **and** `src` mirror): replace "card must already exist" with mint-on-signup —
    - mint DataID = `crypto.randomBytes(8).toString('hex').toUpperCase()` (16-hex);
-   - reject reserved shapes: `MID*` (mint-forbidden), `^01[0-9A-F]{14}$` and `^E004[0-9A-F]{12}$` (the core `cardSanitizer` auto-create patterns), the plugin `DEFAULT_CARDID` exact value, `''`;
+   - reject reserved shapes: `^01[0-9A-F]{14}$` and `^E004[0-9A-F]{12}$` (the core `cardSanitizer` auto-create patterns), plus any id an existing card/user/profile already carries (a `crypto.randomBytes(8)` candidate is never empty and can never be `MID*`-shaped);
    - collision-check against core `card` docs and plugin profiles (app-level only today — the store has **no unique indexes**; the mint tool must check, and we keep the signup-time dupe checks the core already has);
    - `CreateUserAccount(username, password, dataId, false, countryCode)` unchanged;
    - create the core card doc (`CreateCard(cid=dataId, refid=dataId)`) so `/api/me` resolves `cardNumber → card.__refid` cleanly;

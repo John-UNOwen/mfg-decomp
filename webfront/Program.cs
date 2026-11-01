@@ -92,6 +92,7 @@ namespace WebFront
         // well below what a junk-cookie flood would need.
         private const int VisitorWindowMs = 60000, VisitorMaxPerWindow = 600, MaxVisitorEntries = 20000;
         private static readonly Dictionary<string, (long WindowStart, int Count)> VisitorHits = new Dictionary<string, (long, int)>();
+        private static readonly Dictionary<string, int> VisitorConns = new Dictionary<string, int>();
         private static readonly object VisitorLock = new object();
         private static bool VisitorAllowed(string ip, long now)
         {
@@ -111,6 +112,39 @@ namespace WebFront
                 if (e.Count >= VisitorMaxPerWindow) return false;
                 VisitorHits[ip] = (e.WindowStart, e.Count + 1);
                 return true;
+            }
+        }
+
+        // Per-visitor CONCURRENT-connection cap (review round 2 critical #3):
+        // Admission bounds the total, but without a per-source cap one visitor's
+        // stalled sockets could occupy all 128 slots and starve every other
+        // visitor out of the gate. A browser's own parallelism stays far below 32.
+        private const int MaxVisitorConns = 32;
+        private static bool VisitorConnAcquire(string ip)
+        {
+            lock (VisitorLock)
+            {
+                if (VisitorConns.TryGetValue(ip, out int n))
+                {
+                    if (n >= MaxVisitorConns) return false;
+                    VisitorConns[ip] = n + 1;
+                    return true;
+                }
+                if (VisitorConns.Count >= MaxVisitorEntries) VisitorConns.Clear();
+                VisitorConns[ip] = 1;
+                return true;
+            }
+        }
+        private static void VisitorConnRelease(string ip)
+        {
+            if (string.IsNullOrEmpty(ip)) return;
+            lock (VisitorLock)
+            {
+                if (VisitorConns.TryGetValue(ip, out int n))
+                {
+                    if (n <= 1) VisitorConns.Remove(ip);
+                    else VisitorConns[ip] = n - 1;
+                }
             }
         }
 
@@ -427,6 +461,7 @@ namespace WebFront
 
         private static void HandleClient(TcpClient client)
         {
+            string inflightKey = null;
             try
             {
                 using (client)
@@ -452,6 +487,7 @@ namespace WebFront
                         if (line.Length == 0) continue;
                         string origin = "", acceptEnc = "", contentType = "", expect = "", cookie = "", visitorIp = remoteIp, ua = "", host = "", cfIp = "", accept = "";
                         bool broken = false;
+                        bool isHead = false; // hoisted: catch-path answers must suppress HEAD bodies too (review round 2 minor #10)
                         int phase = 0; // 0=request line, 1=headers, 2=body
                         try
                         {
@@ -463,12 +499,14 @@ namespace WebFront
                                 && method != "PUT" && method != "DELETE" && method != "PATCH")
                             {
                                 Respond(writer, origin, 405, "Method Not Allowed", "text/plain", "method not allowed", null, "no-store");
-                                continue;
+                                break;
                             }
-                            bool isHead = method == "HEAD";
+                            isHead = method == "HEAD";
 
                             int contentLength = 0;
                             bool chunked = false;
+                            bool badFraming = false, clSeen = false;
+                            long clFirst = 0;
                             reader.SetDeadline(15000);
                             int headerCount = 0, headerBytes = 0;
                             while ((line = reader.ReadLineLatin1()) != null && line.Length > 0)
@@ -480,7 +518,15 @@ namespace WebFront
                                 string value = line.Substring(colon + 1).Trim();
                                 switch (name)
                                 {
-                                    case "content-length": int.TryParse(value, out contentLength); break;
+                                    case "content-length":
+                                        // Strict framing (review round 2 major #9): a
+                                        // non-numeric, negative or conflicting CL is a
+                                        // request-splitting setup - refuse it, never guess.
+                                        if (!long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out long clv) || clv < 0) { badFraming = true; break; }
+                                        if (clSeen && clv != clFirst) { badFraming = true; break; }
+                                        clSeen = true; clFirst = clv;
+                                        contentLength = clv > MaxBodyBytes ? MaxBodyBytes + 1 : (int)clv;
+                                        break;
                                     case "transfer-encoding": if (value.Contains("chunked", StringComparison.OrdinalIgnoreCase)) chunked = true; break;
                                     case "origin": origin = value; break;
                                     case "accept": accept = value; break;
@@ -505,7 +551,25 @@ namespace WebFront
                                 Respond(writer, origin, 431, "Request Header Fields Too Large", "text/plain", "too many request headers", null, "no-store");
                                 break;
                             }
-                            if (TrustCloudflare && !string.IsNullOrEmpty(cfIp) && cfIp.Length <= 64) visitorIp = cfIp;
+                            if (badFraming)
+                            {
+                                Respond(writer, origin, 400, "Bad Request", "text/plain", "bad content-length framing", null, "no-store", null, isHead);
+                                break;
+                            }
+                            // CF-Connecting-IP counts only when it really parses as an
+                            // ip (review round 2 major #4): garbage must not become a
+                            // limiter identity key either.
+                            if (TrustCloudflare && !string.IsNullOrEmpty(cfIp) && cfIp.Length <= 64 && System.Net.IPAddress.TryParse(cfIp, out _)) visitorIp = cfIp;
+
+                            // Concurrent-connection cap per visitor identity (review
+                            // round 2 critical #3): one source can never hold the gate.
+                            if (!VisitorConnAcquire(visitorIp))
+                            {
+                                Console.WriteLine("webfront: visitor " + visitorIp + " holds too many concurrent connections");
+                                Respond(writer, origin, 429, "Too Many Requests", "text/plain", "too many concurrent connections from this visitor", null, "no-store", null, isHead);
+                                break;
+                            }
+                            inflightKey = visitorIp;
 
                             // Normalize the path BEFORE any routing decision: percent-decoded,
                             // dot segments collapsed, control chars refused. The core receives
@@ -518,7 +582,7 @@ namespace WebFront
                             if (path == null)
                             {
                                 Respond(writer, origin, 400, "Bad Request", "text/plain", "bad request", null, "no-store", null, isHead);
-                                continue;
+                                break;
                             }
                             string relayTarget = RelayPath(path) + (query.Length > 0 ? "?" + query : "");
 
@@ -543,7 +607,7 @@ namespace WebFront
                                     RespondXml(writer, origin, 429, "Too Many Requests", 429, "rate limited at the web front - slow down", isHead);
                                 else
                                     Respond(writer, origin, 429, "Too Many Requests", "text/plain", "rate limited at the web front - slow down", null, "no-store", null, isHead);
-                                continue;
+                                break;
                             }
 
                             // node fetch and some HTTP clients hold the POST body until the
@@ -558,7 +622,7 @@ namespace WebFront
                             if (contentLength > MaxBodyBytes)
                             {
                                 Respond(writer, origin, 413, "Payload Too Large", "text/plain", "request body too large", null, "no-store", null, isHead);
-                                continue;
+                                break;
                             }
                             phase = 2;
                             reader.SetDeadline(30000);
@@ -592,12 +656,12 @@ namespace WebFront
                                 if (bodyTooBig)
                                 {
                                     Respond(writer, origin, 413, "Payload Too Large", "text/plain", "request body too large", null, "no-store", null, isHead);
-                                    continue;
+                                    break;
                                 }
                                 if (bodyFailed)
                                 {
                                     Respond(writer, origin, 400, "Bad Request", "text/plain", "bad chunked body", null, "no-store", null, isHead);
-                                    continue;
+                                    break;
                                 }
                                 int total = 0;
                                 foreach (byte[] c in chunks) total += c.Length;
@@ -618,7 +682,7 @@ namespace WebFront
                                 if (got < contentLength)
                                 {
                                     Respond(writer, origin, 400, "Bad Request", "text/plain", "incomplete body", null, "no-store", null, isHead);
-                                    continue;
+                                    break;
                                 }
                             }
 
@@ -706,7 +770,7 @@ namespace WebFront
                                 // A page under the /aog prefix (the shape the statics
                                 // server uses too): gated or plain, never relayed as API.
                                 if (Gate) HandlePage(writer, origin, cookie, path, visitorIp, isHead);
-                                else ServeStatic(writer, origin, acceptEnc, path, isHead);
+                                else ServeStatic(writer, net, origin, acceptEnc, path, isHead);
                             }
                             else if (path == "/index_play.html" && Gate)
                             {
@@ -730,15 +794,18 @@ namespace WebFront
                             }
                             else
                             {
-                                ServeStatic(writer, origin, acceptEnc, path, isHead);
+                                ServeStatic(writer, net, origin, acceptEnc, path, isHead);
                             }
+                            // One request per connection: every answer declares
+                            // Connection: close, so responding ends this request.
+                            break;
                         }
                         catch (TimeoutException)
                         {
                             // body did not arrive in time: answer and drop the socket
                             // (review round 2 critical #1 - no more 120 s silence)
                             Console.WriteLine("webfront: request read deadline exceeded (" + phase + ")");
-                            Respond(writer, origin, 408, "Request Timeout", "text/plain", "request body did not arrive in time", null, "no-store");
+                            Respond(writer, origin, 408, "Request Timeout", "text/plain", "request body did not arrive in time", null, "no-store", null, isHead);
                             break;
                         }
                         catch (IOException io)
@@ -747,26 +814,44 @@ namespace WebFront
                             if (phase >= 2)
                             {
                                 Console.WriteLine("webfront: body read stalled (" + io.Message + ")");
-                                Respond(writer, origin, 400, "Bad Request", "text/plain", "incomplete body", null, "no-store");
+                                Respond(writer, origin, 400, "Bad Request", "text/plain", "incomplete body", null, "no-store", null, isHead);
                             }
                             else
-                                Respond(writer, origin, 431, "Request Header Fields Too Large", "text/plain", "request headers too large", null, "no-store");
+                                Respond(writer, origin, 431, "Request Header Fields Too Large", "text/plain", "request headers too large", null, "no-store", null, isHead);
                             break;
                         }
                         catch (Exception e)
                         {
                             Console.WriteLine("webfront error: " + e);
-                            Respond(writer, origin, 502, "Bad Gateway", "text/plain", "front upstream unavailable", null, "no-store");
+                            Respond(writer, origin, 502, "Bad Gateway", "text/plain", "front upstream unavailable", null, "no-store", null, isHead);
+                            break;
                         }
                     }
+                    // One request per connection (every answer declares Connection:
+                    // close). Drain what the client already queued so the close is a
+                    // clean FIN carrying the answer, not a RST that eats it (review
+                    // round 2 majors #2/#5/#6).
+                    DrainPending(net);
+                    try { client.Client.Shutdown(SocketShutdown.Send); } catch { }
                 }
             }
             catch { }
+            finally { if (inflightKey != null) VisitorConnRelease(inflightKey); }
         }
 
         private static readonly Encoding UTF8Fallback = new UTF8Encoding(false);
 
-        private static void Respond(StreamWriter writer, string origin, int status, string reason, string contentType, string bodyLatin1, string contentEncoding, string cacheControl, string[] extraHeaders = null, bool head = false)
+        private static void Respond(StreamWriter writer, string origin, int status, string reason, string contentType, string bodyLatin1, string contentEncoding, string cacheControl, string[] extraHeaders = null, bool head = false, long clOverride = -1)
+        {
+            WriteHead(writer, origin, status, reason, contentType,
+                clOverride >= 0 ? clOverride : (bodyLatin1 == null ? 0 : bodyLatin1.Length),
+                contentEncoding, cacheControl, extraHeaders);
+            // HEAD may declare the entity length but must not carry body bytes (RFC 9112).
+            if (!head && bodyLatin1 != null && bodyLatin1.Length > 0) writer.Write(bodyLatin1);
+            writer.Flush();
+        }
+
+        private static void WriteHead(StreamWriter writer, string origin, int status, string reason, string contentType, long contentLength, string contentEncoding, string cacheControl, string[] extraHeaders)
         {
             writer.Write("HTTP/1.1 ");
             writer.Write(status.ToString(CultureInfo.InvariantCulture));
@@ -774,7 +859,7 @@ namespace WebFront
             writer.Write(reason);
             writer.Write("\r\nCross-Origin-Opener-Policy: same-origin\r\nCross-Origin-Embedder-Policy: require-corp\r\nAccess-Control-Allow-Origin: ");
             writer.Write(string.IsNullOrEmpty(origin) ? "*" : origin);
-            writer.Write("\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: content-type\r\n");
+            writer.Write("\r\nAccess-Control-Allow-Methods: GET, HEAD, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: content-type\r\n");
             if (contentType != null) { writer.Write("Content-Type: "); writer.Write(contentType); writer.Write("\r\n"); }
             if (contentEncoding != null) { writer.Write("Content-Encoding: "); writer.Write(contentEncoding); writer.Write("\r\n"); }
             if (extraHeaders != null)
@@ -783,11 +868,8 @@ namespace WebFront
             writer.Write("Cache-Control: ");
             writer.Write(string.IsNullOrEmpty(cacheControl) ? "no-store" : cacheControl);
             writer.Write("\r\nContent-Length: ");
-            writer.Write((bodyLatin1 == null ? 0 : bodyLatin1.Length).ToString(CultureInfo.InvariantCulture));
+            writer.Write(contentLength.ToString(CultureInfo.InvariantCulture));
             writer.Write("\r\nConnection: close\r\n\r\n");
-            // HEAD may declare the entity length but must not carry body bytes (RFC 9112).
-            if (!head && bodyLatin1 != null && bodyLatin1.Length > 0) writer.Write(bodyLatin1);
-            writer.Flush();
         }
 
         private static void RespondXml(StreamWriter writer, string origin, int status, string reason, int code, string msg, bool head = false)
@@ -843,7 +925,7 @@ namespace WebFront
             return string.Join("/", parts);
         }
 
-        private static void ServeStatic(StreamWriter writer, string origin, string acceptEnc, string canonical, bool head = false)
+        private static void ServeStatic(StreamWriter writer, NetworkStream net, string origin, string acceptEnc, string canonical, bool head = false)
         {
             string rel = canonical == "/" ? "index.html" : canonical.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
             string file = Path.GetFullPath(Path.Combine(Root, rel));
@@ -868,11 +950,38 @@ namespace WebFront
                 Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store", null, head);
                 return;
             }
-            // Content-hashed build trees stay immutable; a plain .html page name is
-            // served fresh so a relaunched play page never reads from a stale cache.
-            string cache = file.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".html.br", StringComparison.OrdinalIgnoreCase)
-                ? "no-store" : "public, max-age=31536000, immutable";
-            Respond(writer, origin, 200, "OK", Mime(file), ToLatin1(File.ReadAllBytes(file)), enc, cache, null, head);
+            // Streamed copy (review round 2 critical #1): the gate must never stage a
+            // whole build artifact in memory - six concurrent 144 MB downloads used
+            // to reserve ~5 GB of strings.
+            long size = new FileInfo(file).Length;
+            WriteHead(writer, origin, 200, "OK", Mime(file), size, enc, CachePolicyOf(file), null);
+            writer.Flush();
+            if (head) return;
+            try
+            {
+                byte[] buf = new byte[65536];
+                using (var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 65536, FileOptions.SequentialScan))
+                {
+                    int n;
+                    while ((n = fs.Read(buf, 0, buf.Length)) > 0) net.Write(buf, 0, n);
+                }
+                net.Flush();
+            }
+            catch (IOException) { } // client hung up mid-send
+        }
+
+        // Content-hashed build artifacts are immutable; plain-named entry files
+        // (loader/framework/data, .js/.css without a hash token) get a short TTL so
+        // a rebuild reaches browsers within an hour instead of being pinned for a
+        // year (review round 2 major #15). Play pages stay no-store.
+        private static readonly Regex HashedTokenRe = new Regex("[0-9a-f]{16}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static string CachePolicyOf(string file)
+        {
+            string name = Path.GetFileName(file);
+            if (name.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith(".html.br", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".html.gz", StringComparison.OrdinalIgnoreCase))
+                return "no-store";
+            return HashedTokenRe.IsMatch(name) ? "public, max-age=31536000, immutable" : "public, max-age=3600";
         }
 
         private static void Forward(StreamWriter writer, string origin, string method, string relayTarget, byte[] body, string contentType, string visitorIp, bool head = false)
@@ -882,7 +991,19 @@ namespace WebFront
             HttpResponseMessage resp;
             try
             {
-                using var mreq = new HttpRequestMessage(method == "GET" ? HttpMethod.Get : method == "HEAD" ? HttpMethod.Head : HttpMethod.Post, url);
+                // Relay the true verb (review round 2 minor #16): rewriting every
+                // non-GET to POST let a HEAD probe execute POST handlers at the origin.
+                HttpMethod verb = method switch
+                {
+                    "GET" => HttpMethod.Get,
+                    "HEAD" => HttpMethod.Head,
+                    "POST" => HttpMethod.Post,
+                    "PUT" => HttpMethod.Put,
+                    "DELETE" => HttpMethod.Delete,
+                    "PATCH" => HttpMethod.Patch,
+                    _ => HttpMethod.Post,
+                };
+                using var mreq = new HttpRequestMessage(verb, url);
                 if (body != null && body.Length > 0)
                 {
                     var content = new ByteArrayContent(body);
@@ -907,7 +1028,10 @@ namespace WebFront
                 string ct = resp.Content.Headers.ContentType?.ToString() ?? "text/xml";
                 // AOG answers are per-session game state - caching one would let a
                 // superseded pcuid replay last game's bytes (docs/28 defect fix).
-                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", null, head);
+                // HEAD keeps the origin's declared entity length instead of 0
+                // (review round 2 minor #11).
+                long clOver = head ? (resp.Content.Headers.ContentLength ?? payload.Length) : -1;
+                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", null, head, clOver);
             }
         }
 
@@ -1224,7 +1348,9 @@ namespace WebFront
                     if (key != null) lock (SessionsLock) Sessions.Remove(key);
                     extras.Add("Set-Cookie: connect.sid=; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT");
                 }
-                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", extras.ToArray(), head);
+                // HEAD keeps the origin's declared entity length (review round 2 minor #11).
+                long clOver = head ? (resp.Content.Headers.ContentLength ?? payload.Length) : -1;
+                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", extras.ToArray(), head, clOver);
             }
             catch (Exception e)
             {

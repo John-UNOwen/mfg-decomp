@@ -17,6 +17,13 @@ if (Get-Process -Name WebFront -EA SilentlyContinue) { throw 'a WebFront is alre
 if (Get-NetTCPConnection -LocalPort 8083 -State Listen -EA SilentlyContinue) { throw 'a core already answers 8083 - stop the lane first' }
 
 # core: presenter armed, native 22421 listener loopback-only, https-ready cookie
+# config.ini is patched while the core is stopped (core rewrites it live);
+# process env wins over config.ini in the plugin's bind precedence.
+$ini = Join-Path $ryuDist 'config.ini'
+if (Test-Path $ini) {
+    (Get-Content $ini -Raw) -replace 'mfg_http_bind=[^\r\n]*', 'mfg_http_bind=127.0.0.1' | Set-Content $ini -Encoding UTF8 -NoNewline
+}
+elseif ($env:mfg_http_bind -ne '127.0.0.1') { throw 'no config.ini at ' + $ryuDist + ' - keep mfg_http_bind=127.0.0.1 in the environment' }
 $env:VFG_PRESENTER_SECRET = $secret
 $env:mfg_http_bind = '127.0.0.1'
 $env:WEB_SECURE_COOKIE = '1'
@@ -38,6 +45,7 @@ $env:WEBFRONT_PORT = '8090'
 $env:WEBFRONT_BIND = 'loopback'
 $env:WEBFRONT_GATE = '1'
 $env:WEBFRONT_PRESENTER_SECRET_FILE = $secFile
+if ($Tunnel) { $env:WEBFRONT_TRUST_PROXY = 'cloudflare' }  # CF-Connecting-IP becomes the visitor identity
 if ($env:WEBFRONT_PUBLIC_URL) { $env:WEBFRONT_PAGE_FRONTURL = $env:WEBFRONT_PUBLIC_URL }  # optional absolute -FRONTURL
 $wd = Join-Path $repoReal.TrimEnd('\') 'webfront\bin\Release\net8.0'
 Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden `

@@ -26,9 +26,14 @@ from outside. Works the same on your own PC or a Windows VPS.
 ## Start / stop
 
 - Start hosted: `pwsh scripts\hosting_up.ps1` (core armed + WebFront gate ON +
-  optional cloudflared). Stop: `scripts\preview_game.ps1 -Stop` kills the lane.
+  optional cloudflared via `-Tunnel`). Stop: `scripts\preview_game.ps1 -Stop` kills the lane.
+- The hosted start patches `mfg_http_bind=127.0.0.1` into `config.ini` while the
+  core is stopped (the core rewrites that file live); the plugin precedence is
+  env > config.ini > default, and the boot log prints the bind actually used.
+- The gate refuses to start hosted without `WEBFRONT_AUTH` (no silent fallback to
+  a public default), and refuses `WEBFRONT_GATE=0` + armed presenter + `WEBFRONT_BIND=any`.
 - The LAN dev lane is unchanged: `scripts\preview_game.ps1` (gate OFF, presenter
-  armed from the same secret file, so claimed accounts play there too).
+  armed from the same secret file, so claimed accounts play there too - loopback-bound).
 
 ## Cloudflare (one hostname, single origin)
 
@@ -48,6 +53,15 @@ from outside. Works the same on your own PC or a Windows VPS.
      `immutable`; pages/API come through `no-store` from the front.
 7. `WEB_SECURE_COOKIE=1` (hosting_up.ps1 sets it) gives the session cookie the
    `Secure` flag; unset keeps the LAN lane usable over http.
+8. `WEBFRONT_TRUST_PROXY=cloudflare` (hosting_up.ps1 -Tunnel sets it) makes
+   `CF-Connecting-IP` the visitor identity for the gate's own limiter (600 req/min
+   per visitor) and for the core's auth rate limits - the gate replaces any incoming
+   `X-Forwarded-For` with that single honest hop. Without it the gate keys visitors
+   on the real socket peer and ignores client-supplied ip headers entirely.
+9. Admin accounts: `--rotate-admin` leaves the core admin card-less, and a
+   card-less session is bounced to `/account` instead of the play page. Claim an
+   id for it too (`--claim-user admin --claim-refid <16HEX>`), or use a claimed
+   non-admin account as the everyday identity.
 
 ## Backups
 

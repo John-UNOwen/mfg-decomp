@@ -24,6 +24,37 @@ namespace WebFront
         // The provider only excludes UAs containing "Mozilla"; any neutral agent works.
         private static readonly string RelayUA = "MFG-WebFront/1.0 (+https://github.com/John-UNOwen/mfg-decomp)";
 
+        // Hosted mode (docs/28 web identity & hosting plan). WEBFRONT_GATE=1 makes
+        // this front the single authenticated edge: game pages and /aog traffic only
+        // reach the origin behind a live web session (connect.sid checked at the
+        // core's /api/me), every page gets the session's DataID spliced into
+        // config.arguments, signup/login/logout are relayed to the core with the
+        // session cookie carried both ways, and a relayed /aog login is preceded by
+        // presenting that account's own DataID as its card credential (plugin
+        // /vfgcard_present, WEBFRONT_PRESENTER_SECRET). WEBFRONT_GATE unset/0 is the
+        // LAN dev relay: today's unauthenticated behaviour, unchanged.
+        private static readonly bool Gate = Environment.GetEnvironmentVariable("WEBFRONT_GATE") == "1";
+        private static readonly string AuthBase = Environment.GetEnvironmentVariable("WEBFRONT_AUTH") ?? (Environment.GetEnvironmentVariable("WEBFRONT_UPSTREAM") ?? "http:// <provider-host>");
+        // The -FRONTURL the spliced page plays against; empty-host "/aog" keeps the
+        // game same-origin with the page (behind the tunnel/https front).
+        private static readonly string PageFrontUrl = Environment.GetEnvironmentVariable("WEBFRONT_PAGE_FRONTURL") ?? "/aog";
+        private static readonly string PresenterSecret = ResolvePresenterSecret();
+        private static string ResolvePresenterSecret()
+        {
+            var s = Environment.GetEnvironmentVariable("WEBFRONT_PRESENTER_SECRET");
+            if (!string.IsNullOrEmpty(s)) return s;
+            var f = Environment.GetEnvironmentVariable("WEBFRONT_PRESENTER_SECRET_FILE");
+            try { if (!string.IsNullOrEmpty(f) && File.Exists(f)) return File.ReadAllText(f).Trim(); } catch { }
+            return "";
+        }
+
+        // Session cache: cookie -> who it answers to. The core is loopback, but the
+        // game posts keep_alive/gget every second, so /api/me is not re-asked for
+        // every one of those; 30 s is short enough for a logout to catch up.
+        private sealed class SessionInfo { public string Username; public string Card; public bool Admin; public long UntilMs; }
+        private static readonly System.Collections.Generic.Dictionary<string, SessionInfo> Sessions = new System.Collections.Generic.Dictionary<string, SessionInfo>();
+        private static readonly object SessionsLock = new object();
+
         // Latin1 (28591): char 0..255 encodes to exactly one byte, so bodies are staged as
         // latin1-mapped strings and go out byte-exact.
         private static readonly Encoding Latin1 = Encoding.GetEncoding(28591);
@@ -38,6 +69,16 @@ namespace WebFront
             try { listener.Start(); }
             catch (SocketException e) { Console.Error.WriteLine("bind failed: " + e.Message); return 1; }
             Console.WriteLine("webfront listening on http://" + bind + ":" + Port + " root=" + Root + " upstream=" + Upstream);
+            if (Gate)
+            {
+                Console.WriteLine("webfront GATE ON: pages, auth pages and /aog need a web session (identity from " + AuthBase + "/api/me)");
+                if (string.IsNullOrEmpty(PresenterSecret))
+                    Console.WriteLine("webfront WARNING: WEBFRONT_PRESENTER_SECRET is not set - relayed logins will NOT present card credentials");
+            }
+            else
+            {
+                Console.WriteLine("webfront GATE OFF (LAN dev relay): pages and /aog answer without a web session");
+            }
 
             while (true)
             {
@@ -68,7 +109,7 @@ namespace WebFront
                         string method = parts[0], target = parts[1];
 
                         int contentLength = 0;
-                        string origin = "", acceptEnc = "", contentType = "", expect = "";
+                        string origin = "", acceptEnc = "", contentType = "", expect = "", cookie = "", xff = "", ua = "";
                         while ((line = reader.ReadLine()) != null && line.Length > 0)
                         {
                             int colon = line.IndexOf(':');
@@ -82,6 +123,15 @@ namespace WebFront
                                 case "accept-encoding": acceptEnc = value; break;
                                 case "content-type": contentType = value; break;
                                 case "expect": expect = value; break;
+                                case "cookie": cookie = value; break;
+                                // The core webui only answers browser-looking UAs (it
+                                // 404s curl/8); the AOG side demands the opposite. So
+                                // the auth relay carries the visitor's own UA through.
+                                case "user-agent": ua = value; break;
+                                case "x-forwarded-for": xff = value; break;
+                                // Behind a Cloudflare tunnel this is the only honest
+                                // visitor ip; the core's auth rate limits need it.
+                                case "cf-connecting-ip": xff = value; break;
                             }
                         }
 
@@ -115,13 +165,45 @@ namespace WebFront
                         string path = target.Split('?')[0];
                         try
                         {
-                            if (method == "OPTIONS" && path.StartsWith("/aog/", StringComparison.Ordinal))
+                            bool isHtml = path.EndsWith(".html", StringComparison.OrdinalIgnoreCase);
+                            if (method == "OPTIONS" && path.StartsWith("/aog/", StringComparison.Ordinal) && !isHtml)
                             {
-                                Respond(writer, origin, 204, "No Content", null, null, null);
+                                Respond(writer, origin, 204, "No Content", null, null, null, "no-store");
+                            }
+                            else if (path.StartsWith("/aog/", StringComparison.Ordinal) && isHtml)
+                            {
+                                // A page under the /aog prefix (the shape the statics
+                                // server uses too): gated or plain, never relayed as API.
+                                if (Gate) HandlePage(writer, origin, cookie, path);
+                                else ServeStatic(writer, origin, acceptEnc, path);
                             }
                             else if (path.StartsWith("/aog/", StringComparison.Ordinal))
                             {
-                                Forward(writer, origin, method, target, body, contentType);
+                                if (Gate) HandleApi(writer, origin, method, target, body, contentType, cookie, xff);
+                                else
+                                {
+                                    // Dev relay with an armed presenter: claimed/web-issued
+                                    // accounts (a core card document exists - the plugin
+                                    // checks that) log in on this lane too, and once they
+                                    // are card-bound they answer /login with a presentation
+                                    // or nothing. user_id comes from the relayed form body;
+                                    // ids the deployment never issued are never bound.
+                                    if (!string.IsNullOrEmpty(PresenterSecret) && (path == "/aog/login" || path == "/aog/create_player")
+                                        && body != null && body.Length > 0 && body.Length < 16384)
+                                    {
+                                        string userId = FormValue(Latin1.GetString(body), "user_id");
+                                        if (!string.IsNullOrEmpty(userId)) PresentCard(userId.Trim().ToUpperInvariant(), "dev-relay");
+                                    }
+                                    Forward(writer, origin, method, target, body, contentType, xff);
+                                }
+                            }
+                            else if (Gate && (path == "/" || isHtml))
+                            {
+                                HandlePage(writer, origin, cookie, path);
+                            }
+                            else if (Gate && IsCorePage(path))
+                            {
+                                HandleAuth(writer, origin, method, target, body, contentType, cookie, xff, ua);
                             }
                             else
                             {
@@ -130,7 +212,7 @@ namespace WebFront
                         }
                         catch (Exception e)
                         {
-                            try { Respond(writer, origin, 502, "Bad Gateway", "text/plain", ToLatin1(UTF8Fallback.GetBytes("front error: " + e.Message)), null); } catch { }
+                            try { Respond(writer, origin, 502, "Bad Gateway", "text/plain", ToLatin1(UTF8Fallback.GetBytes("front error: " + e.Message)), null, "no-store"); } catch { }
                         }
                     }
                 }
@@ -140,7 +222,7 @@ namespace WebFront
 
         private static readonly Encoding UTF8Fallback = new UTF8Encoding(false);
 
-        private static void Respond(StreamWriter writer, string origin, int status, string reason, string contentType, string bodyLatin1, string contentEncoding)
+        private static void Respond(StreamWriter writer, string origin, int status, string reason, string contentType, string bodyLatin1, string contentEncoding, string cacheControl, string[] extraHeaders = null)
         {
             writer.Write("HTTP/1.1 ");
             writer.Write(status.ToString(CultureInfo.InvariantCulture));
@@ -151,7 +233,12 @@ namespace WebFront
             writer.Write("\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: content-type\r\n");
             if (contentType != null) { writer.Write("Content-Type: "); writer.Write(contentType); writer.Write("\r\n"); }
             if (contentEncoding != null) { writer.Write("Content-Encoding: "); writer.Write(contentEncoding); writer.Write("\r\n"); }
-            writer.Write("Cache-Control: public, max-age=31536000, immutable\r\nContent-Length: ");
+            if (extraHeaders != null)
+                foreach (string h in extraHeaders)
+                    if (!string.IsNullOrEmpty(h)) { writer.Write(h); writer.Write("\r\n"); }
+            writer.Write("Cache-Control: ");
+            writer.Write(string.IsNullOrEmpty(cacheControl) ? "no-store" : cacheControl);
+            writer.Write("\r\nContent-Length: ");
             writer.Write((bodyLatin1 == null ? 0 : bodyLatin1.Length).ToString(CultureInfo.InvariantCulture));
             writer.Write("\r\nConnection: close\r\n\r\n");
             if (bodyLatin1 != null && bodyLatin1.Length > 0) writer.Write(bodyLatin1);
@@ -172,20 +259,24 @@ namespace WebFront
             string file = Path.GetFullPath(Path.Combine(Root, rel));
             if (!file.StartsWith(Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             {
-                Respond(writer, origin, 403, "Forbidden", "text/plain", "forbidden", null);
+                Respond(writer, origin, 403, "Forbidden", "text/plain", "forbidden", null, "no-store");
                 return;
             }
             string enc = null;
             if (acceptEnc != null && acceptEnc.Contains("br") && File.Exists(file + ".br")) { file += ".br"; enc = "br"; }
             if (!File.Exists(file))
             {
-                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null);
+                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store");
                 return;
             }
-            Respond(writer, origin, 200, "OK", Mime(file), ToLatin1(File.ReadAllBytes(file)), enc);
+            // Content-hashed build trees stay immutable; a plain .html page name is
+            // served fresh so a relaunched play page never reads from a stale cache.
+            string cache = file.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".html.br", StringComparison.OrdinalIgnoreCase)
+                ? "no-store" : "public, max-age=31536000, immutable";
+            Respond(writer, origin, 200, "OK", Mime(file), ToLatin1(File.ReadAllBytes(file)), enc, cache);
         }
 
-        private static void Forward(StreamWriter writer, string origin, string method, string target, byte[] body, string contentType)
+        private static void Forward(StreamWriter writer, string origin, string method, string target, byte[] body, string contentType, string xff)
         {
             string pathAndQuery = target.StartsWith("/") ? target : "/" + target;
             string url = Upstream.TrimEnd('/') + pathAndQuery;
@@ -200,19 +291,216 @@ namespace WebFront
                     mreq.Content = content;
                 }
                 mreq.Headers.TryAddWithoutValidation("User-Agent", RelayUA);
+                if (!string.IsNullOrEmpty(xff)) mreq.Headers.TryAddWithoutValidation("X-Forwarded-For", xff);
                 resp = Up.SendAsync(mreq).GetAwaiter().GetResult();
             }
             catch (Exception e)
             {
                 string xml = "<root><serv_st><code>502</code><msg>" + WebUtility.HtmlEncode(e.Message) + "</msg></serv_st></root>";
-                Respond(writer, origin, 502, "Bad Gateway", "text/xml; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(xml)), null);
+                Respond(writer, origin, 502, "Bad Gateway", "text/xml; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(xml)), null, "no-store");
                 return;
             }
             using (resp)
             {
                 byte[] payload = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
                 string ct = resp.Content.Headers.ContentType?.ToString() ?? "text/xml";
-                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null);
+                // AOG answers are per-session game state - caching one would let a
+                // superseded pcuid replay last game's bytes (docs/28 defect fix).
+                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store");
+            }
+        }
+
+        // --- gated (hosted) handlers: WEBFRONT_GATE=1 -------------------------
+
+        // Paths the core webui owns; relayed with the session cookie in both
+        // directions (Set-Cookie is how a login reaches the browser at all).
+        private static bool IsCorePage(string path)
+        {
+            return path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/signup", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/logout", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/about", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/account", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/static", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/help", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/plugin", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/api/me", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/favicon.ico", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static SessionInfo CheckSession(string cookie)
+        {
+            if (string.IsNullOrEmpty(cookie) || !cookie.Contains("connect.sid")) return null;
+            long now = Environment.TickCount64;
+            lock (SessionsLock)
+            {
+                if (Sessions.TryGetValue(cookie, out SessionInfo hit) && hit.UntilMs > now) return hit;
+            }
+            SessionInfo info = null;
+            try
+            {
+                using var mreq = new HttpRequestMessage(HttpMethod.Get, AuthBase.TrimEnd('/') + "/api/me");
+                mreq.Headers.TryAddWithoutValidation("Cookie", cookie);
+                // Browser-looking UA: the core webui 404s non-browser agents.
+                mreq.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (compatible; MFG-WebFront/1.0; session-gate)");
+                using var resp = Up.SendAsync(mreq).GetAwaiter().GetResult();
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    string json = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                    string user = JsonField(json, "username");
+                    string card = JsonField(json, "cardNumber");
+                    if (!string.IsNullOrEmpty(user) && !string.IsNullOrEmpty(card))
+                    {
+                        info = new SessionInfo { Username = user, Card = card, Admin = json.Contains("\"admin\":true"), UntilMs = now + 30000 };
+                    }
+                }
+            }
+            catch { }
+            lock (SessionsLock)
+            {
+                if (info != null) Sessions[cookie] = info;
+                else Sessions.Remove(cookie);
+            }
+            return info;
+        }
+
+        private static string JsonField(string json, string field)
+        {
+            string key = "\"" + field + "\":\"";
+            int i = json.IndexOf(key, StringComparison.Ordinal);
+            if (i < 0) return "";
+            i += key.Length;
+            int end = json.IndexOf('"', i);
+            if (end < 0) return "";
+            return json.Substring(i, end - i);
+        }
+
+        // Present this session's own DataID as its card credential, just before
+        // the /login we relay (utils.ts presentViaPresenter consumes exactly one
+        // stamp per login - so every relayed login presents, and nothing else
+        // can). The plugin refuses without the matching VFG_PRESENTER_SECRET.
+        private static string FormValue(string formText, string key)
+        {
+            foreach (string pair in formText.Split('&'))
+            {
+                int eq = pair.IndexOf('=');
+                if (eq <= 0) continue;
+                if (pair.Substring(0, eq) == key)
+                {
+                    try { return Uri.UnescapeDataString(pair.Substring(eq + 1)); } catch { return pair.Substring(eq + 1); }
+                }
+            }
+            return "";
+        }
+
+        private static bool PresentCard(string card, string label)
+        {
+            if (string.IsNullOrEmpty(PresenterSecret) || string.IsNullOrEmpty(card)) return false;
+            try
+            {
+                using var mreq = new HttpRequestMessage(HttpMethod.Post, Upstream.TrimEnd('/') + "/aog/vfgcard_present");
+                byte[] form = UTF8Fallback.GetBytes("refid=" + Uri.EscapeDataString(card) + "&cardid=" + Uri.EscapeDataString(card) + "&presenter=" + Uri.EscapeDataString(PresenterSecret));
+                var content = new ByteArrayContent(form);
+                content.Headers.TryAddWithoutValidation("Content-Type", "application/x-www-form-urlencoded");
+                mreq.Content = content;
+                mreq.Headers.TryAddWithoutValidation("User-Agent", RelayUA);
+                using var resp = Up.SendAsync(mreq).GetAwaiter().GetResult();
+                bool ok = resp.StatusCode == HttpStatusCode.OK;
+                if (!ok && card.Length == 16) // unissued/fixture ids are routinely refused here; keep the log honest but quiet
+                {
+                    string why = "";
+                    try { why = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult(); } catch { }
+                    Console.WriteLine("webfront presenter REFUSED " + label + " card=" + card + " status=" + (int)resp.StatusCode + " " + (why.Length > 200 ? why.Substring(0, 200) : why));
+                }
+                return ok;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("webfront presenter error: " + e.Message);
+                return false;
+            }
+        }
+
+        private static void HandlePage(StreamWriter writer, string origin, string cookie, string path)
+        {
+            SessionInfo s = CheckSession(cookie);
+            if (s == null)
+            {
+                Respond(writer, origin, 302, "Found", null, null, null, "no-store",
+                    new string[] { "Location: /login?next=" + Uri.EscapeDataString(path) });
+                return;
+            }
+            // Always splice from the canonical template: a stale index_play.html
+            // left by the LAN scripts (with someone else's -DATAID) is never served
+            // to a hosted session.
+            string file = Path.GetFullPath(Path.Combine(Root, "index.html"));
+            if (!File.Exists(file))
+            {
+                Respond(writer, origin, 404, "Not Found", "text/plain", "webroot index.html missing", null, "no-store");
+                return;
+            }
+            string html = UTF8Fallback.GetString(File.ReadAllBytes(file));
+            string pin = "\"-ENTERCARD\", \"-TRANSLATE\", \"-REGULAR\", \"-DATAID=" + s.Card + "\"";
+            string page = html.Replace(", \"-AUTOSERVE\"", ", " + pin).Replace("\"-AUTOSERVE\", ", pin + ", ");
+            if (page.Contains("-AUTOSERVE"))
+            {
+                Console.WriteLine("webfront: webroot index.html has no -AUTOSERVE anchor to splice - refusing to serve");
+                Respond(writer, origin, 500, "Internal Server Error", "text/plain", "play page splice failed", null, "no-store");
+                return;
+            }
+            page = page.Replace("http://127.0.0.1:8090/aog", PageFrontUrl);
+            Respond(writer, origin, 200, "OK", "text/html; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(page)), null, "no-store");
+        }
+
+        private static void HandleApi(StreamWriter writer, string origin, string method, string target, byte[] body, string contentType, string cookie, string xff)
+        {
+            SessionInfo s = CheckSession(cookie);
+            if (s == null)
+            {
+                string xml = "<root><serv_st><code>770</code><msg>web session required: sign in at /login first</msg></serv_st></root>";
+                Respond(writer, origin, 403, "Forbidden", "text/xml; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(xml)), null, "no-store");
+                return;
+            }
+            string path = target.Split('?')[0];
+            if (path == "/aog/login" || path == "/aog/create_player") PresentCard(s.Card, "user=" + s.Username);
+            Forward(writer, origin, method, target, body, contentType, xff);
+        }
+
+        private static void HandleAuth(StreamWriter writer, string origin, string method, string target, byte[] body, string contentType, string cookie, string xff, string ua)
+        {
+            string path = target.Split('?')[0];
+            if ((path.StartsWith("/settings", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))
+                && !(CheckSession(cookie)?.Admin == true))
+            {
+                Respond(writer, origin, 403, "Forbidden", "text/plain", "admin only", null, "no-store");
+                return;
+            }
+            string pathAndQuery = target.StartsWith("/") ? target : "/" + target;
+            string url = AuthBase.TrimEnd('/') + pathAndQuery;
+            try
+            {
+                using var mreq = new HttpRequestMessage(method == "GET" ? HttpMethod.Get : HttpMethod.Post, url);
+                if (body != null && body.Length > 0)
+                {
+                    var content = new ByteArrayContent(body);
+                    if (!string.IsNullOrEmpty(contentType)) content.Headers.TryAddWithoutValidation("Content-Type", contentType);
+                    mreq.Content = content;
+                }
+                if (!string.IsNullOrEmpty(cookie)) mreq.Headers.TryAddWithoutValidation("Cookie", cookie);
+                if (!string.IsNullOrEmpty(xff)) mreq.Headers.TryAddWithoutValidation("X-Forwarded-For", xff);
+                mreq.Headers.TryAddWithoutValidation("User-Agent", string.IsNullOrEmpty(ua) ? "Mozilla/5.0 (compatible; MFG-WebFront/1.0)" : ua);
+                using var resp = Up.SendAsync(mreq).GetAwaiter().GetResult();
+                byte[] payload = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                string ct = resp.Content.Headers.ContentType?.ToString() ?? "text/html; charset=utf-8";
+                var extras = new System.Collections.Generic.List<string>();
+                if (resp.Headers.TryGetValues("Set-Cookie", out var cookies))
+                    foreach (string v in cookies) extras.Add("Set-Cookie: " + v);
+                if (resp.Headers.Location != null) extras.Add("Location: " + resp.Headers.Location.ToString());
+                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", extras.ToArray());
+            }
+            catch (Exception e)
+            {
+                Respond(writer, origin, 502, "Bad Gateway", "text/plain", ToLatin1(UTF8Fallback.GetBytes("auth relay error: " + e.Message)), null, "no-store");
             }
         }
 

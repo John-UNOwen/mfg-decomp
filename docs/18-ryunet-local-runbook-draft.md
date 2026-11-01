@@ -44,6 +44,10 @@ npm run build                     # tsc -> dist/
 # to ../build-env/assets relative to cwd (EamuseIO.ts:31). Everything lives under dist/.
 New-Item -ItemType Directory -Force dist\plugins | Out-Null
 Copy-Item plugins\tsconfig.json,plugins\asphyxia-core.d.ts dist\plugins\
+# First install only: stage the plugin into the core. After that dist\plugins\mfg@asphyxia IS
+# the canonical copy (the only tree edited), and tmp\asphyxia_plugins is a mirror refreshed
+# from it - pwsh scripts\ryunet_stage.ps1 -Action mirror. Copying the mirror over dist
+# reverts every edit made in dist; check with -Action status first.
 Copy-Item -Recurse ..\asphyxia_plugins\mfg@asphyxia dist\plugins\
 # (plugin folder needs no package.json/node_modules: ts-node resolves index.ts via require
 #  extensions; mfg imports are builtins + relative files only — index.ts, handlers/aog.ts)
@@ -149,6 +153,24 @@ load time (native server port), so port changes need a restart.
   not archived (aog.ts:1217-1268).
 - Daily JST login bonus present is appended at login and auto-applied client-side
   (aog.ts:376-399) — a small parity feature our mock lacks; expect one present on first `client_state_read`.
+- A refid of the form `MID` + 8-or-more digits is **not** an account: it is the shape the removed
+  mid fallback minted (`'MID' + String(mid).padStart(8,'0')`, so a 10-digit mid would produce
+  `MID1793446050`). `/login` refuses one with 770 and cannot mint one, and the minting was the
+  exposure, not a stored document: this deployment has no MID row longer than MID + 8 digits
+  (118 profile documents, 3 MID-prefixed — `node .audit\p9_phantom_scan.js`), while the pre-fix
+  build created `MID1793446050` out of a posted `user_id` on a copy of that same savedata
+  (`tmp\p9repro\out_deploy_pre_unseeded.txt`). The MID-shaped rows a long-lived savedata does
+  carry are stripped of `player_id` / `session_id` / card fields and marked
+  `profile.phantom_quarantine` — at plugin load, on any read that refuses them, and offline for a
+  savedata nobody boots from (from the repo root): `node .audit\p9_phantom_repair.js` — that is the
+  deployment DB by default, pass a path to repair another one — a clone from
+  `.audit\p9_db_clone.js` or a lane file no core has opened included: those have no
+  `_collection` generated column yet, so the repairer falls back to
+  `__s = 'plugins_profile'` and prints the filter it used — checked with
+  `node .audit\p9_phantom_scan.js tmp\RyuNET-core\dist\savedata\mfg@asphyxia.db` (plugin README,
+  "Legacy MID phantom documents"; full record `.audit\p9-mid-phantom-report.md`). A data pass repairs rows, not a running process: the code half
+  only lands on a core restart, which is also when the `VFG_ACCOUNT_AUTH` / `VFG_CARD_AUTH_WINDOW` /
+  `VFG_SESSION_TAKEOVER_GRACE` values in `config.ini` are read.
 
 ## 6. Pointing the game at it (hosts + the TLS reality)
 
@@ -206,9 +228,10 @@ core `eamuse/index.ts:86-92`; GET `/core/keepalive` answered, AogMiddleware.ts:1
    (NetEnvironmentConnection.cs:26,46) vs plain-HTTP RyuNET (AsphyxiaCore.ts:97). Hosts-pinning
    the core port directly cannot work without a TLS/CONNECT front (existing mock or Caddy).
 2. **Bare-root 404 trap on the core port** — AOG names missing from the core's `KNOWN_AOG` set
-   (e.g. `cutin_gacha_play_draw`) only resolve under `/aog/...` (AogMiddleware.ts:20-38 vs
+   (e.g. `cutin_gacha_play_draw`, and this plugin's `chara_enabled` / `janpon_log`) only resolve under `/aog/...` (AogMiddleware.ts:20-38 vs
    aog.ts:1812-1908; plugin comment eamuse.ts:491-499 records the live 404). Always include the
-   `/aog` path in any core-port service URL. Native 22421 binds unconditionally and may clash
+   `/aog` path in any core-port service URL; the plugin README "Core change needed: the AOG
+   allowlist" states the one-line core patch that closes it. Native 22421 binds unconditionally and may clash
    silently (index.ts:114-203).
 3. **Shared `GUEST` profile on Route A** — a login body with no refid collapses every anonymous
    client into refid `GUEST` (aog.ts:363-371): fine for a single test loop (persistence still

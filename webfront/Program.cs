@@ -159,26 +159,57 @@ namespace WebFront
                 Console.WriteLine("webfront GATE OFF (LAN dev relay): pages and /aog answer without a web session");
             }
 
+            new Thread(BusyWorker) { IsBackground = true }.Start();
             while (true)
             {
                 TcpClient client;
                 try { client = listener.AcceptTcpClient(); }
                 catch (Exception) { return 0; }
-                ThreadPool.QueueUserWorkItem(_ => HandleClient(client));
+                // Admission gate at ACCEPT time (review round 2 major #2): stalled
+                // sockets can pin at most this many worker threads; anything beyond
+                // gets a fast inline 503 from the accept loop itself, so a stalled
+                // crowd can never queue a legitimate visitor behind it.
+                if (!Admission.Wait(0))
+                {
+                    // Over capacity: hand to the busy thread, which drains what the
+                    // client already wrote (so the close is a clean FIN, not a RST),
+                    // answers 503, and drops the socket. The accept loop itself never
+                    // blocks on client data.
+                    if (BusyQueue.Count > 2000) { try { client.Close(); } catch { } continue; }
+                    BusyQueue.Enqueue(client);
+                    continue;
+                }
+                // Dedicated background thread per connection (capped by Admission):
+                // request handling never competes with the shared thread pool, so a
+                // stalled crowd cannot delay a legitimate visitor's start either.
+                var worker = new Thread(() =>
+                {
+                    try { HandleClient(client); }
+                    finally { Admission.Release(); }
+                }) { IsBackground = true };
+                worker.Start();
             }
         }
 
         // Byte-accurate request reader: headers as latin1 lines, body as raw bytes
         // (multi-byte UTF-8 bodies and chunked encoding relay byte-exact - a StreamReader
         // char model wedges on Content-Length != char count, checkup majors #15/#16).
+        // Lines are capped (review round 2 major #10) and every read runs against an
+        // absolute deadline, so a half-sent body ends in a status code, never a stall
+        // (review round 2 critical #1).
         private sealed class RawReader
         {
             private readonly Stream s;
             private readonly byte[] buf = new byte[8192];
             private int pos, len;
+            private long deadlineMs;
+            public const int MaxLineBytes = 8192;
             public RawReader(Stream s) { this.s = s; }
+            public void SetDeadline(int msFromNow) { deadlineMs = Environment.TickCount64 + msFromNow; }
             private int Fill()
             {
+                if (deadlineMs > 0 && Environment.TickCount64 > deadlineMs)
+                    throw new TimeoutException("request read deadline exceeded");
                 if (pos < len) return len - pos;
                 len = s.Read(buf, 0, buf.Length);
                 pos = 0;
@@ -194,6 +225,7 @@ namespace WebFront
                 {
                     if (b == '\n') break;
                     if (b != '\r') sb.Append((char)b);
+                    if (sb.Length > MaxLineBytes) throw new IOException("request line exceeds " + MaxLineBytes + " bytes");
                     b = NextByte();
                 }
                 return sb.ToString();
@@ -213,13 +245,44 @@ namespace WebFront
             }
         }
 
+        // Bounded admission (review round 2 major #2): stalled sockets can pin at
+        // most this many worker threads; over-capacity connections get a fast 503
+        // from a dedicated busy thread instead of queueing behind them.
+        private static readonly SemaphoreSlim Admission = new SemaphoreSlim(128, 128);
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<TcpClient> BusyQueue = new System.Collections.Concurrent.ConcurrentQueue<TcpClient>();
+
+        // Dedicated busy thread for over-capacity connections: never shares the
+        // worker pool, so stalled workers cannot delay the busy answer.
+        private static void BusyWorker()
+        {
+            while (true)
+            {
+                TcpClient c;
+                if (!BusyQueue.TryDequeue(out c)) { Thread.Sleep(20); continue; }
+                try
+                {
+                    c.ReceiveTimeout = 300;   // bounded drain of what was already sent
+                    c.SendTimeout = 2000;
+                    using (c)
+                    {
+                        var st = c.GetStream();
+                        byte[] tmp = new byte[4096];
+                        try { st.Read(tmp, 0, tmp.Length); } catch { }
+                        using var w = new StreamWriter(st, Latin1, 1024, true);
+                        Respond(w, "", 503, "Service Unavailable", "text/plain", "web front busy - try again", null, "no-store");
+                    }
+                }
+                catch { }
+            }
+        }
+
         private static void HandleClient(TcpClient client)
         {
             try
             {
                 using (client)
                 {
-                    client.ReceiveTimeout = 120000;
+                    client.ReceiveTimeout = 15000;   // idle release; 120 s parking removed
                     client.SendTimeout = 30000;
                     var net = client.GetStream();
                     var remoteIp = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
@@ -227,153 +290,189 @@ namespace WebFront
                     using var writer = new StreamWriter(net, Latin1, 8192, true);
 
                     string line;
-                    while ((line = reader.ReadLineLatin1()) != null && line.Length > 0)
+                    while (true)
                     {
-                        string[] parts = line.Split(' ');
-                        if (parts.Length < 2) continue;
-                        string method = parts[0], target = parts[1];
-
-                        int contentLength = 0;
-                        bool chunked = false;
-                        string origin = "", acceptEnc = "", contentType = "", expect = "", cookie = "", visitorIp = remoteIp, ua = "", host = "", cfIp = "";
-                        while ((line = reader.ReadLineLatin1()) != null && line.Length > 0)
+                        try { reader.SetDeadline(15000); line = reader.ReadLineLatin1(); }
+                        catch (TimeoutException) { break; }
+                        catch (IOException)
                         {
-                            int colon = line.IndexOf(':');
-                            if (colon <= 0) continue;
-                            string name = line.Substring(0, colon).Trim().ToLowerInvariant();
-                            string value = line.Substring(colon + 1).Trim();
-                            switch (name)
-                            {
-                                case "content-length": int.TryParse(value, out contentLength); break;
-                                case "transfer-encoding": if (value.Contains("chunked", StringComparison.OrdinalIgnoreCase)) chunked = true; break;
-                                case "origin": origin = value; break;
-                                case "accept-encoding": acceptEnc = value; break;
-                                case "content-type": contentType = value; break;
-                                case "expect": expect = value; break;
-                                case "cookie": cookie = value; break;
-                                case "host": host = value; break;
-                                // The core webui only answers browser-looking UAs (it
-                                // 404s curl/8); the AOG side demands the opposite. So
-                                // the auth relay carries the visitor's own UA through.
-                                case "user-agent": ua = value; break;
-                                case "cf-connecting-ip": cfIp = value; break;
-                                // Incoming XFF is stored only as a fallback when the
-                                // cloudflare trust mode says it came through the tunnel;
-                                // the core only ever sees the gate's own single hop.
-                                case "x-forwarded-for": if (TrustCloudflare && string.IsNullOrEmpty(cfIp) && value.Split(',')[0].Trim().Length > 0) cfIp = value.Split(',')[0].Trim(); break;
-                            }
+                            Respond(writer, "", 431, "Request Header Fields Too Large", "text/plain", "request headers too large", null, "no-store");
+                            break;
                         }
-                        if (TrustCloudflare && !string.IsNullOrEmpty(cfIp)) visitorIp = cfIp.Length <= 64 ? cfIp : remoteIp;
-
-                        // Normalize the path BEFORE any routing decision: percent-decoded,
-                        // dot segments collapsed, control chars refused. The core receives
-                        // this same canonical form, so gate classification and core routing
-                        // cannot disagree (checkup major #10).
-                        string path = CanonicalPath(target);
-                        string query = "";
-                        int q = target.IndexOf('?');
-                        if (q >= 0) query = target.Substring(q + 1);
-                        if (path == null)
-                        {
-                            Respond(writer, origin, 400, "Bad Request", "text/plain", "bad request", null, "no-store");
-                            continue;
-                        }
-                        string relayTarget = RelayPath(path) + (query.Length > 0 ? "?" + query : "");
-
-                        // Per-visitor limiting covers the identity-touching routes (gate
-                        // pages, core webui pages, /aog relays - everything that costs
-                        // the origin). Static file serving is cheap loopback file reads
-                        // with legitimate burst shape (a WebGL boot pulls hundreds of
-                        // bundles); bandwidth abuse there is Cloudflare's job, not the
-                        // origin gate's.
-                        string lastSeg = "";
-                        int slash = path.LastIndexOf('/');
-                        lastSeg = slash >= 0 ? path.Substring(slash + 1) : path;
-                        bool isHtml = path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".htm", StringComparison.OrdinalIgnoreCase);
-                        bool aogPath = path.StartsWith("/aog/", StringComparison.Ordinal);
-                        bool aogHijack = !aogPath && KnownAogNames.Contains(lastSeg);
-                        bool identityRoute = Gate && (aogPath || IsCorePage(path, method) || path == "/" || path == "/index.html" || (aogPath && isHtml));
-
-                        if (identityRoute && !VisitorAllowed(visitorIp, Environment.TickCount64))
-                        {
-                            Console.WriteLine("webfront rate-limited visitor " + visitorIp + " on " + method + " " + path);
-                            if (path.StartsWith("/aog/", StringComparison.Ordinal))
-                                RespondXml(writer, origin, 429, "Too Many Requests", 429, "rate limited at the web front - slow down");
-                            else
-                                Respond(writer, origin, 429, "Too Many Requests", "text/plain", "rate limited at the web front - slow down", null, "no-store");
-                            continue;
-                        }
-
-                        // node fetch and some HTTP clients hold the POST body until the
-                        // server sends 100 Continue; answer it before reading, else deadlock.
-                        bool hasDeclaredBody = chunked || contentLength > 0;
-                        if (hasDeclaredBody && contentLength <= MaxBodyBytes && expect.Contains("100", StringComparison.OrdinalIgnoreCase))
-                        {
-                            writer.Write("HTTP/1.1 100 Continue\r\n\r\n");
-                            writer.Flush();
-                        }
-
-                        byte[] body = Array.Empty<byte>();
-                        bool bodyFailed = false;
-                        if (contentLength > MaxBodyBytes)
-                        {
-                            Respond(writer, origin, 413, "Payload Too Large", "text/plain", "request body too large", null, "no-store");
-                            continue;
-                        }
-                        if (chunked)
-                        {
-                            // chunked framing relayed byte-exact up to the same cap.
-                            var chunks = new List<byte[]>();
-                            int chunkTotal = 0;
-                            while (true)
-                            {
-                                string sizeLine = reader.ReadLineLatin1();
-                                if (sizeLine == null) { bodyFailed = true; break; }
-                                int sc = sizeLine.IndexOf(';');
-                                if (sc >= 0) sizeLine = sizeLine.Substring(0, sc);
-                                if (!int.TryParse(sizeLine.Trim(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int cs) || cs < 0) { bodyFailed = true; break; }
-                                if (cs == 0)
-                                {
-                                    reader.ReadLineLatin1(); // trailing headers line (usually empty)
-                                    break;
-                                }
-                                if (chunkTotal + cs > MaxBodyBytes) { bodyFailed = true; break; }
-                                byte[] one = new byte[cs];
-                                if (reader.ReadRaw(one, 0, cs) != cs) { bodyFailed = true; break; }
-                                chunks.Add(one);
-                                chunkTotal += cs;
-                                reader.ReadLineLatin1(); // CRLF after chunk data
-                            }
-                            if (bodyFailed)
-                            {
-                                Respond(writer, origin, 400, "Bad Request", "text/plain", "bad chunked body", null, "no-store");
-                                continue;
-                            }
-                            int total = 0;
-                            foreach (byte[] c in chunks) total += c.Length;
-                            body = new byte[total];
-                            int at = 0;
-                            foreach (byte[] c in chunks) { Buffer.BlockCopy(c, 0, body, at, c.Length); at += c.Length; }
-                        }
-                        else if (contentLength > 0)
-                        {
-                            body = new byte[contentLength];
-                            int got = 0;
-                            while (got < contentLength)
-                            {
-                                int n = reader.ReadRaw(body, got, contentLength - got);
-                                if (n <= 0) break;
-                                got += n;
-                            }
-                            if (got < contentLength)
-                            {
-                                Respond(writer, origin, 400, "Bad Request", "text/plain", "incomplete body", null, "no-store");
-                                continue;
-                            }
-                        }
-
+                        if (line == null) break;
+                        if (line.Length == 0) continue;
+                        string origin = "", acceptEnc = "", contentType = "", expect = "", cookie = "", visitorIp = remoteIp, ua = "", host = "", cfIp = "", accept = "";
+                        bool broken = false;
+                        int phase = 0; // 0=request line, 1=headers, 2=body
                         try
                         {
+                            string[] parts = line.Split(' ');
+                            if (parts.Length < 2) break;
+                            string method = parts[0], target = parts[1];
+                            phase = 1;
+                            if (method != "GET" && method != "POST" && method != "HEAD" && method != "OPTIONS"
+                                && method != "PUT" && method != "DELETE" && method != "PATCH")
+                            {
+                                Respond(writer, origin, 405, "Method Not Allowed", "text/plain", "method not allowed", null, "no-store");
+                                continue;
+                            }
+                            bool isHead = method == "HEAD";
+
+                            int contentLength = 0;
+                            bool chunked = false;
+                            reader.SetDeadline(15000);
+                            int headerCount = 0, headerBytes = 0;
+                            while ((line = reader.ReadLineLatin1()) != null && line.Length > 0)
+                            {
+                                if (++headerCount > 200 || (headerBytes += line.Length) > 65536) { broken = true; break; }
+                                int colon = line.IndexOf(':');
+                                if (colon <= 0) continue;
+                                string name = line.Substring(0, colon).Trim().ToLowerInvariant();
+                                string value = line.Substring(colon + 1).Trim();
+                                switch (name)
+                                {
+                                    case "content-length": int.TryParse(value, out contentLength); break;
+                                    case "transfer-encoding": if (value.Contains("chunked", StringComparison.OrdinalIgnoreCase)) chunked = true; break;
+                                    case "origin": origin = value; break;
+                                    case "accept": accept = value; break;
+                                    case "accept-encoding": acceptEnc = value; break;
+                                    case "content-type": contentType = value; break;
+                                    case "expect": expect = value; break;
+                                    case "cookie": cookie = value; break;
+                                    case "host": host = value; break;
+                                    // The core webui only answers browser-looking UAs (it
+                                    // 404s curl/8); the AOG side demands the opposite. So
+                                    // the auth relay carries the visitor's own UA through.
+                                    case "user-agent": ua = value; break;
+                                    case "cf-connecting-ip": cfIp = value; break;
+                                    // A client-supplied X-Forwarded-For is never a source
+                                    // of identity: the gate's own hop is the only one the
+                                    // core ever sees (review round 2 minor #15).
+                                    case "x-forwarded-for": break;
+                                }
+                            }
+                            if (broken)
+                            {
+                                Respond(writer, origin, 431, "Request Header Fields Too Large", "text/plain", "too many request headers", null, "no-store");
+                                break;
+                            }
+                            if (TrustCloudflare && !string.IsNullOrEmpty(cfIp) && cfIp.Length <= 64) visitorIp = cfIp;
+
+                            // Normalize the path BEFORE any routing decision: percent-decoded,
+                            // dot segments collapsed, control chars refused. The core receives
+                            // this same canonical form, so gate classification and core routing
+                            // cannot disagree (checkup major #10).
+                            string path = CanonicalPath(target);
+                            string query = "";
+                            int q = target.IndexOf('?');
+                            if (q >= 0) query = target.Substring(q + 1);
+                            if (path == null)
+                            {
+                                Respond(writer, origin, 400, "Bad Request", "text/plain", "bad request", null, "no-store", null, isHead);
+                                continue;
+                            }
+                            string relayTarget = RelayPath(path) + (query.Length > 0 ? "?" + query : "");
+
+                            // Per-visitor limiting covers the identity-touching routes (gate
+                            // pages, core webui pages, /aog relays - everything that costs
+                            // the origin). Static file serving is cheap loopback file reads
+                            // with legitimate burst shape (a WebGL boot pulls hundreds of
+                            // bundles); bandwidth abuse there is Cloudflare's job, not the
+                            // origin gate's.
+                            string lastSeg = "";
+                            int slash = path.LastIndexOf('/');
+                            lastSeg = slash >= 0 ? path.Substring(slash + 1) : path;
+                            bool isHtml = path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".htm", StringComparison.OrdinalIgnoreCase);
+                            bool aogPath = path.StartsWith("/aog/", StringComparison.Ordinal);
+                            bool aogHijack = !aogPath && KnownAogNames.Contains(lastSeg);
+                            bool identityRoute = Gate && (aogPath || IsCorePage(path, method) || path == "/" || path == "/index.html" || (aogPath && isHtml));
+
+                            if (identityRoute && !VisitorAllowed(visitorIp, Environment.TickCount64))
+                            {
+                                Console.WriteLine("webfront rate-limited visitor " + visitorIp + " on " + method + " " + path);
+                                if (aogPath)
+                                    RespondXml(writer, origin, 429, "Too Many Requests", 429, "rate limited at the web front - slow down", isHead);
+                                else
+                                    Respond(writer, origin, 429, "Too Many Requests", "text/plain", "rate limited at the web front - slow down", null, "no-store", null, isHead);
+                                continue;
+                            }
+
+                            // node fetch and some HTTP clients hold the POST body until the
+                            // server sends 100 Continue; answer it before reading, else deadlock.
+                            if ((chunked || contentLength > 0) && contentLength <= MaxBodyBytes && expect.Contains("100", StringComparison.OrdinalIgnoreCase))
+                            {
+                                writer.Write("HTTP/1.1 100 Continue\r\n\r\n");
+                                writer.Flush();
+                            }
+
+                            byte[] body = Array.Empty<byte>();
+                            if (contentLength > MaxBodyBytes)
+                            {
+                                Respond(writer, origin, 413, "Payload Too Large", "text/plain", "request body too large", null, "no-store", null, isHead);
+                                continue;
+                            }
+                            phase = 2;
+                            reader.SetDeadline(30000);
+                            if (chunked)
+                            {
+                                // chunked framing relayed byte-exact up to the same cap.
+                                var chunks = new List<byte[]>();
+                                int chunkTotal = 0;
+                                bool bodyFailed = false, bodyTooBig = false;
+                                while (true)
+                                {
+                                    string sizeLine = reader.ReadLineLatin1();
+                                    if (sizeLine == null) { bodyFailed = true; break; }
+                                    int sc = sizeLine.IndexOf(';');
+                                    if (sc >= 0) sizeLine = sizeLine.Substring(0, sc);
+                                    if (!int.TryParse(sizeLine.Trim(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int cs) || cs < 0) { bodyFailed = true; break; }
+                                    if (cs == 0)
+                                    {
+                                        // trailer fields (RFC 7230) run until the empty line (review minor #11)
+                                        string t;
+                                        while ((t = reader.ReadLineLatin1()) != null && t.Length > 0) { }
+                                        break;
+                                    }
+                                    if (chunkTotal + cs > MaxBodyBytes) { bodyTooBig = true; break; }
+                                    byte[] one = new byte[cs];
+                                    if (reader.ReadRaw(one, 0, cs) != cs) { bodyFailed = true; break; }
+                                    chunks.Add(one);
+                                    chunkTotal += cs;
+                                    reader.ReadLineLatin1(); // CRLF after chunk data
+                                }
+                                if (bodyTooBig)
+                                {
+                                    Respond(writer, origin, 413, "Payload Too Large", "text/plain", "request body too large", null, "no-store", null, isHead);
+                                    continue;
+                                }
+                                if (bodyFailed)
+                                {
+                                    Respond(writer, origin, 400, "Bad Request", "text/plain", "bad chunked body", null, "no-store", null, isHead);
+                                    continue;
+                                }
+                                int total = 0;
+                                foreach (byte[] c in chunks) total += c.Length;
+                                body = new byte[total];
+                                int at = 0;
+                                foreach (byte[] c in chunks) { Buffer.BlockCopy(c, 0, body, at, c.Length); at += c.Length; }
+                            }
+                            else if (contentLength > 0)
+                            {
+                                body = new byte[contentLength];
+                                int got = 0;
+                                while (got < contentLength)
+                                {
+                                    int n = reader.ReadRaw(body, got, contentLength - got);
+                                    if (n <= 0) break;
+                                    got += n;
+                                }
+                                if (got < contentLength)
+                                {
+                                    Respond(writer, origin, 400, "Bad Request", "text/plain", "incomplete body", null, "no-store", null, isHead);
+                                    continue;
+                                }
+                            }
+
                             // login/signup/logout are AOG names too (the old native lane
                             // posted them bare) - the hijack guard must not block the core
                             // webui's own routes. It refuses an AOG endpoint name outside
@@ -382,48 +481,68 @@ namespace WebFront
                             if (aogHijack && Gate && !ExactCorePath(path))
                             {
                                 Console.WriteLine("webfront refused " + method + " " + path + " (AOG endpoint name outside /aog/)");
-                                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store");
+                                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store", null, isHead);
                             }
                             else if (method == "OPTIONS" && aogPath && !isHtml)
                             {
-                                Respond(writer, origin, 204, "No Content", null, null, null, "no-store");
+                                Respond(writer, origin, 204, "No Content", null, null, null, "no-store", null, isHead);
                             }
-                            else if (path.StartsWith("/aog/", StringComparison.Ordinal) && !isHtml)
+                            else if (aogPath && !isHtml)
                             {
-                                if (Gate) HandleApi(writer, origin, method, relayTarget, body, contentType, cookie, visitorIp);
-                                else DevRelay(writer, origin, method, relayTarget, path, body, contentType, visitorIp);
+                                if (Gate) HandleApi(writer, origin, method, relayTarget, body, contentType, cookie, visitorIp, isHead);
+                                else DevRelay(writer, origin, method, relayTarget, path, body, contentType, visitorIp, isHead);
                             }
-                            else if (path.StartsWith("/aog/", StringComparison.Ordinal) && isHtml)
+                            else if (aogPath && isHtml)
                             {
                                 // A page under the /aog prefix (the shape the statics
                                 // server uses too): gated or plain, never relayed as API.
-                                if (Gate) HandlePage(writer, origin, cookie, path, visitorIp);
-                                else ServeStatic(writer, origin, acceptEnc, path);
+                                if (Gate) HandlePage(writer, origin, cookie, path, visitorIp, isHead);
+                                else ServeStatic(writer, origin, acceptEnc, path, isHead);
                             }
                             else if (path == "/index_play.html" && Gate)
                             {
                                 // The LAN artifact's old name: bounce to the session page.
                                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
-                                    new string[] { "Location: /" });
+                                    new string[] { "Location: /" }, isHead);
                             }
                             else if (Gate && (path == "/" || path == "/index.html"))
                             {
-                                HandlePage(writer, origin, cookie, path, visitorIp);
+                                HandlePage(writer, origin, cookie, path, visitorIp, isHead);
                             }
                             else if (Gate && IsCorePage(path, method))
                             {
-                                HandleAuth(writer, origin, method, relayTarget, path, body, contentType, cookie, visitorIp, ua, host);
+                                HandleAuth(writer, origin, method, relayTarget, path, body, contentType, cookie, visitorIp, ua, host, accept, isHead);
                             }
                             else if (Gate && isHtml)
                             {
                                 // Gated mode never answers arbitrary .html names with the
                                 // index page (checkup major #19).
-                                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store");
+                                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store", null, isHead);
                             }
                             else
                             {
-                                ServeStatic(writer, origin, acceptEnc, path);
+                                ServeStatic(writer, origin, acceptEnc, path, isHead);
                             }
+                        }
+                        catch (TimeoutException)
+                        {
+                            // body did not arrive in time: answer and drop the socket
+                            // (review round 2 critical #1 - no more 120 s silence)
+                            Console.WriteLine("webfront: request read deadline exceeded (" + phase + ")");
+                            Respond(writer, origin, 408, "Request Timeout", "text/plain", "request body did not arrive in time", null, "no-store");
+                            break;
+                        }
+                        catch (IOException io)
+                        {
+                            // socket idle-timeout / oversized line: phase tells which
+                            if (phase >= 2)
+                            {
+                                Console.WriteLine("webfront: body read stalled (" + io.Message + ")");
+                                Respond(writer, origin, 400, "Bad Request", "text/plain", "incomplete body", null, "no-store");
+                            }
+                            else
+                                Respond(writer, origin, 431, "Request Header Fields Too Large", "text/plain", "request headers too large", null, "no-store");
+                            break;
                         }
                         catch (Exception e)
                         {
@@ -438,7 +557,7 @@ namespace WebFront
 
         private static readonly Encoding UTF8Fallback = new UTF8Encoding(false);
 
-        private static void Respond(StreamWriter writer, string origin, int status, string reason, string contentType, string bodyLatin1, string contentEncoding, string cacheControl, string[] extraHeaders = null)
+        private static void Respond(StreamWriter writer, string origin, int status, string reason, string contentType, string bodyLatin1, string contentEncoding, string cacheControl, string[] extraHeaders = null, bool head = false)
         {
             writer.Write("HTTP/1.1 ");
             writer.Write(status.ToString(CultureInfo.InvariantCulture));
@@ -457,14 +576,15 @@ namespace WebFront
             writer.Write("\r\nContent-Length: ");
             writer.Write((bodyLatin1 == null ? 0 : bodyLatin1.Length).ToString(CultureInfo.InvariantCulture));
             writer.Write("\r\nConnection: close\r\n\r\n");
-            if (bodyLatin1 != null && bodyLatin1.Length > 0) writer.Write(bodyLatin1);
+            // HEAD may declare the entity length but must not carry body bytes (RFC 9112).
+            if (!head && bodyLatin1 != null && bodyLatin1.Length > 0) writer.Write(bodyLatin1);
             writer.Flush();
         }
 
-        private static void RespondXml(StreamWriter writer, string origin, int status, string reason, int code, string msg)
+        private static void RespondXml(StreamWriter writer, string origin, int status, string reason, int code, string msg, bool head = false)
         {
             string xml = "<root><serv_st><code>" + code + "</code><msg>" + WebUtility.HtmlEncode(msg) + "</msg></serv_st></root>";
-            Respond(writer, origin, status, reason, "text/xml; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(xml)), null, "no-store");
+            Respond(writer, origin, status, reason, "text/xml; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(xml)), null, "no-store", null, head);
         }
 
         private static string ToLatin1(byte[] b)
@@ -514,13 +634,21 @@ namespace WebFront
             return string.Join("/", parts);
         }
 
-        private static void ServeStatic(StreamWriter writer, string origin, string acceptEnc, string canonical)
+        private static void ServeStatic(StreamWriter writer, string origin, string acceptEnc, string canonical, bool head = false)
         {
             string rel = canonical == "/" ? "index.html" : canonical.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
             string file = Path.GetFullPath(Path.Combine(Root, rel));
             if (!file.StartsWith(Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             {
-                Respond(writer, origin, 403, "Forbidden", "text/plain", "forbidden", null, "no-store");
+                Respond(writer, origin, 403, "Forbidden", "text/plain", "forbidden", null, "no-store", null, head);
+                return;
+            }
+            // Compression sidecars are only ever served through their base name
+            // (which keeps gating intact): naming .br/.gz directly is a 404
+            // (review round 2 major #4 - /index.html.br skipped the whole page gate).
+            if (file.EndsWith(".br", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".gz", StringComparison.OrdinalIgnoreCase))
+            {
+                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store", null, head);
                 return;
             }
             string enc = null;
@@ -528,24 +656,24 @@ namespace WebFront
             if (!File.Exists(file))
             {
                 Console.WriteLine("webfront static 404: " + file);
-                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store");
+                Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store", null, head);
                 return;
             }
             // Content-hashed build trees stay immutable; a plain .html page name is
             // served fresh so a relaunched play page never reads from a stale cache.
             string cache = file.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".html.br", StringComparison.OrdinalIgnoreCase)
                 ? "no-store" : "public, max-age=31536000, immutable";
-            Respond(writer, origin, 200, "OK", Mime(file), ToLatin1(File.ReadAllBytes(file)), enc, cache);
+            Respond(writer, origin, 200, "OK", Mime(file), ToLatin1(File.ReadAllBytes(file)), enc, cache, null, head);
         }
 
-        private static void Forward(StreamWriter writer, string origin, string method, string relayTarget, byte[] body, string contentType, string visitorIp)
+        private static void Forward(StreamWriter writer, string origin, string method, string relayTarget, byte[] body, string contentType, string visitorIp, bool head = false)
         {
             string pathAndQuery = relayTarget.StartsWith("/") ? relayTarget : "/" + relayTarget;
             string url = Upstream.TrimEnd('/') + pathAndQuery;
             HttpResponseMessage resp;
             try
             {
-                using var mreq = new HttpRequestMessage(method == "GET" ? HttpMethod.Get : HttpMethod.Post, url);
+                using var mreq = new HttpRequestMessage(method == "GET" ? HttpMethod.Get : method == "HEAD" ? HttpMethod.Head : HttpMethod.Post, url);
                 if (body != null && body.Length > 0)
                 {
                     var content = new ByteArrayContent(body);
@@ -561,7 +689,7 @@ namespace WebFront
             catch (Exception e)
             {
                 Console.WriteLine("webfront forward error: " + e.Message);
-                RespondXml(writer, origin, 502, "Bad Gateway", 502, "upstream unavailable");
+                RespondXml(writer, origin, 502, "Bad Gateway", 502, "upstream unavailable", head);
                 return;
             }
             using (resp)
@@ -570,7 +698,7 @@ namespace WebFront
                 string ct = resp.Content.Headers.ContentType?.ToString() ?? "text/xml";
                 // AOG answers are per-session game state - caching one would let a
                 // superseded pcuid replay last game's bytes (docs/28 defect fix).
-                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store");
+                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", null, head);
             }
         }
 
@@ -719,7 +847,7 @@ namespace WebFront
             }
         }
 
-        private static void DevRelay(StreamWriter writer, string origin, string method, string relayTarget, string path, byte[] body, string contentType, string visitorIp)
+        private static void DevRelay(StreamWriter writer, string origin, string method, string relayTarget, string path, byte[] body, string contentType, string visitorIp, bool head)
         {
             // Dev relay with an armed presenter: claimed/web-issued accounts (a core
             // card document exists - the plugin checks that) log in on this lane too,
@@ -733,21 +861,21 @@ namespace WebFront
                 string userId = FormValue(Latin1.GetString(body), "user_id");
                 if (!string.IsNullOrEmpty(userId)) PresentCard(userId.Trim().ToUpperInvariant(), "dev-relay");
             }
-            Forward(writer, origin, method, relayTarget, body, contentType, visitorIp);
+            Forward(writer, origin, method, relayTarget, body, contentType, visitorIp, head);
         }
 
-        private static void HandlePage(StreamWriter writer, string origin, string cookie, string path, string visitorIp)
+        private static void HandlePage(StreamWriter writer, string origin, string cookie, string path, string visitorIp, bool head)
         {
             SessionEntry e = CheckSession(cookie, visitorIp);
             if (e.Kind == SessionKind.UpstreamError)
             {
-                Respond(writer, origin, 503, "Service Unavailable", "text/plain", "the identity origin is temporarily unavailable - try again", null, "no-store");
+                Respond(writer, origin, 503, "Service Unavailable", "text/plain", "the identity origin is temporarily unavailable - try again", null, "no-store", null, head);
                 return;
             }
             if (e.Kind != SessionKind.Ok)
             {
                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
-                    new string[] { "Location: /login?next=" + Uri.EscapeDataString(path) });
+                    new string[] { "Location: /login?next=" + Uri.EscapeDataString(path) }, head);
                 return;
             }
             if (string.IsNullOrEmpty(e.Info.Card))
@@ -755,7 +883,7 @@ namespace WebFront
                 // A web account without a game DataID cannot play; send it where an
                 // admin can claim one for it instead of looping / <-> /login.
                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
-                    new string[] { "Location: /account" });
+                    new string[] { "Location: /account" }, head);
                 return;
             }
             // Always splice from the canonical template: a stale index_play.html
@@ -764,7 +892,7 @@ namespace WebFront
             string file = Path.GetFullPath(Path.Combine(Root, "index.html"));
             if (!File.Exists(file))
             {
-                Respond(writer, origin, 404, "Not Found", "text/plain", "webroot index.html missing", null, "no-store");
+                Respond(writer, origin, 404, "Not Found", "text/plain", "webroot index.html missing", null, "no-store", null, head);
                 return;
             }
             string html = UTF8Fallback.GetString(File.ReadAllBytes(file));
@@ -774,7 +902,7 @@ namespace WebFront
             if (!html.Contains("\"-AUTOSERVE\"") || html.Contains("\"-DATAID="))
             {
                 Console.WriteLine("webfront: webroot index.html is not a clean splice template (anchor missing or identity already pinned) - refusing to serve");
-                Respond(writer, origin, 500, "Internal Server Error", "text/plain", "play page template not splicable", null, "no-store");
+                Respond(writer, origin, 500, "Internal Server Error", "text/plain", "play page template not splicable", null, "no-store", null, head);
                 return;
             }
             string pin = "\"-ENTERCARD\", \"-TRANSLATE\", \"-REGULAR\", \"-DATAID=" + e.Info.Card + "\"";
@@ -782,44 +910,55 @@ namespace WebFront
             if (page.Contains("-AUTOSERVE"))
             {
                 Console.WriteLine("webfront: webroot index.html has no -AUTOSERVE anchor to splice - refusing to serve");
-                Respond(writer, origin, 500, "Internal Server Error", "text/plain", "play page splice failed", null, "no-store");
+                Respond(writer, origin, 500, "Internal Server Error", "text/plain", "play page splice failed", null, "no-store", null, head);
                 return;
             }
             // Positional -FRONTURL rewrite: assemble scripts may write any literal.
             page = Regex.Replace(page, "-FRONTURL\\x22,\\s*\\x22[^\\x22]*\\x22", "-FRONTURL\", \"" + PageFrontUrl.Replace("$", "$$") + "\"");
-            Respond(writer, origin, 200, "OK", "text/html; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(page)), null, "no-store");
+            Respond(writer, origin, 200, "OK", "text/html; charset=utf-8", ToLatin1(UTF8Fallback.GetBytes(page)), null, "no-store", null, head);
         }
 
-        private static void HandleApi(StreamWriter writer, string origin, string method, string relayTarget, byte[] body, string contentType, string cookie, string visitorIp)
+        private static void HandleApi(StreamWriter writer, string origin, string method, string relayTarget, byte[] body, string contentType, string cookie, string visitorIp, bool head)
         {
             SessionEntry e = CheckSession(cookie, visitorIp);
             if (e.Kind == SessionKind.UpstreamError)
             {
-                RespondXml(writer, origin, 503, "Service Unavailable", 503, "the identity origin is temporarily unavailable");
+                RespondXml(writer, origin, 503, "Service Unavailable", 503, "the identity origin is temporarily unavailable", head);
                 return;
             }
             if (e.Kind != SessionKind.Ok)
             {
-                RespondXml(writer, origin, 403, "Forbidden", 770, "web session required: sign in at /login first");
+                RespondXml(writer, origin, 403, "Forbidden", 770, "web session required: sign in at /login first", head);
                 return;
             }
             if (string.IsNullOrEmpty(e.Info.Card))
             {
-                RespondXml(writer, origin, 403, "Forbidden", 770, "this web account has no game DataID yet - an admin must claim one for it");
+                RespondXml(writer, origin, 403, "Forbidden", 770, "this web account has no game DataID yet - an admin must claim one for it", head);
                 return;
             }
             string path = relayTarget.Split('?')[0];
             if (path == "/aog/login" || path == "/aog/create_player") PresentCard(e.Info.Card, "user=" + e.Info.Username);
-            Forward(writer, origin, method, relayTarget, body, contentType, visitorIp);
+            Forward(writer, origin, method, relayTarget, body, contentType, visitorIp, head);
         }
 
-        private static void HandleAuth(StreamWriter writer, string origin, string method, string relayTarget, string path, byte[] body, string contentType, string cookie, string visitorIp, string ua, string host)
+        private static void HandleAuth(StreamWriter writer, string origin, string method, string relayTarget, string path, byte[] body, string contentType, string cookie, string visitorIp, string ua, string host, string accept, bool head)
         {
             string pathAndQuery = relayTarget.StartsWith("/") ? relayTarget : "/" + relayTarget;
             string url = AuthBase.TrimEnd('/') + pathAndQuery;
             try
             {
-                using var mreq = new HttpRequestMessage(method == "GET" ? HttpMethod.Get : HttpMethod.Post, url);
+                // Relay the visitor's real method - rewriting everything to POST made
+                // nominally safe verbs execute POST routes at the origin (review #12).
+                HttpMethod verb = method switch
+                {
+                    "GET" => HttpMethod.Get,
+                    "POST" => HttpMethod.Post,
+                    "HEAD" => HttpMethod.Head,
+                    "PUT" => HttpMethod.Put,
+                    "DELETE" => HttpMethod.Delete,
+                    _ => new HttpMethod(method),
+                };
+                using var mreq = new HttpRequestMessage(verb, url);
                 if (body != null && body.Length > 0)
                 {
                     var content = new ByteArrayContent(body);
@@ -827,6 +966,9 @@ namespace WebFront
                     mreq.Content = content;
                 }
                 if (!string.IsNullOrEmpty(cookie)) mreq.Headers.TryAddWithoutValidation("Cookie", cookie);
+                // Accept decides JSON-vs-redirect at the core (the account page's
+                // token buttons depend on it - review round 2 minor #14).
+                if (!string.IsNullOrEmpty(accept)) mreq.Headers.TryAddWithoutValidation("Accept", accept);
                 mreq.Headers.TryAddWithoutValidation("X-Forwarded-For", visitorIp);
                 if (!string.IsNullOrEmpty(host)) mreq.Headers.TryAddWithoutValidation("Host", host);
                 mreq.Headers.TryAddWithoutValidation("X-Forwarded-Proto", TrustCloudflare ? "https" : "http");
@@ -841,21 +983,23 @@ namespace WebFront
                 if (resp.Headers.TryGetValues("Set-Cookie", out var cookies))
                     foreach (string v in cookies) extras.Add("Set-Cookie: " + v);
                 if (resp.Headers.Location != null) extras.Add("Location: " + resp.Headers.Location.ToString());
-                if (path.Equals("/logout", StringComparison.OrdinalIgnoreCase))
+                if (path.Equals("/logout", StringComparison.OrdinalIgnoreCase) && (int)resp.StatusCode < 400)
                 {
-                    // Evict the gate's view immediately and clear the browser cookie:
-                    // a logged-out cookie must not keep the play page alive for the
-                    // rest of the cache window (checkup major #14).
+                    // Evict the gate's view immediately and clear the browser cookie -
+                    // only after the origin really ended the session (the core now
+                    // answers POST /logout too, review round 2 major #3). A logged-out
+                    // cookie must not keep the play page alive for the cache window
+                    // (checkup major #14).
                     string key = SessionKeyOf(cookie);
                     if (key != null) lock (SessionsLock) Sessions.Remove(key);
                     extras.Add("Set-Cookie: connect.sid=; path=/; expires=Wed, 21 Oct 2015 07:28:00 GMT");
                 }
-                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", extras.ToArray());
+                Respond(writer, origin, (int)resp.StatusCode, resp.ReasonPhrase ?? "OK", ct, ToLatin1(payload), null, "no-store", extras.ToArray(), head);
             }
             catch (Exception e)
             {
                 Console.WriteLine("webfront auth relay error: " + e);
-                Respond(writer, origin, 502, "Bad Gateway", "text/plain", "the identity origin is temporarily unavailable", null, "no-store");
+                Respond(writer, origin, 502, "Bad Gateway", "text/plain", "the identity origin is temporarily unavailable", null, "no-store", null, head);
             }
         }
 

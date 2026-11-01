@@ -30,12 +30,12 @@ Copy-Item $Build $Webroot -Recurse
 $idx = Get-ChildItem $Webroot -Filter 'index.html' | Select-Object -First 1
 $html = Get-Content $idx.FullName -Raw
 if ($html -notmatch 'arguments:') {
-    $args2 = 'var config = { arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE"],'
+    $args2 = 'var config = { arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE", "-TRANSLATE"],'
     if ($html -match 'var config = \{') {
         $html = $html -replace 'var config = \{', $args2
     } else {
         # fallback for loaders without the config literal: pass an args object as second parameter
-        $html = $html -replace '(createUnityInstance\(([^,]+),\s*)', ('$1' + '{ arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE"] }, ')
+        $html = $html -replace '(createUnityInstance\(([^,]+),\s*)', ('$1' + '{ arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE", "-TRANSLATE"] }, ')
     }
     Set-Content $idx.FullName $html -Encoding UTF8 -NoNewline
     'patched index.html config.arguments'
@@ -76,6 +76,7 @@ if ($Serve) {
     $env:WEBFRONT_ROOT = $Webroot
     $env:WEBFRONT_UPSTREAM = $Upstream
     $env:WEBFRONT_BIND = $Bind
+    $env:WEBFRONT_GATE = '0'   # dev serve: relay mode (hosted gate is a deployment setting)
     Start-Process -FilePath (Join-Path $root 'webfront\bin\Release\net8.0\WebFront.exe') `
         -WorkingDirectory (Join-Path $root 'webfront\bin\Release\net8.0') `
         -RedirectStandardError (Join-Path $env:TEMP 'webfront.err.txt') `

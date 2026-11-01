@@ -7,6 +7,12 @@
 #
 # usage:
 #   preview_game.ps1 / .bat      # RyuNET preview: full server features, you drive everything
+#   preview_game.ps1 -DataID NAME # identity to log in as (default 6AE73807BA1CE8CB: the account
+#                                  # your first preview sessions already built up: 26 saved states);
+#                                  # stays the same across launches, so the saved account comes back
+#   preview_game.ps1 -Guest      # legacy trial semantics: pinned account boots as GUEST
+#                                  # (default is REGULAR: registered player, My Room etc. unlocked;
+#                                  # an account with no registered name gets the original name-setup flow)
 #   preview_game.ps1 -Mock       # offline fallback lane: repo mock on 8085, no hold
 #   preview_game.ps1 -Park       # capture-style frozen FirstCharaSelect (mock 8084, 1 h hold)
 #   preview_game.ps1 -Stop       # close the preview window and kill RyuNET/mock/webfront procs
@@ -16,6 +22,8 @@ param(
     [switch]$Mock,
     [switch]$Park,
     [switch]$Stop,
+    [switch]$Guest,
+    [string]$DataID = '6AE73807BA1CE8CB',
     [string]$EdgeExe = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 )
 $ProgressPreference = 'SilentlyContinue'
@@ -29,6 +37,15 @@ $repoReal = 'C:\mfg'
 $tgt = (Get-Item 'C:\mfg' -EA SilentlyContinue).Target
 if ($tgt) { $repoReal = $tgt.TrimEnd('\') }
 $ryuDist = Join-Path $repoReal 'tmp\RyuNET-core\dist'
+# Presenter secret (docs/28): once an account is claimed/web-issued it is
+# card-bound server-side, and its logins must be presented by the front.
+# Both core (plugin side) and webfront need the same secret for this to work
+# on the LAN lane too. Generated once by hosted_lane/hosting runbook.
+$secFile = Join-Path $env:USERPROFILE '.mfg-web\presenter.secret'
+if (Test-Path $secFile) {
+    $env:VFG_PRESENTER_SECRET = (Get-Content $secFile -Raw).Trim()
+    $env:WEBFRONT_PRESENTER_SECRET_FILE = $secFile
+} else { 'note: no presenter secret at ' + $secFile + ' - claimed accounts will not log in on this lane' }
 $page = if ($Park) { 'index_park2.html' } else { 'index_play.html' }
 $url = 'http://127.0.0.1:8094/aog/' + $page
 
@@ -57,6 +74,10 @@ function Start-Front($port, $upstream, $bind) {
     $env:WEBFRONT_UPSTREAM = $upstream
     $env:WEBFRONT_PORT = "$port"
     $env:WEBFRONT_BIND = $bind
+    # LAN dev lane: relay mode stays open (no web sessions here); the hosted
+    # gate (WEBFRONT_GATE=1 + presenter secret) is a deployment thing.
+    $env:WEBFRONT_GATE = '0'
+    $env:WEBFRONT_AUTH = 'http://127.0.0.1:8083'
     $wd = 'C:\mfg\webfront\bin\Release\net8.0'
     $p = Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput ("C:\mfgtmp\webfront$port.out.txt") -RedirectStandardError ("C:\mfgtmp\webfront$port.err.txt")
@@ -64,8 +85,17 @@ function Start-Front($port, $upstream, $bind) {
 }
 
 function New-PlayPage($frontUrl) {
+    # -DATAID pins the identity: the shipping client rolls a new random DataID every
+    # launch, so without this each preview starts as a brand-new account (tutorial, story,
+    # notices all over again) and the saved server profile is left behind.
+    # -REGULAR (default, unless -Guest) makes the pinned account boot as a registered
+    # (non-guest) player: full Home hub, My Room character select available. The account
+    # flips is_guest=false server-side on its first such login.
+    $pin = '"-ENTERCARD", "-TRANSLATE", '
+    if (-not $Guest) { $pin += '"-REGULAR", ' }
+    $pin += '"-DATAID=' + $DataID + '"'
     $html = Get-Content (Join-Path $webroot 'index.html') -Raw
-    $new = $html.Replace(', "-AUTOSERVE"', ', "-ENTERCARD"').Replace('"-AUTOSERVE", ', '"-ENTERCARD", ').Replace('http://127.0.0.1:8090/aog', $frontUrl)
+    $new = $html.Replace(', "-AUTOSERVE"', ', ' + $pin).Replace('"-AUTOSERVE", ', $pin + ', ').Replace('http://127.0.0.1:8090/aog', $frontUrl)
     if ($new -match '-AUTOSERVE') { throw 'play page rewrite failed (AUTOSERVE still present)' }
     Set-Content (Join-Path $webroot 'index_play.html') $new -Encoding UTF8 -NoNewline
     Remove-Item (Join-Path $webroot 'index_play.html.br') -Force -EA SilentlyContinue
@@ -128,6 +158,7 @@ if ($Park) {
     'relay smoke: browser-UA POST /aog/appli_info -> 200 XML via RyuNET'
     New-PlayPage 'http://127.0.0.1:8090/aog'
     'index_play.html ready (no AUTOSERVE, FRONTURL via webfront relay)'
+    'identity: ' + $DataID + '  boot: ' + $(if ($Guest) { 'guest (trial)' } else { 'regular (registered player)' }) + '  (press Enter in the game window to sign in)'
 }
 
 # 4. visible game window: dedicated Edge profile so it never merges with your personal browser

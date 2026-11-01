@@ -37,6 +37,11 @@ from outside. Works the same on your own PC or a Windows VPS.
 
 ## Cloudflare (one hostname, single origin)
 
+Live shape (2026-11-01): tunnel `mfg` (` <tunnel-uuid>`) routes
+`https://mfg.0006767.xyz` (zone `0006767.xyz` - ` <provider-host>` is the provider's domain, not on
+this account) to the gated WebFront on `127.0.0.1:8090`. Config lives at
+`%USERPROFILE%\.cloudflared\config.yml`.
+
 1. Install `cloudflared`, `cloudflared tunnel create mfg`.
 2. Copy `scripts\hosting_cloudflared.yml` to `%USERPROFILE%\.cloudflared\config.yml`,
    replace `mfg.example.com` and the tunnel id.
@@ -49,8 +54,10 @@ from outside. Works the same on your own PC or a Windows VPS.
      (the core also has its own 10-per-15-min limiter, fed by `CF-Connecting-IP`
      relayed as `X-Forwarded-For`);
    - Bot Fight Mode on; WebSockets setting stays OFF (the game is plain POSTs);
-   - A Cache rule is optional: build files are content-hashed and already served
-     `immutable`; pages/API come through `no-store` from the front.
+   - A Cache rule is optional: StreamingAssets bundle names are content-hashed and served
+      `immutable`; entry build files (loader/framework/data/wasm) share fixed names, so they
+      need revalidation after a rebuild (front-side cache policy rework pending). Pages/API
+      come through `no-store` from the front.
 7. `WEB_SECURE_COOKIE=1` gives the session cookie the `Secure` flag - use it only
     when the lane really terminates https (`hosting_up.ps1 -Tunnel` sets it for
     exactly that shape). Setting it on a plain-http origin makes express-session

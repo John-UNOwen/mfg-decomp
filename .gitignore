@@ -56,3 +56,8 @@ out/brtest/
 __pycache__/
 build/project-merge-analysis/verify/*/bin/Release/
 build/project-merge-analysis/verify/*/obj/Release/
+
+# runtime artifacts and local working dirs (docs/28 risk item 8: logs carry real ids)
+log.txt
+.audit/
+.dsh-vision-router/

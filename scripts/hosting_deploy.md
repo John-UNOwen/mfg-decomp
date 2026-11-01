@@ -54,10 +54,10 @@ this account) to the gated WebFront on `127.0.0.1:8090`. Config lives at
      (the core also has its own 10-per-15-min limiter, fed by `CF-Connecting-IP`
      relayed as `X-Forwarded-For`);
    - Bot Fight Mode on; WebSockets setting stays OFF (the game is plain POSTs);
-   - A Cache rule is optional: StreamingAssets bundle names are content-hashed and served
-      `immutable`; entry build files (loader/framework/data/wasm) share fixed names, so they
-      need revalidation after a rebuild (front-side cache policy rework pending). Pages/API
-      come through `no-store` from the front.
+   - A Cache rule is optional: the gate already splits the policy - content-hashed
+      StreamingAssets bundles are served `immutable`, plain-named entry build files
+      (loader/framework/data/wasm) get `max-age=3600` so a rebuild reaches browsers
+      within an hour; pages/API come through `no-store` from the front.
 7. `WEB_SECURE_COOKIE=1` gives the session cookie the `Secure` flag - use it only
     when the lane really terminates https (`hosting_up.ps1 -Tunnel` sets it for
     exactly that shape). Setting it on a plain-http origin makes express-session

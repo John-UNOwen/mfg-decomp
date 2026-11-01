@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -57,6 +58,21 @@ namespace WebFront
             return "";
         }
 
+        // Access-code lobby (owner requirement, 2026-11-01): before the login/signup
+        // feature is shown at all, visitors pass one shared passphrase - no username,
+        // just the code to gain access to the feature. WEBFRONT_ACCESS_CODE (or
+        // WEBFRONT_ACCESS_CODE_FILE); unset = lobby off, today's behavior unchanged.
+        private static readonly string AccessCode = ResolveAccessCode();
+        private static bool LobbyEnabled => Gate && !string.IsNullOrEmpty(AccessCode);
+        private static string ResolveAccessCode()
+        {
+            var s = Environment.GetEnvironmentVariable("WEBFRONT_ACCESS_CODE");
+            if (!string.IsNullOrEmpty(s)) return s.Trim();
+            var f = Environment.GetEnvironmentVariable("WEBFRONT_ACCESS_CODE_FILE");
+            try { if (!string.IsNullOrEmpty(f) && File.Exists(f)) return File.ReadAllText(f).Trim(); } catch { }
+            return "";
+        }
+
         // Session cache: session id -> who it answers to (keyed on the sid token, not
         // the whole Cookie header, so junk cookie pairs cannot mint cache entries).
         // The core is loopback, but the game posts keep_alive/gget every second, so
@@ -98,6 +114,105 @@ namespace WebFront
             }
         }
 
+        // Lobby unlock tokens: the access-code check mints a random 128-bit token
+        // (24 h) kept here; the browser holds it in an HttpOnly cookie. No plaintext
+        // code ever reaches the client side after the one unlock POST.
+        private const int MaxLobbyTokens = 5000;
+        private const long LobbyTtlMs = 86400000;
+        private static readonly Dictionary<string, long> LobbyTokens = new Dictionary<string, long>();
+        private static readonly object LobbyLock = new object();
+        // The unlock attempt itself is throttled hard: 10 codes/min per visitor.
+        private const int LobbyMaxPerWindow = 10;
+        private static readonly Dictionary<string, (long WindowStart, int Count)> LobbyHits = new Dictionary<string, (long, int)>();
+        private static bool LobbyAttemptAllowed(string ip, long now)
+        {
+            lock (VisitorLock)
+            {
+                if (LobbyHits.Count >= MaxVisitorEntries)
+                {
+                    foreach (string k in new List<string>(LobbyHits.Keys))
+                        if (LobbyHits[k].WindowStart + VisitorWindowMs < now) LobbyHits.Remove(k);
+                    if (LobbyHits.Count >= MaxVisitorEntries) LobbyHits.Clear();
+                }
+                if (!LobbyHits.TryGetValue(ip, out var e) || now - e.WindowStart >= VisitorWindowMs)
+                {
+                    LobbyHits[ip] = (now, 1);
+                    return true;
+                }
+                if (e.Count >= LobbyMaxPerWindow) return false;
+                LobbyHits[ip] = (e.WindowStart, e.Count + 1);
+                return true;
+            }
+        }
+        private static string CookieValueOf(string cookieHeader, string name)
+        {
+            if (string.IsNullOrEmpty(cookieHeader)) return null;
+            foreach (string part in cookieHeader.Split(';'))
+            {
+                string p = part.Trim();
+                if (p.StartsWith(name + "=", StringComparison.Ordinal)) return p.Substring(name.Length + 1);
+            }
+            return null;
+        }
+        private static bool LobbyOk(string cookieHeader)
+        {
+            string tok = CookieValueOf(cookieHeader, "mfg_lobby");
+            if (string.IsNullOrEmpty(tok) || tok.Length != 32) return false;
+            lock (LobbyLock)
+            {
+                if (!LobbyTokens.TryGetValue(tok, out long until)) return false;
+                if (until < Environment.TickCount64) { LobbyTokens.Remove(tok); return false; }
+                return true;
+            }
+        }
+        private static string NewLobbyToken()
+        {
+            lock (LobbyLock)
+            {
+                if (LobbyTokens.Count >= MaxLobbyTokens)
+                {
+                    foreach (string k in new List<string>(LobbyTokens.Keys))
+                        if (LobbyTokens[k] < Environment.TickCount64) LobbyTokens.Remove(k);
+                    if (LobbyTokens.Count >= MaxLobbyTokens) LobbyTokens.Clear();
+                }
+                string t = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+                LobbyTokens[t] = Environment.TickCount64 + LobbyTtlMs;
+                return t;
+            }
+        }
+        // Compare digests, not the strings: no length or byte timing channel.
+        private static bool CodeMatches(string given)
+        {
+            byte[] a = SHA256.HashData(Encoding.UTF8.GetBytes(given));
+            byte[] b = SHA256.HashData(Encoding.UTF8.GetBytes(AccessCode));
+            return CryptographicOperations.FixedTimeEquals(a, b);
+        }
+        private static string SafeNext(string n)
+        {
+            if (string.IsNullOrEmpty(n)) return "/";
+            if (n.Length > 200) return "/";
+            if (!n.StartsWith("/") || n.StartsWith("//")) return "/";
+            foreach (char c in n) if (c < 0x20 || c == '\\' || c == '@') return "/";
+            return n;
+        }
+        private static string LobbyPage(string next, string error)
+        {
+            string err = error == null ? "" : "<p class=e>" + WebUtility.HtmlEncode(error) + "</p>";
+            return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+                "<title>Private hosting - access code required</title><style>" +
+                "body{font-family:system-ui,sans-serif;background:#10151c;color:#e6ecf3;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}" +
+                "form{background:#1a2230;border:1px solid #2c3a4e;border-radius:10px;padding:28px 32px;width:min(92vw,380px)}" +
+                "h1{font-size:18px;margin:0 0 6px}p.sub{color:#9fb0c3;font-size:13px;margin:0 0 18px}" +
+                "input{width:100%;padding:10px 12px;border-radius:6px;border:1px solid #3a4a60;background:#0f1620;color:#e6ecf3;font-size:15px;box-sizing:border-box}" +
+                "button{margin-top:14px;width:100%;padding:10px;border:0;border-radius:6px;background:#3b82f6;color:#fff;font-size:15px;cursor:pointer}" +
+                ".e{color:#f87171;font-size:13px;margin:10px 0 0}</style></head><body>" +
+                "<form method=\"post\" action=\"/welcome\"><h1>Private hosting</h1>" +
+                "<p class=sub>Enter the access code to unlock sign-up and sign-in.</p>" + err +
+                "<input type=\"password\" name=\"code\" autofocus autocomplete=\"current-password\" placeholder=\"Access code\">" +
+                "<input type=\"hidden\" name=\"next\" value=\"" + WebUtility.HtmlEncode(next ?? "/") + "\">" +
+                "<button type=\"submit\">Unlock</button></form></body></html>";
+        }
+
         // Latin1 (28591): char 0..255 encodes to exactly one byte, so request and
         // response bodies are staged as latin1-mapped strings and go out byte-exact.
         private static readonly Encoding Latin1 = Encoding.GetEncoding(28591);
@@ -136,6 +251,14 @@ namespace WebFront
                 Console.Error.WriteLine("WEBFRONT_GATE=1 requires WEBFRONT_AUTH to be set explicitly (the core webui origin). Refusing to start.");
                 return 1;
             }
+            if (Gate && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBFRONT_UPSTREAM")))
+            {
+                // Same refusal for the GAME origin: /aog relays carry card presentations
+                // built from the presenter secret; the public default must never be used
+                // on a hosted lane (review round 2 minor #14).
+                Console.Error.WriteLine("WEBFRONT_GATE=1 requires WEBFRONT_UPSTREAM to be set explicitly (the game origin). Refusing to start.");
+                return 1;
+            }
             if (!Gate && !string.IsNullOrEmpty(PresenterSecret) && bindEnv == "any")
             {
                 // The gate-off dev relay presents from the request body (no session to
@@ -151,6 +274,8 @@ namespace WebFront
             if (Gate)
             {
                 Console.WriteLine("webfront GATE ON: pages, auth pages and /aog need a web session (identity from " + AuthBase + "/api/me)");
+                if (LobbyEnabled)
+                    Console.WriteLine("webfront LOBBY ON: /login and /signup stay hidden until the access code is entered at /welcome");
                 if (string.IsNullOrEmpty(PresenterSecret))
                     Console.WriteLine("webfront WARNING: WEBFRONT_PRESENTER_SECRET is not set - relayed logins will NOT present card credentials");
             }
@@ -171,11 +296,16 @@ namespace WebFront
                 // crowd can never queue a legitimate visitor behind it.
                 if (!Admission.Wait(0))
                 {
-                    // Over capacity: hand to the busy thread, which drains what the
-                    // client already wrote (so the close is a clean FIN, not a RST),
-                    // answers 503, and drops the socket. The accept loop itself never
-                    // blocks on client data.
-                    if (BusyQueue.Count > 2000) { try { client.Close(); } catch { } continue; }
+                    // Over capacity: hand to the busy thread (answers 503, drains what
+                    // the client already wrote, closes clean). The queue depth is an
+                    // O(1) counter, and an unbounded backlog is simply dropped (review
+                    // round 2 major #7).
+                    if (Interlocked.Increment(ref BusyDepth) > 256)
+                    {
+                        Interlocked.Decrement(ref BusyDepth);
+                        try { client.Close(); } catch { }
+                        continue;
+                    }
                     BusyQueue.Enqueue(client);
                     continue;
                 }
@@ -250,30 +380,49 @@ namespace WebFront
         // from a dedicated busy thread instead of queueing behind them.
         private static readonly SemaphoreSlim Admission = new SemaphoreSlim(128, 128);
         private static readonly System.Collections.Concurrent.ConcurrentQueue<TcpClient> BusyQueue = new System.Collections.Concurrent.ConcurrentQueue<TcpClient>();
+        private static int BusyDepth;
 
         // Dedicated busy thread for over-capacity connections: never shares the
-        // worker pool, so stalled workers cannot delay the busy answer.
+        // worker pool, so stalled workers cannot delay the busy answer. Answering
+        // first unblocks the client; a bounded non-blocking drain of whatever the
+        // client already queued makes the close a clean FIN, not a RST (review
+        // round 2 major #6/#7).
         private static void BusyWorker()
         {
             while (true)
             {
                 TcpClient c;
                 if (!BusyQueue.TryDequeue(out c)) { Thread.Sleep(20); continue; }
+                Interlocked.Decrement(ref BusyDepth);
                 try
                 {
-                    c.ReceiveTimeout = 300;   // bounded drain of what was already sent
                     c.SendTimeout = 2000;
                     using (c)
                     {
                         var st = c.GetStream();
-                        byte[] tmp = new byte[4096];
-                        try { st.Read(tmp, 0, tmp.Length); } catch { }
-                        using var w = new StreamWriter(st, Latin1, 1024, true);
-                        Respond(w, "", 503, "Service Unavailable", "text/plain", "web front busy - try again", null, "no-store");
+                        using (var w = new StreamWriter(st, Latin1, 1024, true))
+                            Respond(w, "", 503, "Service Unavailable", "text/plain", "web front busy - try again", null, "no-store");
+                        DrainPending(st);
+                        try { c.Client.Shutdown(SocketShutdown.Send); } catch { }
                     }
                 }
                 catch { }
             }
+        }
+
+        // Consume what the client already has in flight (bounded), so disposing the
+        // socket after a response never strands unread bytes into a RST that eats
+        // the answer (review round 2 major #6).
+        private static void DrainPending(NetworkStream net)
+        {
+            byte[] tmp = new byte[16384];
+            long until = Environment.TickCount64 + 1000;
+            try
+            {
+                while (net.DataAvailable && Environment.TickCount64 < until)
+                    if (net.Read(tmp, 0, tmp.Length) <= 0) break;
+            }
+            catch { }
         }
 
         private static void HandleClient(TcpClient client)
@@ -473,12 +622,72 @@ namespace WebFront
                                 }
                             }
 
+                            // Access-code lobby: the signup/login FEATURE is behind a
+                            // shared passphrase (no username). Anonymous visitors meet a
+                            // code form at /welcome; /login and /signup are answered by
+                            // the gate itself until the unlock cookie is present, so the
+                            // core's auth pages are never even shown.
+                            bool lobbyHandled = false;
+                            if (Gate && LobbyEnabled)
+                            {
+                                if (path.Equals("/welcome", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    lobbyHandled = true;
+                                    if (method == "POST")
+                                    {
+                                        if (!LobbyAttemptAllowed(visitorIp, Environment.TickCount64))
+                                        {
+                                            Console.WriteLine("webfront lobby: rate-limited unlock attempts from " + visitorIp);
+                                            Respond(writer, origin, 429, "Too Many Requests", "text/plain", "too many access attempts - wait a minute", null, "no-store", null, isHead);
+                                        }
+                                        else
+                                        {
+                                            string formText = body != null && body.Length > 0 && body.Length < 16384 ? Latin1.GetString(body) : "";
+                                            string given = FormValue(formText, "code");
+                                            string nxt = FormValue(formText, "next");
+                                            if (string.IsNullOrEmpty(nxt)) nxt = QueryOf(relayTarget, "next");
+                                            if (!string.IsNullOrEmpty(given) && CodeMatches(given))
+                                            {
+                                                string tok = NewLobbyToken();
+                                                Console.WriteLine("webfront lobby: unlocked for " + visitorIp);
+                                                Respond(writer, origin, 302, "Found", null, null, null, "no-store",
+                                                    new string[] { "Set-Cookie: mfg_lobby=" + tok + "; path=/; HttpOnly; SameSite=Lax; Max-Age=86400", "Location: " + SafeNext(nxt) }, isHead);
+                                            }
+                                            else
+                                            {
+                                                Respond(writer, origin, 200, "OK", "text/html; charset=utf-8", LobbyPage(SafeNext(nxt), "Wrong access code."), null, "no-store", null, isHead);
+                                            }
+                                        }
+                                    }
+                                    else if (method == "GET" || method == "HEAD")
+                                    {
+                                        string nxt = QueryOf(relayTarget, "next");
+                                        if (string.IsNullOrEmpty(nxt)) nxt = "/login";
+                                        if (LobbyOk(cookie))
+                                            Respond(writer, origin, 302, "Found", null, null, null, "no-store", new string[] { "Location: " + SafeNext(nxt) }, isHead);
+                                        else
+                                            Respond(writer, origin, 200, "OK", "text/html; charset=utf-8", LobbyPage(SafeNext(nxt), null), null, "no-store", null, isHead);
+                                    }
+                                    else
+                                        Respond(writer, origin, 405, "Method Not Allowed", "text/plain", "method not allowed", null, "no-store", null, isHead);
+                                }
+                                else if (!LobbyOk(cookie) && (path.Equals("/login", StringComparison.OrdinalIgnoreCase) || path.Equals("/signup", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    lobbyHandled = true;
+                                    if (method == "GET" || method == "HEAD")
+                                        Respond(writer, origin, 200, "OK", "text/html; charset=utf-8", LobbyPage(SafeNext(relayTarget), null), null, "no-store", null, isHead);
+                                    else
+                                        Respond(writer, origin, 403, "Forbidden", "text/plain", "enter the access code at /welcome first", null, "no-store", null, isHead);
+                                }
+                            }
+
                             // login/signup/logout are AOG names too (the old native lane
                             // posted them bare) - the hijack guard must not block the core
                             // webui's own routes. It refuses an AOG endpoint name outside
                             // /aog/ unless the path is exactly one of those webui pages;
                             // webui pages do not take a game endpoint as a sub-path.
-                            if (aogHijack && Gate && !ExactCorePath(path))
+                            if (lobbyHandled) { /* the lobby already answered this request */ }
+                            else if (aogHijack && Gate && !ExactCorePath(path))
                             {
                                 Console.WriteLine("webfront refused " + method + " " + path + " (AOG endpoint name outside /aog/)");
                                 Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store", null, isHead);
@@ -821,6 +1030,22 @@ namespace WebFront
             return "";
         }
 
+        private static string QueryOf(string target, string name)
+        {
+            int q = target.IndexOf('?');
+            if (q < 0) return null;
+            foreach (string pair in target.Substring(q + 1).Split('&'))
+            {
+                int eq = pair.IndexOf('=');
+                if (eq <= 0) continue;
+                if (pair.Substring(0, eq) == name)
+                {
+                    try { return Uri.UnescapeDataString(pair.Substring(eq + 1)); } catch { return null; }
+                }
+            }
+            return null;
+        }
+
         private static bool PresentCard(string card, string label)
         {
             if (string.IsNullOrEmpty(PresenterSecret) || string.IsNullOrEmpty(card)) return false;
@@ -874,8 +1099,13 @@ namespace WebFront
             }
             if (e.Kind != SessionKind.Ok)
             {
+                // Lobby enabled and not unlocked: the entrance itself is the code
+                // form, not the login page.
+                string where = LobbyEnabled && !LobbyOk(cookie)
+                    ? "/welcome?next=" + Uri.EscapeDataString(path)
+                    : "/login?next=" + Uri.EscapeDataString(path);
                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
-                    new string[] { "Location: /login?next=" + Uri.EscapeDataString(path) }, head);
+                    new string[] { "Location: " + where }, head);
                 return;
             }
             if (string.IsNullOrEmpty(e.Info.Card))
@@ -928,7 +1158,7 @@ namespace WebFront
             }
             if (e.Kind != SessionKind.Ok)
             {
-                RespondXml(writer, origin, 403, "Forbidden", 770, "web session required: sign in at /login first", head);
+                RespondXml(writer, origin, 403, "Forbidden", 770, LobbyEnabled ? "web session required: enter the access code at /welcome, then sign in at /login" : "web session required: sign in at /login first", head);
                 return;
             }
             if (string.IsNullOrEmpty(e.Info.Card))

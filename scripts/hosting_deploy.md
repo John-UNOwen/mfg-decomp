@@ -79,6 +79,14 @@ this account) to the gated WebFront on `127.0.0.1:8090`. Config lives at
     render no Discord links at all (the community-invite links are gated on the
     same knob). Setting `discord_client_id` re-enables the OAuth buttons and the
     community links together.
+ 11. Access-code lobby (`WEBFRONT_ACCESS_CODE`, or `WEBFRONT_ACCESS_CODE_FILE`
+    pointing at e.g. `%USERPROFILE%\.mfg-web\access.code`): until the shared code
+    is entered at `/welcome`, the signup/login feature is not shown at all -
+    anonymous visitors meet a code form, POSTs to `/login` and `/signup` are
+    refused, and the play page bounces to `/welcome`. A correct code mints a 24 h
+    HttpOnly cookie (`mfg_lobby`); unlock attempts are throttled to 10/min per
+    visitor. Unset = lobby off. The code gates the hosted entrance only; accounts,
+    passwords and the core itself are untouched by it.
 
 ## Backups
 

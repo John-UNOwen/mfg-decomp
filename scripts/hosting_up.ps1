@@ -5,6 +5,17 @@ $ErrorActionPreference = 'Stop'
 # hosted gate mode + optional cloudflared tunnel. Loopback binds throughout;
 # Cloudflare reaches the origin only through the tunnel.
 
+# Start from a clean posture (review round 2 major #13): leftover WEBFRONT_* /
+# mfg_http_* / presenter env from earlier sessions or test lanes must never
+# leak into a production launch.
+$publicUrl = $env:WEBFRONT_PUBLIC_URL   # caller-supplied input, kept across the clear
+foreach ($n in @('WEBFRONT_ROOT','WEBFRONT_UPSTREAM','WEBFRONT_AUTH','WEBFRONT_PORT','WEBFRONT_BIND','WEBFRONT_GATE',
+                 'WEBFRONT_TRUST_PROXY','WEBFRONT_PRESENTER_SECRET','WEBFRONT_PRESENTER_SECRET_FILE',
+                 'WEBFRONT_ACCESS_CODE','WEBFRONT_ACCESS_CODE_FILE','WEBFRONT_PAGE_FRONTURL',
+                 'mfg_http_bind','mfg_http_port','VFG_PRESENTER_SECRET','WEB_SECURE_COOKIE')) {
+    Remove-Item "env:$n" -EA SilentlyContinue
+}
+
 $secFile = Join-Path $env:USERPROFILE '.mfg-web\presenter.secret'
 if (-not (Test-Path $secFile)) { throw 'presenter secret missing: create ' + $secFile + ' first (random bytes, see hosting_deploy.md)' }
 $secret = (Get-Content $secFile -Raw).Trim()
@@ -50,7 +61,10 @@ $env:WEBFRONT_BIND = 'loopback'
 $env:WEBFRONT_GATE = '1'
 $env:WEBFRONT_PRESENTER_SECRET_FILE = $secFile
 if ($Tunnel) { $env:WEBFRONT_TRUST_PROXY = 'cloudflare' }  # CF-Connecting-IP becomes the visitor identity
-if ($env:WEBFRONT_PUBLIC_URL) { $env:WEBFRONT_PAGE_FRONTURL = $env:WEBFRONT_PUBLIC_URL }  # optional absolute -FRONTURL
+# Access-code lobby when the code file exists (hosting_deploy.md item 11).
+$codeFile = Join-Path $env:USERPROFILE '.mfg-web\access.code'
+if (Test-Path $codeFile) { $env:WEBFRONT_ACCESS_CODE_FILE = $codeFile }
+if ($publicUrl) { $env:WEBFRONT_PAGE_FRONTURL = $publicUrl }  # optional absolute -FRONTURL
 $wd = Join-Path $repoReal.TrimEnd('\') 'webfront\bin\Release\net8.0'
 Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden `
     -RedirectStandardOutput 'C:\mfgtmp\webfront8090.out.txt' -RedirectStandardError 'C:\mfgtmp\webfront8090.err.txt' | Out-Null

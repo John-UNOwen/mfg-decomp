@@ -26,7 +26,11 @@ if (Test-Path $ini) {
 elseif ($env:mfg_http_bind -ne '127.0.0.1') { throw 'no config.ini at ' + $ryuDist + ' - keep mfg_http_bind=127.0.0.1 in the environment' }
 $env:VFG_PRESENTER_SECRET = $secret
 $env:mfg_http_bind = '127.0.0.1'
-$env:WEB_SECURE_COOKIE = '1'
+# Secure cookies only make sense when the lane really terminates https (the
+# -Tunnel shape). express-session silently drops the session cookie when it is
+# marked Secure but the request is plain http - on a LAN http origin login
+# would never stick (review round 2 major #8).
+if ($Tunnel) { $env:WEB_SECURE_COOKIE = '1' }
 Start-Process node -ArgumentList 'AsphyxiaCore.js' -WorkingDirectory $ryuDist -WindowStyle Hidden `
     -RedirectStandardOutput 'C:\mfgtmp\ryunet.out.txt' -RedirectStandardError 'C:\mfgtmp\ryunet.err.txt' | Out-Null
 $up = $false
@@ -35,7 +39,7 @@ for ($i = 0; $i -lt 120; $i++) {
     Start-Sleep -Milliseconds 500
 }
 if (-not $up) { Get-Content 'C:\mfgtmp\ryunet.err.txt' -Tail 12 -EA SilentlyContinue; throw 'core did not bind 8083' }
-'core up: presenter armed, mfg_http_bind=127.0.0.1, secure cookies on'
+'core up: presenter armed, mfg_http_bind=127.0.0.1' + $(if ($Tunnel) { ', secure cookies on (https tunnel)' } else { ', http LAN posture' })
 
 # webfront: hosted gate
 $env:WEBFRONT_ROOT = 'C:\mfgtmp\webroot'

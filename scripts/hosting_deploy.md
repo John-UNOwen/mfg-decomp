@@ -51,13 +51,17 @@ from outside. Works the same on your own PC or a Windows VPS.
    - Bot Fight Mode on; WebSockets setting stays OFF (the game is plain POSTs);
    - A Cache rule is optional: build files are content-hashed and already served
      `immutable`; pages/API come through `no-store` from the front.
-7. `WEB_SECURE_COOKIE=1` (hosting_up.ps1 sets it) gives the session cookie the
-   `Secure` flag; unset keeps the LAN lane usable over http.
+7. `WEB_SECURE_COOKIE=1` gives the session cookie the `Secure` flag - use it only
+    when the lane really terminates https (`hosting_up.ps1 -Tunnel` sets it for
+    exactly that shape). Setting it on a plain-http origin makes express-session
+    silently drop the cookie: logins never stick. Unset keeps the LAN lane usable.
 8. `WEBFRONT_TRUST_PROXY=cloudflare` (hosting_up.ps1 -Tunnel sets it) makes
-   `CF-Connecting-IP` the visitor identity for the gate's own limiter (600 req/min
-   per visitor) and for the core's auth rate limits - the gate replaces any incoming
-   `X-Forwarded-For` with that single honest hop. Without it the gate keys visitors
-   on the real socket peer and ignores client-supplied ip headers entirely.
+    `CF-Connecting-IP` the visitor identity for the gate's own limiter (600 req/min
+    per visitor) and for the core's auth rate limits - the gate replaces any incoming
+    `X-Forwarded-For` with that single honest hop and never adopts a client-supplied
+    one for identity. Without it the gate keys visitors on the real socket peer and
+    ignores client-supplied ip headers entirely. A tunneled origin without this knob
+    puts every visitor into one shared 127.0.0.1 rate-limit bucket.
 9. Admin accounts: `--rotate-admin` leaves the core admin card-less, and a
    card-less session is bounced to `/account` instead of the play page. Claim an
    id for it too (`--claim-user admin --claim-refid <16HEX>`), or use a claimed

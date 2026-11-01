@@ -73,6 +73,12 @@ this account) to the gated WebFront on `127.0.0.1:8090`. Config lives at
    card-less session is bounced to `/account` instead of the play page. Claim an
    id for it too (`--claim-user admin --claim-refid <16HEX>`), or use a claimed
    non-admin account as the everyday identity.
+10. Discord stays fully off unless `discord_bot_token` / `discord_client_id` are
+    set in `tmp\RyuNET-core\dist\config.ini`: the bot does not start, the
+    `/auth/discord` routes are not mounted, and the login/signup/about pages
+    render no Discord links at all (the community-invite links are gated on the
+    same knob). Setting `discord_client_id` re-enables the OAuth buttons and the
+    community links together.
 
 ## Backups
 

@@ -30,6 +30,22 @@ Assumed defaults for the public-phase round (not grilled; change at review): sin
 - **Regular boot works**: `AccountGameData.NotifyGuestUserStart()` honors `-REGULAR` with a pinned `-DATAID` → `IsGuestUser=false` → `guest=0` logins, full Home hub. Verified headless: fixture `REGPROBE1` (`login ... guest=false`, `is_guest=false` in the plugin DB, fresh account routed to NewRegistration), and the real account `6AE73807BA1CE8CB` flipped from `guest=true` to `guest=false` and resumed straight to Home with progress intact.
 - `preview_game.ps1` defaults to regular boot (`-Guest` opts out); documented in OKF reference `endgame-continue-chain-fix-2026-10-31.md`.
 
+## Done already (2026-11-02)
+
+- **Card entry is automatic for hosted sessions** (owner request 2026-11-02): each login is
+  already unique, so the Login (card entry) scene presents the session's own pinned DataID as
+  its card instead of waiting for a card touch. The client-side patch is gated on `-DATAID` +
+  `-ENTERCARD` (arcade and unpinned lanes untouched); the trio `cardmng.inquire` →
+  `vfgac.update_refer` → `cardmng.authpass` runs through the WebGL xrpc transport (the arcade
+  xrpc dlls don't exist in wasm) and lands on the gate's card-present relay, where the account
+  is credential-bound to its own DataID (`inquire` answers `binded=1`; a card record rebuilt
+  from `profile.card_id` is bound by definition). A session whose server profile already holds
+  a saved `player_game` resumes at Home; accounts without saved state still take the shipping
+  NewRegistration flow. Verified headless end to end: Login → card trio → full 26-state load
+  (`client_state_read`, 157,741 B) → `Home`, verdict `installed=true loginSeen=true home=true
+  buildBad=0`. Design + gotchas in OKF `projects/mfg/references/web-lane-card-auto-present.md`;
+  lane launch rules in `projects/mfg/runbooks/live-asphyxia-hosted-lane-bringup.md`.
+
 ## Architecture (target)
 
 ```

@@ -19,8 +19,17 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
 if (-not (Test-Path $Build)) { throw "no webgl build at $Build" }
-# a serving webfront holds its own log files inside an old webroot: stop it before wiping
-Get-Process -Name WebFront -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.Id -Force }
+# a serving webfront holds handles inside the old webroot: stop only the gate this
+# lane recorded in gate_pid.txt (checked by process name). Never touch other processes;
+# whoever restarted the gate must restart it again after the assemble.
+$gatePidFile = 'C:\mfgtmp\gate_pid.txt'
+if (Test-Path $gatePidFile) {
+    $gp = 0
+    if ([int]::TryParse((Get-Content $gatePidFile -Raw).Trim(), [ref]$gp)) {
+        $gpProc = Get-CimInstance Win32_Process -Filter "ProcessId=$gp" -ErrorAction SilentlyContinue
+        if ($gpProc -and $gpProc.Name -eq 'WebFront.exe') { Stop-Process -Id $gp -Force -ErrorAction SilentlyContinue }
+    }
+}
 if (Test-Path $Webroot) { Remove-Item $Webroot -Recurse -Force }
 Copy-Item $Build $Webroot -Recurse
 # belt and suspenders: inject explicit player args into the generated index.html so

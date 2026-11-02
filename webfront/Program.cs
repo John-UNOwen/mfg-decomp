@@ -834,6 +834,16 @@ namespace WebFront
                             {
                                 HandlePage(writer, origin, cookie, path, visitorIp, isHead);
                             }
+                            else if (Gate && method == "GET" && path.Equals("/about", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Hosted lane: the core webui landing page is an operator
+                                // page (contributor wall, admin nav). Signed-in visitors go
+                                // straight to the game - the '/' page pins their own card -
+                                // anonymous visitors go to the login form.
+                                SessionEntry aboutSession = CheckSession(cookie, visitorIp);
+                                Respond(writer, origin, 302, "Found", null, null, null, "no-store",
+                                    new string[] { "Location: " + (aboutSession.Kind == SessionKind.Ok ? "/" : "/login") }, isHead);
+                            }
                             else if (Gate && IsCorePage(path, method))
                             {
                                 HandleAuth(writer, origin, method, relayTarget, path, body, contentType, cookie, visitorIp, ua, host, accept, isHead);

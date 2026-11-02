@@ -158,6 +158,50 @@ namespace WebFront
         // The unlock attempt itself is throttled hard: 10 codes/min per visitor.
         private const int LobbyMaxPerWindow = 10;
         private static readonly Dictionary<string, (long WindowStart, int Count)> LobbyHits = new Dictionary<string, (long, int)>();
+        // A short shared code needs more than a per-minute window: consecutive wrong
+        // codes stack a per-visitor timeout (5 wrong = 1 min out, 10 = 5 min, 15+ = 30 min).
+        // Attempts during a lockout are refused with 429 + Retry-After and never extend it,
+        // so a locked visitor cannot self-perpetuate the block; the correct code wipes the
+        // failure history (and the window quota stays as the baseline limiter).
+        private static readonly Dictionary<string, (int Fails, long Until)> LobbyLockouts = new Dictionary<string, (int, long)>();
+        private static bool LobbyLockedOut(string ip, long now, out long retryAfterSec)
+        {
+            retryAfterSec = 0;
+            lock (VisitorLock)
+            {
+                if (!LobbyLockouts.TryGetValue(ip, out var e)) return false;
+                // Until == 0 means "failures counted, no penalty active yet": keep the history.
+                if (e.Until > 0 && e.Until <= now) { LobbyLockouts.Remove(ip); return false; }
+                if (e.Until <= now) return false;
+                retryAfterSec = (e.Until - now + 999) / 1000;
+                return true;
+            }
+        }
+        private static long LobbyFailPenaltyMs(int fails)
+        {
+            if (fails >= 15) return 1800000;
+            if (fails >= 10) return 300000;
+            if (fails >= 5) return 60000;
+            return 0;
+        }
+        private static void LobbyRecordFail(string ip, long now)
+        {
+            lock (VisitorLock)
+            {
+                if (LobbyLockouts.Count >= MaxVisitorEntries) LobbyLockouts.Clear();
+                int fails = 1;
+                long until = 0;
+                if (LobbyLockouts.TryGetValue(ip, out var e)) { fails = e.Fails + 1; until = e.Until; }
+                long penalty = LobbyFailPenaltyMs(fails);
+                if (penalty > 0) until = Math.Max(until, now + penalty);
+                LobbyLockouts[ip] = (fails, until);
+                Console.WriteLine("webfront lobby: wrong code from " + ip + " fails=" + fails + (penalty > 0 ? " locked " + (until - now) / 1000 + "s" : ""));
+            }
+        }
+        private static void LobbyClearFails(string ip)
+        {
+            lock (VisitorLock) { LobbyLockouts.Remove(ip); }
+        }
         private static bool LobbyAttemptAllowed(string ip, long now)
         {
             lock (VisitorLock)
@@ -699,10 +743,16 @@ namespace WebFront
                                     lobbyHandled = true;
                                     if (method == "POST")
                                     {
-                                        if (!LobbyAttemptAllowed(visitorIp, Environment.TickCount64))
+                                        long ra;
+                                        if (LobbyLockedOut(visitorIp, Environment.TickCount64, out ra))
+                                        {
+                                            Console.WriteLine("webfront lobby: locked-out attempt from " + visitorIp + " (" + ra + "s left)");
+                                            Respond(writer, origin, 429, "Too Many Requests", "text/plain", "locked after wrong codes - retry in " + ra + "s", null, "no-store", new string[] { "Retry-After: " + ra }, isHead);
+                                        }
+                                        else if (!LobbyAttemptAllowed(visitorIp, Environment.TickCount64))
                                         {
                                             Console.WriteLine("webfront lobby: rate-limited unlock attempts from " + visitorIp);
-                                            Respond(writer, origin, 429, "Too Many Requests", "text/plain", "too many access attempts - wait a minute", null, "no-store", null, isHead);
+                                            Respond(writer, origin, 429, "Too Many Requests", "text/plain", "too many access attempts - wait a minute", null, "no-store", new string[] { "Retry-After: 60" }, isHead);
                                         }
                                         else
                                         {
@@ -712,6 +762,7 @@ namespace WebFront
                                             if (string.IsNullOrEmpty(nxt)) nxt = QueryOf(relayTarget, "next");
                                             if (!string.IsNullOrEmpty(given) && CodeMatches(given))
                                             {
+                                                LobbyClearFails(visitorIp);
                                                 string tok = NewLobbyToken();
                                                 Console.WriteLine("webfront lobby: unlocked for " + visitorIp);
                                                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
@@ -719,6 +770,7 @@ namespace WebFront
                                             }
                                             else
                                             {
+                                                LobbyRecordFail(visitorIp, Environment.TickCount64);
                                                 Respond(writer, origin, 200, "OK", "text/html; charset=utf-8", LobbyPage(SafeNext(nxt), "Wrong access code."), null, "no-store", null, isHead);
                                             }
                                         }

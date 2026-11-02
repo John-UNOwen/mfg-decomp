@@ -30,12 +30,17 @@ Copy-Item $Build $Webroot -Recurse
 $idx = Get-ChildItem $Webroot -Filter 'index.html' | Select-Object -First 1
 $html = Get-Content $idx.FullName -Raw
 if ($html -notmatch 'arguments:') {
-    $args2 = 'var config = { arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE", "-TRANSLATE"],'
+    # Bake the cluster as a merge function so URL-query args also reach argv even when the
+    # gate splices config.arguments (config wins over the loader's arguments_ in 2022.3).
+    # The literal "-AUTOSERVE" token stays splice-anchored: the gate replaces it with the
+    # per-account cluster; harness extras (-SERVECONTINUE etc.) ride in via ?query.
+    $merge = '(function(){var base=["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE", "-TRANSLATE"];try{var q=location.search.substring(1).split("&");for(var i=0;i<q.length;i++){if(!q[i])continue;var kv=q[i].split("=");var k=decodeURIComponent(kv[0].replace(/\+/g," "));if(kv.length>1){base.push(k);base.push(decodeURIComponent(kv[1].replace(/\+/g," ")))}else{base.push(k)}}}catch(e){}return base})()'
+    $args2 = 'var config = { arguments: ' + $merge + ','
     if ($html -match 'var config = \{') {
-        $html = $html -replace 'var config = \{', $args2
+        $html = $html.Replace('var config = {', $args2)
     } else {
         # fallback for loaders without the config literal: pass an args object as second parameter
-        $html = $html -replace '(createUnityInstance\(([^,]+),\s*)', ('$1' + '{ arguments: ["-KONAMINET", "-FRONTURL", "' + $FrontUrl + '", "-GAMELOG", "-NOIO", "-appBehavior", "NETCAFE", "-AUTOSERVE", "-TRANSLATE"] }, ')
+        $html = $html.Replace('createUnityInstance(canvas, ', 'createUnityInstance(canvas, { arguments: ' + $merge + ' }, ')
     }
     Set-Content $idx.FullName $html -Encoding UTF8 -NoNewline
     'patched index.html config.arguments'
@@ -70,6 +75,22 @@ if (Test-Path $fw) {
         'patched framework.js url->argv'
     } else { 'framework.js already url->argv patched' }
 }
+# Cloudflare edge caches .js/.css but treats .wasm/.data as dynamic. After a rebuild the
+# tunnel browser gets a stale framework.js glued to a fresh wasm - the pair is version-
+# coupled and boot dies (undefined .apply). Stamp every Build asset URL in index.html with
+# a hash over the payload files: new build = new cache keys on every asset. The gate serves
+# the file and ignores the query (verified: /Build/x.js?v=... -> 200).
+$stampFiles = @((Join-Path $Webroot 'Build\webgl.loader.js'), (Join-Path $Webroot 'Build\webgl.framework.js'), (Join-Path $Webroot 'Build\webgl.wasm'), (Join-Path $Webroot 'Build\webgl.data')) | Where-Object { Test-Path $_ }
+$joined = ($stampFiles | ForEach-Object { (Get-FileHash $_ -Algorithm SHA256).Hash }) -join ''
+$sha = [System.Security.Cryptography.SHA256]::Create()
+$stamp = (([System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($joined)))).Replace('-', '')).Substring(0, 12)
+$html3 = Get-Content $idx2.FullName -Raw
+foreach ($asset in 'webgl.loader.js', 'webgl.framework.js', 'webgl.data', 'webgl.wasm') {
+    $from = '"/' + $asset + '"'
+    $html3 = $html3.Replace($from, ('"/' + $asset + '?v=' + $stamp + '"'))
+}
+Set-Content $idx2.FullName $html3 -Encoding UTF8 -NoNewline
+'stamped build asset urls v=' + $stamp
 # brotli sidecars
 & (Join-Path $root 'scripts\brotli-sidecar\bin\Release\net8.0\sidecar.exe') $Webroot
 if ($Serve) {

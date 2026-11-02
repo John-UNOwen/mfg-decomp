@@ -1103,7 +1103,7 @@ namespace WebFront
         // directions (Set-Cookie is how a login reaches the browser at all).
         // Segment-boundary match (no /loginish), exact-only relaying (the core
         // receives the canonical path the gate classified).
-        private static readonly string[] CorePagePrefixes = { "/login", "/signup", "/logout", "/about", "/account", "/static", "/help", "/api/me", "/favicon.ico" };
+        private static readonly string[] CorePagePrefixes = { "/login", "/signup", "/logout", "/about", "/account", "/my-profile", "/profile", "/profiles", "/static", "/help", "/api/me", "/favicon.ico" };
         private static readonly string[] CoreExactPaths = { "/login", "/signup", "/logout", "/about", "/account", "/api/me", "/favicon.ico" };
         private static bool ExactCorePath(string path)
         {

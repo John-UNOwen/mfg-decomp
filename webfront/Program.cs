@@ -299,7 +299,7 @@ namespace WebFront
         // visitors (checkup critical #1).
         private static readonly HttpClient Up = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(30) };
         private static readonly HttpClient Auth = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(8) };
-        private const int MaxBodyBytes = 262144; // gate-side body cap (413 beyond it)
+        private const int MaxBodyBytes = 5242880; // gate-side body cap (413 beyond it); matches the core's 5 MB media uploads (checkup L16)
 
         // Core-side AogMiddleware treats ANY path whose last segment names a known
         // AOG endpoint as a game call (non-Mozilla UA). At the gate that must only
@@ -529,7 +529,7 @@ namespace WebFront
                         }
                         if (line == null) break;
                         if (line.Length == 0) continue;
-                        string origin = "", acceptEnc = "", contentType = "", expect = "", cookie = "", visitorIp = remoteIp, ua = "", host = "", cfIp = "", accept = "";
+                        string origin = "", acceptEnc = "", contentType = "", expect = "", cookie = "", visitorIp = remoteIp, ua = "", host = "", cfIp = "", accept = "", xproto = "";
                         bool broken = false;
                         bool isHead = false; // hoisted: catch-path answers must suppress HEAD bodies too (review round 2 minor #10)
                         int phase = 0; // 0=request line, 1=headers, 2=body
@@ -579,6 +579,7 @@ namespace WebFront
                                     case "expect": expect = value; break;
                                     case "cookie": cookie = value; break;
                                     case "host": host = value; break;
+                case "x-forwarded-proto": xproto = value; break;
                                     // The core webui only answers browser-looking UAs (it
                                     // 404s curl/8); the AOG side demands the opposite. So
                                     // the auth relay carries the visitor's own UA through.
@@ -766,7 +767,7 @@ namespace WebFront
                                                 string tok = NewLobbyToken();
                                                 Console.WriteLine("webfront lobby: unlocked for " + visitorIp);
                                                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
-                                                    new string[] { "Set-Cookie: mfg_lobby=" + tok + "; path=/; HttpOnly; SameSite=Lax; Max-Age=86400", "Location: " + SafeNext(nxt) }, isHead);
+                                                    new string[] { "Set-Cookie: mfg_lobby=" + tok + "; path=/; HttpOnly; SameSite=Lax; Max-Age=86400" + (xproto.Equals("https", StringComparison.OrdinalIgnoreCase) ? "; Secure" : ""), "Location: " + SafeNext(nxt) }, isHead);
                                             }
                                             else
                                             {
@@ -1130,7 +1131,7 @@ namespace WebFront
         // directions (Set-Cookie is how a login reaches the browser at all).
         // Segment-boundary match (no /loginish), exact-only relaying (the core
         // receives the canonical path the gate classified).
-        private static readonly string[] CorePagePrefixes = { "/login", "/signup", "/logout", "/about", "/account", "/my-profile", "/profile", "/profiles", "/static", "/help", "/api/me", "/favicon.ico" };
+        private static readonly string[] CorePagePrefixes = { "/login", "/signup", "/logout", "/about", "/account", "/my-profile", "/profile", "/profiles", "/static", "/help", "/api/me", "/favicon.ico", "/uploads" };
         private static readonly string[] CoreExactPaths = { "/login", "/signup", "/logout", "/about", "/account", "/api/me", "/favicon.ico" };
         private static bool ExactCorePath(string path)
         {

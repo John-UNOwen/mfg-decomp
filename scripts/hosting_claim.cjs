@@ -73,21 +73,22 @@ async function main() {
       console.error("--claim-user and --claim-refid <16 hex> are both required");
       process.exit(1);
     }
+    const claimUserLower = claimUser.toLowerCase();
     const existing = db.prepare("select _id,data from documents where __s='user_account'").all();
-    if (existing.some((r) => { try { return JSON.parse(r.data).username === claimUser; } catch { return false; } })) {
-      console.error("username already exists: " + claimUser); process.exit(1);
+    if (existing.some((r) => { try { return String(JSON.parse(r.data).username || "").toLowerCase() === claimUserLower; } catch { return false; } })) {
+      console.error("username already exists (case-insensitive): " + claimUserLower); process.exit(1);
     }
     const existingCard = db.prepare("select _id from documents where __s='card'").all()
       .find((r) => { try { return JSON.parse(r.data).cid === claimRefid; } catch { return false; } });
     if (existingCard) { console.error("card document for " + claimRefid + " already exists"); process.exit(1); }
     const now = Date.now();
     const userDoc = {
-      username: claimUser, password: await bcrypt.hash(pw, 10), cardNumber: claimRefid,
+      username: claimUserLower, password: await bcrypt.hash(pw, 10), cardNumber: claimRefid,
       admin: has("claim-admin"), countryCode: null, discordId: null, discordUsername: null,
       createdAt: now, lastLogin: now,
     };
     db.prepare("insert into documents (_id,__s,__refid,createdAt,updatedAt,data) values (?,?,?,?,?,?)")
-      .run(newId(), "user_account", claimUser, now, now, JSON.stringify(userDoc));
+      .run(newId(), "user_account", claimUserLower, now, now, JSON.stringify(userDoc));
     const cardDoc = { __s: "card", __refid: claimRefid, print: claimRefid, cid: claimRefid };
     db.prepare("insert into documents (_id,__s,__refid,createdAt,updatedAt,data) values (?,?,?,?,?,?)")
       .run(newId(), "card", claimRefid, now, now, JSON.stringify(cardDoc));

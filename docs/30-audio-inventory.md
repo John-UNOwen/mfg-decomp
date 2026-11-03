@@ -48,14 +48,19 @@ Tree export == shipped catalog, exactly: **10,363 clips** (10,362 in bundles + `
 
 AudioListener exists in 25 scenes; `AudioMixerSnapshot` components exist in `Title.unity:13107/13143`, `Home.unity:110128`, `GachaSelect.unity:2005821` (volume snapshots, e.g. attract vs gameplay).
 
-## 4. What the lane plays today, and the suspects
+## 4. What the lane plays today, and the suspects (updated 2026-11-03 by runtime + data probes)
 
-Audible now: `BGM_TITLE` (title) and `BGM_MENU` (login/menu) — both from original code paths, no harness audio code involved (the harness files contain zero audio touchpoints). Everything deeper is wired and present but not heard. Suspects, in priority order:
+Audible now: `BGM_TITLE` (title) and `BGM_MENU` (login/menu) — both from original code paths, no harness audio code involved. Everything deeper is wired and present but not heard. Probe results:
 
-1. **Home-scene silence is a lane-data gap, not a code gap:** `PlayMyCharaMyRoomBGM` needs an owned/equipped `MyRoomBgm` customize item (`CharaGameData.cs:326-335`); with none, an `IndexOutOfRange` is swallowed by a `.Forget()` fire-and-forget. Fix candidate: grant+equip `MyRoomBgm001` on lane accounts (server-side data).
-2. **Loop semantics:** table loop flags are intact and authoritative (`BGM_TITLE` loop=false is authentic cabinet behavior; MENU/HOME loop). If the splash "loops" on the lane where the original is one-shot (or a looping track restarts audibly wrong), the drift is either (a) loop-point/sample alignment after Unity re-encode at content build (importer compressionFormat=1 Vorbis) or (b) the documented WebGL *status-does-not-advance* stall class already patched for voices (`KyokuCall.PlayMyCharaVoiceCapped`) corrupting BGM fade/stop bookkeeping.
-3. **Category BGM maxPlaybacks=1 + StopOldInstance semantics** on fast scene transitions (Logo→Title→Login).
-4. Harness touchpoints to keep in mind: `LoadAudioClipCompat` (.wav→.ogg key fallback, 5 s timeout), `SoundManager.Initialize` `if (true)` gate, mixer Gain1–8 exposure.
+1. **~~lane-data gap~~ — FALSIFIED by savedata probe.** Every lane profile that has ever played already owns `ItemID 349` (`MyRoomBgm001`, plus 349-353) in `customize_item` and carries `_customizeItemEquips` with `MyRoomBgm=MyRoomBgm001` on all 21 charas (mfgowner/test/vicyush quoted in the storage-probe report). The IndexOutOfRange precondition (`_value:""` equip + zero owned) exists in no profile. The client even auto-adds defaults at `CharaGameData.cs:207-213`.
+2. **Build re-encodes Vorbis→AAC.** Unity's WebGL pipeline ignores the importer settings (`compressionFormat: 1` Vorbis, `quality: 0`, no platform overrides in the metas) and stores clips as AAC: bundle CAB resources start `ftypmp42`, runtime `m_CompressionFormat=7`. HOME 5.66 MB→1.10 MB, TITLE 1.87 MB→0.38 MB, APPEAL1 46 KB→40 KB. Quality-0 AAC is aggressive: plausible source of audible degradation, and AAC encoder/decoder priming adds a gap at loop seams that Vorbis does not. This is the strongest candidate for "loops wrong".
+3. **New suspect from storage probe:** `HomeFlow.cs:286-299` calls `PlayMyCharaMyRoomBGM().Forget()` only after `OnInitializeBeforeIntroduction` completes; the flow runs as `OnExecute(...).Forget()` with an `OperationCanceledException`-only catch (`BaseFlow.cs:55/61`), so any other exception during Home init silently skips the BGM call. Proof-run console shows such exceptions do occur on this build (boot `DriveInfo NotSupportedException` il2cpp icall at 73 s; `TitleFlowMoveNext: OperationCanceledException Catched.` at 82 s).
+4. **Category BGM maxPlaybacks=1 + StopOldInstance semantics** on fast transitions; proof run shows Title→Login in 1 s and three `GET blob:` `ERR_ABORTED` at the Title→Login jump — mid-fetch cancellation of streamed content is real behavior on this lane.
+5. Mixer plumbing confirmed live at runtime: `Exposed name does not exist: Gain1..4` warnings fire per scene (Logo/Title/Login) exactly where `SetDemoVolume`/presets call into the mixer (expected, by design).
+
+## 4a. Runtime observation (headless proof 2026-11-03, `tmp/audio_proof.log.txt`)
+
+Fresh throwaway account (gate lobby unlock + signup + cookie injection): Logo 72s → Title 80s → Login 81s → NewRegistration 92s. **The old "fresh signup stuck at Logo" defect no longer reproduces**; the walk now stalls at NewRegistration (needs name entry; AUTOSERVE does not type). 12 `/aog` front hits; zero `SE:<label> is not found!` entries; zero label-table load errors.
 
 ## 5. Known gaps (most are defects the original cabinet shares)
 
@@ -66,4 +71,4 @@ Audible now: `BGM_TITLE` (title) and `BGM_MENU` (login/menu) — both from origi
 
 ## 6. Verification status
 
-Verified by audit: tree==shipped inventory (10,363/10,363, bit-identical); label table parsed and consistent (10,433 labels, loop/category data complete); Addressables plumbing covers every clip; zero serialized audio wiring (authentic); mixer binding live in Resident. Not yet verified (Phase B): which PlayBgm calls execute on the lane at runtime (lane console logs for "not found"), loop-point drift between shipped ogg and rebuilt bundle ogg (byte comparison planned), randomSource expansion of the code-only labels, and anything requiring a cabinet audio A/B (owner has no cabinet recordings yet — cabinet-only unknowns are flagged here, not guessed).
+Verified: tree==shipped inventory (10,363/10,363, bit-identical); label table parsed and consistent (10,433 labels); Addressables plumbing covers every clip; zero serialized audio wiring (authentic); mixer binding live and exercised at runtime (per-scene Gain warnings); lane accounts own+equip MyRoomBgm001 (savedata probe); WebGL build stores clips as AAC re-encodes (`tmp/cab_compare.py` evidence); fresh-signup walk reaches NewRegistration. Not yet verified (Phase B): whether the BGM call fires at Home (proof2 telemetry pending), audible effect of AAC re-encode/loop seam (needs owner ears or instrumented build), randomSource expansion of the code-only labels, and cabinet audio A/B (no cabinet recordings yet — cabinet-only unknowns flagged, not guessed).

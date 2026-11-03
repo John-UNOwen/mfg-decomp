@@ -64,3 +64,9 @@ log.txt
 
 # owner reference material - never commit
 /ref/
+
+# shipwright posture: game-derived binaries and upstream clones never enter the repo
+*_blob.bin
+*.dxbc
+*.mat.bin
+.research/

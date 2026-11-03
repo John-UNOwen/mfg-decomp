@@ -77,7 +77,7 @@ if (-not $up) { Get-Content 'C:\mfgtmp\webfront8090.err.txt' -Tail 6 -EA Silentl
 Get-Content 'C:\mfgtmp\webfront8090.out.txt' -Tail 2
 
 if ($Tunnel) {
-    Start-Process cloudflared -ArgumentList 'tunnel', 'run', 'mfg' -WindowStyle Hidden `
+    Start-Process 'C:\Program Files (x86)\cloudflared\cloudflared.exe' -ArgumentList 'tunnel', 'run', 'mfg' -WindowStyle Hidden `
         -RedirectStandardOutput 'C:\mfgtmp\cloudflared.out.txt' -RedirectStandardError 'C:\mfgtmp\cloudflared.err.txt' | Out-Null
     'cloudflared tunnel "mfg" starting (see C:\mfgtmp\cloudflared.out.txt)'
 }

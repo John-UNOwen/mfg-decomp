@@ -65,7 +65,7 @@ $css = '<style>/*MFG-CANVAS*/html,body{margin:0;padding:0;overflow:hidden;backgr
   '#unity-container{position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;transform:none!important}' +
   '#unity-canvas{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;' +
   'width:min(100vw,177.78vh)!important;height:min(56.25vw,100vh)!important;display:block!important}' +
-  '#unity-loading-bar,#unity-logo,#unity-fullscreen-button,#unity-progress-bar-full{display:none!important}</style>'
+  '#unity-loading-bar,#unity-logo,#unity-fullscreen-button,#unity-progress-bar-full,#unity-webgl-logo,#unity-build-title{display:none!important}</style>'
 if ($html2 -notmatch 'MFG-CANVAS') { $html2 = $html2 -replace '</head>', ($css + '</head>') }
 Set-Content $idx2.FullName $html2 -Encoding UTF8 -NoNewline
 'patched index.html canvas->letterbox-fill'

@@ -61,3 +61,6 @@ build/project-merge-analysis/verify/*/obj/Release/
 log.txt
 .audit/
 .dsh-vision-router/
+
+# owner reference material - never commit
+/ref/

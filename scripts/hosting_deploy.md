@@ -37,8 +37,8 @@ from outside. Works the same on your own PC or a Windows VPS.
 
 ## Cloudflare (one hostname, single origin)
 
-Live shape (2026-11-01): tunnel `mfg` (` <tunnel-uuid>`) routes
-`https://mfg.0006767.xyz` (zone `0006767.xyz` - ` <provider-host>` is the provider's domain, not on
+Live shape (2026-11-01): tunnel `mfg` (`<tunnel-uuid>`) routes
+`https://mfg.0006767.xyz` (zone `0006767.xyz` - the upstream provider domain is separate, not on
 this account) to the gated WebFront on `127.0.0.1:8090`. Config lives at
 `%USERPROFILE%\.cloudflared\config.yml`.
 

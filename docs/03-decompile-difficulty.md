@@ -16,7 +16,7 @@ Numbers below are measurements from this install, not guesses.
 
 ## The four hard jobs (ranked)
 
-1. **eAC3 client reimplementation** (2-6 weeks). No open-source eAC3 client exists; must reproduce binary property-tree codec + service.init/pcbtracker/cardmng/POS/eacoin flows against  <provider>. Mitigation: spice2x `-netdump` property XML dumps, captured blobs, observable server.
+1. **eAC3 client reimplementation** (2-6 weeks). No open-source eAC3 client exists; must reproduce binary property-tree codec + service.init/pcbtracker/cardmng/POS/eacoin flows against the private provider. Mitigation: spice2x `-netdump` property XML dumps, captured blobs, observable server.
 2. **Multiplayer table sync** (wildcard, +weeks). Whether mahjong rules run client-side and which RPCs sync tables; read recovered match code in Phase 1 to collapse this unknown.
 3. **Project reconstruction at 2022-LTS addressables scale** (2-6 weeks grind). AssetRipper maturity is uneven for 2022 bundles; plan a custom UnityPy + catalog pipeline preserving GUIDs, re-bake content for WebGL (BC -> ASTC texture re-encode).
 4. **Browser performance/footprint** (weeks). IL2CPP wasm + URP UI on mid phones; per-character lazy loading via the already-granular bundle layout; first-load budget engineering.
@@ -30,5 +30,5 @@ Numbers below are measurements from this install, not guesses.
 ## Effort summary (1 experienced RE+Unity dev, full time)
 
 - Toy: title screen + fake server, 3-6 weeks.
-- Playable online build vs  <provider>: 4-6 months.
+- Playable online build vs the private provider: 4-6 months.
 - Comfortable product incl. mobile: 8-12 months. Two people roughly halves calendar time.

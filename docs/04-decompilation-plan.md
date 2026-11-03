@@ -34,7 +34,7 @@ Phase 1 finding that shapes this phase: all gameplay is front-server HTTP (35 en
 
 Spikes:
 1. **S1, days, first light.** Local mock front server (canned XML per the `MFG.GameRequest` parsers) + hosts pin + the *current install* booted with `-KONAMINET`, aiming at lobby. Proves the seam and the mockability claim before any reconstruction work.
-2. **S2, one night, parallel.** Full  <provider> session with spice2x `-netdump` plus an HTTP-side packet trace; capture the `vfgac.service_list` ServiceUrl value and whether the private server hosts the front-server endpoints. Determines Option M scope.
+2. **S2, one night, parallel.** Full provider session with spice2x `-netdump` plus an HTTP-side packet trace; capture the `vfgac.service_list` ServiceUrl value and whether the private server hosts the front-server endpoints. Determines Option M scope.
 3. **S3, 2-4 weeks.** Real shim server: the 35 endpoints, table engine behind `/gget`//`/gpost` (port `StructuredHand`/`BlockSet`/`YakuEvaluator`/`MahjongUtility` for rules/score; the shim declares legality flags and wall order), DataID + `bypass_auth` account provisioning from the panel.
 4. **M1, 2-6 weeks, only if the S2 capture justifies it.** eAC3 wire protocol in `eac3-cs/` (property-tree codec, XRPC framing, eacoin/POS semantics), validated against netdump captures and `spice2x/easrv/responses_raw/`; Ghidra only as an oracle for unclear opcodes. Hybrid deployments override `FrontServerUrl` (override point: `CardEntryScene.cs:1070-1088`).
 

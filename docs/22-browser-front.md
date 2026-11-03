@@ -8,7 +8,7 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 ## Behavior
 
 - One origin on `http://127.0.0.1:8090` (port via `WEBFRONT_PORT`). Raw TcpListener, no http.sys/urlacl dependency; HTTP/1.1 keep-alive so the addressable fan-out reuses a handful of loopback sockets (burst connection churn intermittently trips Windows with `ERR_NO_BUFFER_SPACE`), `100 Continue` answered before reading POST bodies.
-- `/aog/*` proxied to `WEBFRONT_UPSTREAM` (default `http:// <provider-host>`), path+body+content-type
+- `/aog/*` proxied to `WEBFRONT_UPSTREAM` (default `http://<provider-host>`), path+body+content-type
   relayed untouched, `User-Agent` replaced with a neutral agent string (the provider only rejects
   UAs containing "Mozilla"), `Host` set by the outbound URI. OPTIONS on /aog/* answers 204 preflight.
 - Everything else served from `WEBFRONT_ROOT` (default exe-relative `webroot`; placeholder index
@@ -52,7 +52,7 @@ static server with COOP/COEP anyway. Game logic stays on the provider; this is p
 ## Smoke evidence (2026-10-25, against live provider)
 - `GET /` with Chrome UA: 200 with coop=same-origin, coep=require-corp. Random 4 KB binary served byte-exact (latin1 staging).
 - `POST /aog/appli_boot` with Chrome UA + Origin header: 200 provider XML (UA rewrite works),
-  Access-Control-Allow-Origin echoes origin, X-WebFront-Upstream: http:// <provider-host>.
+  Access-Control-Allow-Origin echoes origin, X-WebFront-Upstream: http://<provider-host>.
 - `OPTIONS /aog/gget` preflight: 204 + ACAO.
 
 ## Run
@@ -69,5 +69,5 @@ Desktop rebuild launches (once the editor is licensed):
 # play mode against the offline mock engine (same harness that proved S3)
 Unity.exe -projectPath build\unity-project -FRONTURL http://127.0.0.1:8080/aog
 # play mode straight against the public provider (Unity's UA passes their middleware; no hop, no hosts pin)
-Unity.exe -projectPath build\unity-project -FRONTURL http:// <provider-host>/aog
+Unity.exe -projectPath build\unity-project -FRONTURL http://<provider-host>/aog
 ```

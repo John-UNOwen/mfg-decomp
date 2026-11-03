@@ -358,7 +358,7 @@ kyoku on two front paths:
   Kyoku 0 concluded: mock logged KYOKUEND end_stat=0 scores=[33000,29000,29000,29000]; client
   confirmed NEXT_KYOKU_READY and started kyoku 1 (kyoku 0 also completed without hooks in the
   earlier unhooked run, all 210+ gpost accepted).
-- Live public provider (RyuNET  <provider-host>:80 /aog) through the mock hop on :8081: identical
+- Live public provider (RyuNET <provider-host>:80 /aog) through the mock hop on :8081: identical
   UI path, real matchmaking table, kyoku driven by the provider engine (gget 35KB state polls,
   gpost accepted 200), ron agari cutin, PlayerResultInfo parse (rank 2, score 22200, uma -10000
   for our seat), end_game 200, Result scene loaded. 396 front requests, every one answered

@@ -1,4 +1,4 @@
-# S2 - Real provider capture ( <provider-host>)
+# S2 - Real provider capture (<provider-host>)
 
 Status: PASS. A full arcade-mode session ran against a community e-amusement provider:
 new card registration, paid play, one complete 4-player ranked match (server-driven),
@@ -11,15 +11,15 @@ The client asks eAC3 `vfgac.service_list` at title; our mod logs the parse
 (`[S2CAP]` lines, mods/S1Freeze v0.2). The provider answers:
 
 ```
-service_url = http:// <provider-host>/aog/
-services    = front -> http:// <provider-host>/aog/ (mode=operation)
-              game  -> http:// <provider-host>/aog/ (mode=operation)
+service_url = http://<provider-host>/aog/
+services    = front -> http://<provider-host>/aog/ (mode=operation)
+              game  -> http://<provider-host>/aog/ (mode=operation)
 ```
 
 `SystemConfigGameData.FrontServerUrl` is set to exactly that, and every subsequent
 front request lands there with `resultcode:0`. So the same host at `:80` serves the
 entire HTTP game API that our mock (`mock/`) emulates. XRPC rides separately to
- <provider-ip>:8727 (spice2x `-url .../service/init`). This is the template for
+<provider-ip>:8727 (spice2x `-url .../service/init`). This is the template for
 "existing service provider" hosting: an Option S front server only has to reproduce
 what this host reproduced.
 

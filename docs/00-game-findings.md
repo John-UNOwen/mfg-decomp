@@ -5,7 +5,7 @@ Verified against the install at `../` on 2026-10. All paths below relative to th
 ## Identity
 
 - Konami arcade mahjong gacha title: **Mahjong Fight Girl**, model code `VFG`, soft id `VFG:J:A:A:2026060900` (`prop/ea3-ident.xml`, `game/release_code.xml`). Arcade release March 2023 (Japan), still receiving updates; this dump is the June 2026 build.
-- Served today through the private e-Amusement server ` <provider-host>` (` <provider-ip>`), XRPC port 8727, plain HTTP. The game thinks it is an arcade PCB talking to Konami's eAC3 infrastructure.
+- Served today through the private e-Amusement server `<provider-host>` (`<provider-ip>`), XRPC port 8727, plain HTTP. The game thinks it is an arcade PCB talking to Konami's eAC3 infrastructure.
 
 ## Engine and layout
 

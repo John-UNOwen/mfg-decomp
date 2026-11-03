@@ -22,7 +22,7 @@ namespace WebFront
     // Unity's SharedArrayBuffer threading mode.
     internal static class Program
     {
-        private static readonly string Upstream = Environment.GetEnvironmentVariable("WEBFRONT_UPSTREAM") ?? "http:// <provider-host>";
+        private static readonly string Upstream = Environment.GetEnvironmentVariable("WEBFRONT_UPSTREAM") ?? "http://127.0.0.1:8083";
         private static readonly string Root = Path.GetFullPath(Environment.GetEnvironmentVariable("WEBFRONT_ROOT") ?? Path.Combine(AppContext.BaseDirectory, "webroot"));
         private static readonly int Port = int.TryParse(Environment.GetEnvironmentVariable("WEBFRONT_PORT"), out int p) ? p : 8090;
         // The provider only excludes UAs containing "Mozilla"; any neutral agent works.
@@ -39,7 +39,7 @@ namespace WebFront
         // LAN dev relay: today's unauthenticated behaviour, unchanged.
         private static readonly bool Gate = Environment.GetEnvironmentVariable("WEBFRONT_GATE") == "1";
         private static readonly string AuthBaseEnv = Environment.GetEnvironmentVariable("WEBFRONT_AUTH");
-        private static readonly string AuthBase = AuthBaseEnv ?? (Environment.GetEnvironmentVariable("WEBFRONT_UPSTREAM") ?? "http:// <provider-host>");
+        private static readonly string AuthBase = AuthBaseEnv ?? (Environment.GetEnvironmentVariable("WEBFRONT_UPSTREAM") ?? "http://127.0.0.1:8083");
         // WEBFRONT_TRUST_PROXY=cloudflare makes CF-Connecting-IP the visitor identity
         // (behind the tunnel that is the only honest source ip). Without it the gate
         // keys visitors on the real socket peer - incoming XFF/CF headers from a direct

@@ -46,11 +46,11 @@ Work then moves to a shim server (panel backend, any language):
 - Identity: front server accepts a DataID with `bypass_auth=true` (OBSERVED, `Login.cs:20`); accounts get provisioned/DataID-mapped by the panel (a "card number" can just be a DataID alias; no reader, no PIN RPCs needed in this mode).
 - The game-side re-platforming that Option S still requires: `System.Net.WebRequest` transport must move to UnityWebRequest for WebGL (`RequestCoroutine`/`HttpWebRequestor`/`HttpDownloader`, OBSERVED no WebRequest on WebGL), `dev/raw` backup path to browser persistent storage (IndexedDB), strip streaming/Dx11/execexe classes.
 
-What Option S gives up in v1: real card/PIN authentication, PASELI billing, and  <provider> card data. Those stay available through the streaming MVP meanwhile.
+What Option S gives up in v1: real card/PIN authentication, PASELI billing, and the provider's card data. Those stay available through the streaming MVP meanwhile.
 
 ### Option M: arcade mode against the eAC3 server (deferred, capture-gated)
 
-Keep kamunity ON and implement the ~60 native-backed functions over a managed `eac3-cs` client (XRPC wire format per Phase 2 original scope, eacoin/POS semantics). Open evidence question first: where does `vfgac.service_list` point `FrontServerUrl` on  <provider>, and does that host serve the 35 endpoints? Unknown (the 1.5 KB game log on disk is inconclusive). A one-night capture session (spice2x `-netdump` + a packet trace of the HTTP side) answers it. If  <provider> has no front server, the fallback is a hybrid: ea3/XRPC for card+POS, our shim for `FrontServerUrl` (client override point exists: `CardEntryScene.cs:1070-1088`).
+Keep kamunity ON and implement the ~60 native-backed functions over a managed `eac3-cs` client (XRPC wire format per Phase 2 original scope, eacoin/POS semantics). Open evidence question first: where does `vfgac.service_list` point `FrontServerUrl` on the provider, and does that host serve the 35 endpoints? Unknown (the 1.5 KB game log on disk is inconclusive). A one-night capture session (spice2x `-netdump` + a packet trace of the HTTP side) answers it. If the provider has no front server, the fallback is a hybrid: ea3/XRPC for card+POS, our shim for `FrontServerUrl` (client override point exists: `CardEntryScene.cs:1070-1088`).
 
 ### Recommended order
 
@@ -63,7 +63,7 @@ From the census DELETE bucket + mode analysis (census section 6): delete `EXECEX
 ## Revised gate sequence
 
 1. **Gate 1 (days): mock first light.** Hosts-file pin `aog03-stg.pvt.mo.konami.net` (and the reconnect template's URL parts, `Reconnect.cs:18`) to a local mock; boot the *current install* with `-KONAMINET` against canned XML for `/appli_info`, `/login`, `/get_menudata`, `/client_state_read`; reaching the lobby proves the seam and the mockability claim before any WebGL or reconstruction work.
-2. **Gate 1b (one night, parallel): Option M capture.** Full  <provider> session with `-netdump` plus HTTP-side packet trace; answers the ServiceUrl/front-server question and seeds Phase 2 wire work if we keep M.
+2. **Gate 1b (one night, parallel): Option M capture.** Full provider session with `-netdump` plus HTTP-side packet trace; answers the ServiceUrl/front-server question and seeds Phase 2 wire work if we keep M.
 3. **Gate 2 (unchanged intent, new cheapest path): desktop editor build reaches lobby** through the shim (S) or real ea3 (M). Kill-switch still lives here.
 4. Gates 3/4 (project reconstruction, WebGL) unchanged from [04-decompilation-plan.md](04-decompilation-plan.md).
 

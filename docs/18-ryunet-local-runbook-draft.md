@@ -5,9 +5,9 @@ Status: code-read draft (no install/run performed; nothing committed). Clones in
 Line citations point into those clones; our-side citations point into this repo.
 
 Update 2026-10-24 (after this draft ran end to end): per owner, v1 uses the PUBLICLY hosted provider
-(http:// <provider-host>, AOG front on :80 /aog/, same stack) instead of self-hosting; the local boot
+(http://<provider-host>, AOG front on :80 /aog/, same stack) instead of self-hosting; the local boot
 below was verified working (server started, AOG 200s, client booted to it). For the desktop game the
-repo mock runs in forwarding mode (`MFG_UPSTREAM=http:// <provider-host>`, commit d8cb710): it keeps the
+repo mock runs in forwarding mode (`MFG_UPSTREAM=http://<provider-host>`, commit d8cb710): it keeps the
 hosts-pin/proxy hop, fixes the Host header the vhost needs, logs every exchange, relays the rest.
 
 ## Verdict
@@ -193,12 +193,12 @@ follows `moserv_url` off the https front, have the mock proxy rewrite/strip it (
 appli_boot already passed this gate, docs/12 "Verified guest chain"). `gserv_url` is inert for
 this client (no call site; docs/15:744, 809-810).
 
-**Route B — community shape (plain HTTP for game traffic, closer to  <provider> live).** Hosts:
+**Route B — community shape (plain HTTP for game traffic, closer to the provider's live shape).** Hosts:
 `127.0.0.1 rproxy0400.ea.konami.net`. Run Caddy (or any TLS terminator) on `:443` reverse-proxying
 `https://rproxy0400.ea.konami.net → http://127.0.0.1:8083`, launch **without** `-KONAMINET`. eAC3
 `vfgac.service_list` then hands the client `http://rproxy0400.ea.konami.net:22421/aog/` (default)
 or your `mfg_service_url`, and all gget/gpost traffic is plain HTTP to the native server —
-exactly the live pattern captured in docs/15 §1.1 (`http:// <provider-host>/aog/`). Requires
+exactly the live pattern captured in docs/15 §1.1 (`http://<provider-host>/aog/`). Requires
 `require_pcbid_auth=false` (the emulator route prefixes `system_id=<PCBID>&sic=…`, docs/15:33, and
 registered-cabinet enforcement would 403 unknown PCBIDs; EamuseMiddleware.ts:275-279). Cardless
 guest on this route: not yet observed locally — verify.

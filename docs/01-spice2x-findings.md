@@ -20,7 +20,7 @@ spice2x ([spice2x.github.io](https://spice2x.github.io/)) is the GPLv3 open-sour
 ## Launch contract observed in `../log.txt`
 
 ```
-spice64.exe -url http:// <provider-host>/service/init -p <PCBID> -card0 <UID16HEX> -w -windowborder 2
+spice64.exe -url http://<provider-host>/service/init -p <PCBID> -card0 <UID16HEX> -w -windowborder 2
 ```
 
 Boot order: banner -> system dumps -> game DLL load (kamunity) -> patching -> ea3 boot (`VFGJAA2026060900`, develop mode) -> execexe instance (ee_tmp) -> service.init handshake -> pcbtracker/cardmng -> title/attract -> card insert -> lobby loops (`message.get`, `pcbevent.put`).

@@ -41,4 +41,4 @@ Flow path observed after login (Unity scene log): `Login` -> `StoryPlay` (mandat
 
 - Match loop: `gget`/`gpost` need a scripted command engine (KYOKUSTART / TSUMOCHOICES / SUTECHOICES), not static templates, before any match can play.
 - Template enrichment: gacha info ids must resolve against client masters; menudata playmode values are placeholders.
-- S2 ( <provider> capture) now has an easier runbook: same launch line without hosts pins and without `-KONAMINET`, plus `-netdump`.
+- S2 (provider capture) now has an easier runbook: same launch line without hosts pins and without `-KONAMINET`, plus `-netdump`.

@@ -8,19 +8,19 @@
     ".NETFramework,Version=v4.7.2": []
   },
   "packageFolders": {
-    "C:\\Users\\ <you>\\.nuget\\packages\\": {}
+    "C:\\Users\\<you>\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\firstpass9\\firstpass9.csproj",
+      "projectUniqueName": "C:\\Users\\<you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\firstpass9\\firstpass9.csproj",
       "projectName": "Assembly-CSharp-firstpass",
-      "projectPath": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\firstpass9\\firstpass9.csproj",
-      "packagesPath": "C:\\Users\\ <you>\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ <you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\firstpass9\\obj\\",
+      "projectPath": "C:\\Users\\<you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\firstpass9\\firstpass9.csproj",
+      "packagesPath": "C:\\Users\\<you>\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\<you>\\Documents\\GitHub\\mfg-decomp\\build\\project-merge-analysis\\verify\\firstpass9\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\ <you>\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\<you>\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net472"

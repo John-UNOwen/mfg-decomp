@@ -10,11 +10,11 @@
         "projectUniqueName": "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
         "projectName": "Assembly-CSharp",
         "projectPath": "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\ac9.csproj",
-        "packagesPath": "C:\\Users\\ <you>\\.nuget\\packages\\",
+        "packagesPath": "C:\\Users\\<you>\\.nuget\\packages\\",
         "outputPath": "C:\\mfg\\build\\project-merge-analysis\\verify\\ac9\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\ <you>\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\<you>\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net472"

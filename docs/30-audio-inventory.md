@@ -60,7 +60,16 @@ Audible now: `BGM_TITLE` (title) and `BGM_MENU` (login/menu) — both from origi
 
 ## 4a. Runtime observation (headless proof 2026-11-03, `tmp/audio_proof.log.txt`)
 
-Fresh throwaway account (gate lobby unlock + signup + cookie injection): Logo 72s → Title 80s → Login 81s → NewRegistration 92s. **The old "fresh signup stuck at Logo" defect no longer reproduces**; the walk now stalls at NewRegistration (needs name entry; AUTOSERVE does not type). 12 `/aog` front hits; zero `SE:<label> is not found!` entries; zero label-table load errors.
+Fresh throwaway account (gate lobby unlock + signup + cookie injection): Logo 72s → Title 80s → Login 81s → NewRegistration 92s. **The old "fresh signup stuck at Logo" defect no longer reproduces**; the walk now stalls at NewRegistration (needs name entry; AUTOSERVE does not type; scripted kana clicks fill the name but the OK click has not advanced the flow yet — coordinate/flow question open). 12 `/aog` front hits; zero `SE:<label> is not found!` entries; zero label-table load errors.
+
+## 4b. Web Audio telemetry (proof2 2026-11-03, `tmp/audio_proof2_*.log.txt`)
+
+Hooks on `decodeAudioData` / `createBufferSource.start` / `HTMLMediaElement.play|load|error` captured the real playback pipeline headlessly:
+
+- Short clips (SFX/VOX) play via **decoded buffer sources**: 4 starts = 2 stereo pairs — 4.02 s at Logo (= `SFX_KONAMI`), 4.88 s at Title (= title VOX), both `loop=False`. 189 clips decoded.
+- **BGM plays as streamed HTMLMediaElements**: exactly 2 plays, t=79.7 s (Title → `BGM_TITLE`) and t=82.0 s (Login/CardEntry → `BGM_MENU`), `src=blob:` URLs, `duration=NaN` at play time, **`loop=False`**, and **no `ended` and no re-play events for the rest of the window** (≥ 200 s).
+- Consequence: `AudioManager.cs:1887` does `audioSource.loop = labelSettings.GetLoop()` — correct on the cabinet — but Unity 2022 WebGL's HTMLMediaElement path never re-plays a streamed clip: on the lane every BGM is effectively one-shot. Cabinet MENU/HOME loop forever (table loop=true). **Missing loop is the primary lane-vs-cabinet audio defect.**
+- Candidate fixes (Phase B, all require rebuild): (1) importer `loadType` decompress-on-load for BGM so looping clips become decoded buffers — WebAudio `BufferSourceNode.loop` loops seamlessly (AAC priming only affects the first start); memory only for actually-loaded BGM; (2) WebGL branch in `AudioManager` compensating streamed-clip loop (replay on time-up); (3) keep streaming but restart via existing fade bookkeeping. Decision needs an A/B on loop-critical tracks.
 
 ## 5. Known gaps (most are defects the original cabinet shares)
 

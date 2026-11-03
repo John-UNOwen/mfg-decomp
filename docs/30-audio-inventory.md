@@ -62,14 +62,14 @@ Audible now: `BGM_TITLE` (title) and `BGM_MENU` (login/menu) — both from origi
 
 Fresh throwaway account (gate lobby unlock + signup + cookie injection): Logo 72s → Title 80s → Login 81s → NewRegistration 92s. **The old "fresh signup stuck at Logo" defect no longer reproduces**; the walk now stalls at NewRegistration (needs name entry; AUTOSERVE does not type; scripted kana clicks fill the name but the OK click has not advanced the flow yet — coordinate/flow question open). 12 `/aog` front hits; zero `SE:<label> is not found!` entries; zero label-table load errors.
 
-## 4b. Web Audio telemetry (proof2 2026-11-03, `tmp/audio_proof2_*.log.txt`)
+## 4c. Home reached + loop verdict (proof2 v6, 2026-11-03, `audio_proof2_2026-11-03165111.log.txt`)
 
-Hooks on `decodeAudioData` / `createBufferSource.start` / `HTMLMediaElement.play|load|error` captured the real playback pipeline headlessly:
+v6 automated the whole new-account walk (kana keys → key_ok → Yes (762,439) → survey skip (823,613) → story skip → FirstCharaSelect → **Home**, ~503 s; first headless Home arrival) and added a `HTMLMediaElement.loop` **setter hook**. Results:
 
-- Short clips (SFX/VOX) play via **decoded buffer sources**: 4 starts = 2 stereo pairs — 4.02 s at Logo (= `SFX_KONAMI`), 4.88 s at Title (= title VOX), both `loop=False`. 189 clips decoded.
-- **BGM plays as streamed HTMLMediaElements**: exactly 2 plays, t=79.7 s (Title → `BGM_TITLE`) and t=82.0 s (Login/CardEntry → `BGM_MENU`), `src=blob:` URLs, `duration=NaN` at play time, **`loop=False`**, and **no `ended` and no re-play events for the rest of the window** (≥ 200 s).
-- Consequence: `AudioManager.cs:1887` does `audioSource.loop = labelSettings.GetLoop()` — correct on the cabinet — but Unity 2022 WebGL's HTMLMediaElement path never re-plays a streamed clip: on the lane every BGM is effectively one-shot. Cabinet MENU/HOME loop forever (table loop=true). **Missing loop is the primary lane-vs-cabinet audio defect.**
-- Candidate fixes (Phase B, all require rebuild): (1) importer `loadType` decompress-on-load for BGM so looping clips become decoded buffers — WebAudio `BufferSourceNode.loop` loops seamlessly (AAC priming only affects the first start); memory only for actually-loaded BGM; (2) WebGL branch in `AudioManager` compensating streamed-clip loop (replay on time-up); (3) keep streaming but restart via existing fade bookkeeping. Decision needs an A/B on loop-critical tracks.
+- Title `BGM_TITLE`: loopset=False → play (correct: the table marks TITLE loop=false).
+- Login/CardEntry `BGM_MENU`: loopset=False, play, **then loopset=True at the same instant** — Unity's glue (`_JS_Sound_SetLoop` → `channel.setLoop` → `mediaElement.loop` proxy, verified in `Build/webgl.framework.js`) does propagate the table flag for streamed clips. HTML5 media loop then runs natively (no `ended`, no re-`play` calls). So the C#→WebAudio loop chain is intact; the cabinet-vs-lane loop difference is the **restart seam itself** (HTML5 media loops restart AAC decoding at each cycle → audible priming gap; WebAudio BufferSource loops are sample-seamless).
+- **Home is silent**: `SoundManager.PlayMyCharaMyRoomBGM()` fires at `HomeFlow.cs:294` (GAMELOG shows it resolving to `BGM_HOME`), but telemetry shows **no new media element, no buffer start, and the decode count frozen at 189** — the clip is never loaded. No console error anywhere in the run.
+- Root-cause candidate found in `AudioManager.LoadAudioClipCompat` (`.wav`→`.ogg` compat loader, AudioManager.cs:2593-2621): a failed Addressables handle on WebGL can resolve with a **non-null but broken AudioClip** (`length 0` / `NaN sampleRate`); the old code cached it as loaded, so every later PlayBgm on that label silently no-ops. Instrumented + hardened loader deployed (`MFGDBG` logs + result validation: length/sampleRate/channels check + release on invalid).
 
 ## 5. Known gaps (most are defects the original cabinet shares)
 

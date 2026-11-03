@@ -10,7 +10,7 @@ Status: **draft for owner review.** No implementation has started. Decisions rec
 | 1 | Public-facing hosting, locally or on a VPS, **always behind Cloudflare on the owner's own domain**. |
 | 2 | Identity pages = the core WebUI's existing `/signup` / `/login` (Express + pug, bcrypt, rate-limited, session-backed). Branded custom pages are a later coat of paint. |
 | 3 | 1 web user = 1 game account. The DataID is **minted server-side at signup**, crypto-random 16-hex, never user-chosen, never reused. |
-| 4 | The existing preview account `6AE73807BA1CE8CB` (26 saved states, 9級) is **imported** by binding it to a web user (admin/claim tooling). |
+| 4 | The existing preview account (16-hex DataID kept in the owner ledger only) (26 saved states, 9級) is **imported** by binding it to a web user (admin/claim tooling). |
 | 5 | The player name is set in-game: a first regular boot with no registered name routes through the original **NewRegistration** flow (screens 6-8 of the 2026-11-01 cabinet captures). Web name editing is a later feature. |
 | 6 | Dev/test lanes (guest pages, fixture identities, static server 8094) stay alive but physically separated; they are never exposed publicly. |
 | 7 | A page carrying a pinned `-DATAID` boots the client as a **regular (non-guest)** account. Guest boot stays for `-AUTOSERVE` test lanes and an explicit opt-out. (Implemented 2026-11-01 as the `-REGULAR` arg; see Done below.) |
@@ -140,14 +140,14 @@ Implemented pieces:
 - **Core webui (`tmp\RyuNET-core` dist + src mirrors + views):** signup mints the account itself - crypto 16-hex DataID excluding reserved shapes (`01…`, `E004…`, `E0047CC78DFBA459`, existing card/user/profile ids via FindCard/FindUserByCardNumber/FindProfile), `CreateCard(cid == refid)`, password min 8, signup page no longer asks for a card; `WEB_SECURE_COOKIE=1` gives `connect.sid` the Secure flag; new plugin knob `mfg_http_bind` (native 22421 listener; hosted posture 127.0.0.1).
 - **Plugin (`plugins/mfg@asphyxia`):** `VFG_PRESENTER_SECRET` knob, `presentViaPresenter` rules, `/aog/vfgcard_present` route.
 - **WebFront (`webfront/Program.cs`, `WEBFRONT_GATE=1`):** session gate via core `/api/me` (30s cache) - anonymous page 302 `/login?next=`, anonymous `/aog` refused 770; play pages spliced per session from the canonical template (`-ENTERCARD -TRANSLATE -REGULAR -DATAID=<id>`, stale dev artifacts never served); auth relay with Cookie/Set-Cookie/Location passthrough + visitor UA relay (the core webui 404s non-browser UAs - found the hard way) + `CF-Connecting-IP` -> `X-Forwarded-For` for the core's auth rate limits; presentation before every relayed `/aog/login|create_player` (also on the gate-off dev relay when a secret is armed); cache split fixed (statics stay immutable, `/aog` and pages `no-store`).
-- **Scripts:** `hosting_claim.cjs` (offline admin rotation + account claim; ran: `mfgowner` -> `6AE73807BA1CE8CB`), `hosting_up.ps1` (production start), `hosting_backups.ps1` (nightly savedata copies), `hosting_deploy.md` + `hosting_cloudflared.yml` (Cloudflare steps), `preview_game.ps1` now arms the presenter secret on the dev lane.
+- **Scripts:** `hosting_claim.cjs` (offline admin rotation + account claim; ran: `mfgowner` -> its DataID, owner ledger only), `hosting_up.ps1` (production start), `hosting_backups.ps1` (nightly savedata copies), `hosting_deploy.md` + `hosting_cloudflared.yml` (Cloudflare steps), `preview_game.ps1` now arms the presenter secret on the dev lane.
 
 Verified matrix (headless Edge + scripted callers + DB/log reads):
 
 | Probe | Result |
 |---|---|
 | anonymous `/` and `/aog` at the gate | 302 -> /login; 403 refusal 770 |
-| signup with no card | minted `C42F74698A509DD6`, no reserved-shape id, card doc `cid == refid` |
+| signup with no card | minted a 16-hex DataID (value recorded in the owner ledger only), no reserved-shape id, card doc `cid == refid` |
 | gated play page | boots `Title -> NewRegistration` (original name flow), `login ... guest=0` |
 | server-side gate | `web presenter bound card ... credential-bound`, `card credential presented`, `login ... auth=card ... spent by this login` |
 | bare DataID straight to core (scripted UA) | refused 770, `ACCOUNT REFUSED rule=card` - both for the minted and the claimed account |

@@ -834,18 +834,45 @@ namespace WebFront
                             {
                                 HandlePage(writer, origin, cookie, path, visitorIp, isHead);
                             }
-                            else if (Gate && method == "GET" && path.Equals("/about", StringComparison.OrdinalIgnoreCase))
+                            else if (Gate && path.Equals("/about", StringComparison.OrdinalIgnoreCase))
                             {
                                 // Hosted lane: the core webui landing page is an operator
                                 // page (contributor wall, admin nav). Signed-in visitors go
                                 // straight to the game - the '/' page pins their own card -
-                                // anonymous visitors go to the login form.
+                                // anonymous visitors go to the login form. Method-agnostic
+                                // (checkup L14): HEAD/POST must not slip through to the core.
                                 SessionEntry aboutSession = CheckSession(cookie, visitorIp);
                                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
                                     new string[] { "Location: " + (aboutSession.Kind == SessionKind.Ok ? "/" : "/login") }, isHead);
                             }
                             else if (Gate && IsCorePage(path, method))
                             {
+                                // Checkup L2: profile/account pages leak join/last-seen and act
+                                // as a DataID->username oracle when relayed anonymously. They are
+                                // the logged-in area of the core webui, so the gate answers its
+                                // own lobby/login redirect there instead of reaching the core.
+                                bool needsSession = path.StartsWith("/profile", StringComparison.OrdinalIgnoreCase)
+                                    || path.StartsWith("/my-profile", StringComparison.OrdinalIgnoreCase)
+                                    || path.StartsWith("/account", StringComparison.OrdinalIgnoreCase);
+                                if (needsSession)
+                                {
+                                    SessionEntry pageSession = CheckSession(cookie, visitorIp);
+                                    if (pageSession.Kind != SessionKind.Ok)
+                                    {
+                                        Respond(writer, origin, 302, "Found", null, null, null, "no-store",
+                                            new string[] { "Location: /login" }, isHead);
+                                        break;
+                                    }
+                                }
+                                // Checkup L3: minting extra DataIDs/cards from the profile page is
+                                // out of v1 scope; the core has no rate limiter on that route.
+                                bool cardMint = method == "POST" && path.StartsWith("/profile/", StringComparison.OrdinalIgnoreCase)
+                                    && path.EndsWith("/card", StringComparison.OrdinalIgnoreCase);
+                                if (cardMint)
+                                {
+                                    Respond(writer, origin, 404, "Not Found", "text/plain", "not found", null, "no-store", null, isHead);
+                                    break;
+                                }
                                 HandleAuth(writer, origin, method, relayTarget, path, body, contentType, cookie, visitorIp, ua, host, accept, isHead);
                             }
                             else if (Gate && isHtml)

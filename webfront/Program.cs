@@ -90,7 +90,11 @@ namespace WebFront
         // edge needs its own throttle in front of the origin's per-IP limiters).
         // 600/min: above the game's own steady-state traffic (keep_alive is 1/s),
         // well below what a junk-cookie flood would need.
-        private const int VisitorWindowMs = 60000, VisitorMaxPerWindow = 600, MaxVisitorEntries = 20000;
+        // Identity-route budget per visitor per minute. A real match front session (gget +
+        // keep_alive + versioned calls) bursts past 600/min and ErrorModes when throttled
+        // (2026-11-03 proof: 4x gget 429 mid-match), so the window carries gameplay headroom;
+        // concurrency stays hard-capped above.
+        private const int VisitorWindowMs = 60000, VisitorMaxPerWindow = 1500, MaxVisitorEntries = 20000;
         private static readonly Dictionary<string, (long WindowStart, int Count)> VisitorHits = new Dictionary<string, (long, int)>();
         private static readonly Dictionary<string, int> VisitorConns = new Dictionary<string, int>();
         private static readonly object VisitorLock = new object();

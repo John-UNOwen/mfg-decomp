@@ -34,8 +34,10 @@ tmp/streamingassets-stage/
 build/tools/asmmeta/bin/
 build/tools/asmmeta/obj/
 
-build/project-merge-analysis/verify/obj/
-build/project-merge-analysis/verify/bin/
+build/project-merge-analysis/verify/*
+!build/project-merge-analysis/verify/*/
+build/project-merge-analysis/verify/*/*
+!build/project-merge-analysis/verify/*/*.csproj
 
 *.alf
 *.ulf

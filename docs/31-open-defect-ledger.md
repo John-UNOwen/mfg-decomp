@@ -6,7 +6,7 @@ Merged sources: `docs/29-checkup-2026-11-02-findings.md` (26 items, 2026-11-02 c
 |---|---|---|---|---|
 | L1 | critical | 20-pull is label-only: client Count()=20 but every request asks server for 5; play scene runs off the delivered list and aborts before the result dialog; 20-state animator rig does not exist (fixing the request count alone is not enough) | open | design decision: revert to honest 5-pull labels or full 20-pull implementation (request, rig, thumbnails, bookkeeping); ledger owner chooses with audio phase checkpoint |
 | L2 | major | Gate relays core profile pages anonymously (join/last-seen leak, DataID→username oracle) — contradicts docs/28 gating | open | gate-side session/lobby check before relay |
-| L3 | major | Gate exposes POST /profile/:refid/card: self-mint arbitrary DataIDs, no core rate limiter | open | gate block or core limiter + ownership rules |
+| L3 | major | Gate exposes POST /profile/:refid/card: self-mint arbitrary DataIDs, no core rate limiter | fixed-deployed-verified | gate 404s POST /profile/<refid>/card at the edge (v1 policy: minting stays in signup + admin tooling); verified 404 for anonymous and logged-in |
 | L4 | major | TicketFive charges 200 tickets for a 5-item draw; low balances wiped-and-persisted instead of refused | open | fix alongside L1 decision; Consume must refuse before committing |
 | L5 | major | `gachaCount == 5` gates now always false: MemorialCards dead, gacha-total counters dead, mission reward unobtainable | open | resolve with L1 (count semantics) |
 | L6 | major | 20-pull priced/paid as 5-pull end to end (fee, server roll, spirits, exchange points) | open | resolve with L1 |
@@ -17,7 +17,7 @@ Merged sources: `docs/29-checkup-2026-11-02-findings.md` (26 items, 2026-11-02 c
 | L11 | minor | Lobby lockout ladder never escalates past 60 s (counter deleted with the lockout) | open | persist fail counts across penalty expiry |
 | L12 | minor | 1–4-fail history never decays; whole-table Clear drops others' active lockouts | open | per-entry TTL + per-entry pruning |
 | L13 | minor | Correct code cannot clear an active lockout (lockout checked before code match) | open | check code before lockout refusal |
-| L14 | minor | /about redirect rule GET-only; HEAD/POST/… relay to core | open | method-agnostic gate rule |
+| L14 | minor | /about redirect rule GET-only; HEAD/POST/… relay to core | fixed-deployed-verified | /about branch no longer method-gated; verified POST and HEAD /about both 302 at the gate |
 | L15 | minor | Lobby unlock cookie lacks Secure while core cookies are Secure | open | set Secure via X-Forwarded-Proto branch |
 | L16 | minor | Gate body cap 256 KB vs core 5 MB media uploads; /uploads not relayed | open | raise cap + relay /uploads |
 | L17 | minor | Auto authpass flattens EPASSWD/unbound-card states into NetworkError; unbound cards never heal | open | port per-status handling into the auto lane |

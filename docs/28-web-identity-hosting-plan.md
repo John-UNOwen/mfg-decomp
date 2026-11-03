@@ -27,7 +27,7 @@ Assumed defaults for the public-phase round (not grilled; change at review): sin
 
 ## Done already (2026-11-01)
 
-- **Regular boot works**: `AccountGameData.NotifyGuestUserStart()` honors `-REGULAR` with a pinned `-DATAID` → `IsGuestUser=false` → `guest=0` logins, full Home hub. Verified headless: fixture `REGPROBE1` (`login ... guest=false`, `is_guest=false` in the plugin DB, fresh account routed to NewRegistration), and the real account `6AE73807BA1CE8CB` flipped from `guest=true` to `guest=false` and resumed straight to Home with progress intact.
+- **Regular boot works**: `AccountGameData.NotifyGuestUserStart()` honors `-REGULAR` with a pinned `-DATAID` → `IsGuestUser=false` → `guest=0` logins, full Home hub. Verified headless: fixture `REGPROBE1` (`login ... guest=false`, `is_guest=false` in the plugin DB, fresh account routed to NewRegistration), and the owner preview account (DataID in the owner ledger) flipped from `guest=true` to `guest=false` and resumed straight to Home with progress intact.
 - `preview_game.ps1` defaults to regular boot (`-Guest` opts out); documented in OKF reference `endgame-continue-chain-fix-2026-10-31.md`.
 
 ## Done already (2026-11-02)
@@ -76,10 +76,10 @@ Goal: `/signup` works with just username + password + confirm; the game account 
    - seed the plugin profile + **premium** (Phase 1c).
 2. Keep password/username rules as-is (3-32, `/^[\w\-.@]+$/`, password ≥4); raise min password to 8 at this touch.
 3. **1c — premium by default (Q8 override):** grant premium *state-side*, not control-side:
-   - seed the account's `player_game` state with `_IsPro: true` (server-authored state, same pattern as the friend-grant work), for new mints and as a **one-time migration for existing profiles** (incl. `6AE73807BA1CE8CB`);
+   - seed the account's `player_game` state with `_IsPro: true` (server-authored state, same pattern as the friend-grant work), for new mints and as a **one-time migration for existing profiles** (incl. the owner preview account);
    - deliberately keep `game_control → pro_stats` = `{now_pro_stats:false, ProStayDatas:[]}`: `IsProStay()` feeds the `pro_stay=1` param at `entry_game`, i.e. premium *table-stay* semantics we have not verified against the match engine; `pro_stay=1` could silently change table behavior. The client premium gates that matter for the hub (gacha NETCAFE branch HomeFlow.cs:352, private-match button, pro banners) key on `Player.IsPro()` = `_IsPro`. Spike at implementation: confirm seeded `_IsPro` survives the client's own state write-back (it should — the field round-trips in the blob).
    - If we later want premium *stay* matching, that is its own verified feature (flag in review).
-4. Verify: signup headless (curl/cookie jar) → account page shows the minted DataID → page load as that account → `login ... guest=false` + presentation line in server log → Home. Existing account import (Q4) is the admin-claim script: bind `6AE73807BA1CE8CB` to a chosen web user (sets `cardNumber` + card doc accordingly) + rotate the seeded `admin` password in the same step.
+4. Verify: signup headless (curl/cookie jar) → account page shows the minted DataID → page load as that account → `login ... guest=false` + presentation line in server log → Home. Existing account import (Q4) is the admin-claim script: bind the owner preview account to a chosen web user (sets `cardNumber` + card doc accordingly) + rotate the seeded `admin` password in the same step.
 
 ## Phase 2 — WebFront session gate + card presentation (our C# file)
 
@@ -126,7 +126,7 @@ Goal: `/signup` works with just username + password + confirm; the game account 
 
 ## Definition of done (v1)
 
-Open `https://mfg.<domain>` → sign up (username/password) → see own minted DataID → play immediately as a **regular, premium-granted** account with the full hub (gacha private-match gates open per premium; dojo per rank rules; My Room character select), one session at a time; anonymous visitors cannot play or reach any AOG endpoint for someone else's account; existing `6AE73807BA1CE8CB` history intact and claimed by the owner account.
+Open `https://mfg.<domain>` → sign up (username/password) → see own minted DataID → play immediately as a **regular, premium-granted** account with the full hub (gacha private-match gates open per premium; dojo per rank rules; My Room character select), one session at a time; anonymous visitors cannot play or reach any AOG endpoint for someone else's account; existing owner preview account history intact and claimed by the owner account.
 
 ## Delivery record (implemented + verified 2026-11-01, local hosted-mode lane)
 

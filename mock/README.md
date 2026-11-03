@@ -1,5 +1,7 @@
 # mock - KONAMINET front-server mock
 
+Status (2026-11): historical harness. Hosted play now runs WebGL through the WebFront gate to the self-hosted core + plugin (docs/28); this mock stays for offline protocol experiments and as the reference for the transport seam. The mechanics below describe the mock as built and still hold.
+
 Stands in for the real AOG front server so the decompiled game can talk HTTP in
 `-KONAMINET` mode without `proxy-jp100.konami` existing. It emulates the whole transport seam:
 TCP connect to the proxy port, `CONNECT` tunnel, TLS with an in-memory self-signed certificate,

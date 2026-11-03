@@ -1,0 +1,54 @@
+{
+  "catalog": "\\\\MYAPPSANDBOX\\c\\Games\\MFG\\game\\MFGClient_Data\\StreamingAssets\\aa\\catalog.json",
+  "export_root": "build\\unity-project-full\\ExportedProject",
+  "catalog_bundle_entries": 28292,
+  "catalog_asset_entries": 29409,
+  "exported_keys": 107716,
+  "asset_entries_present_in_export": 29404,
+  "coverage_pct": 99.98,
+  "asset_entries_present_allowing_dedup_suffix": 29404,
+  "coverage_pct_allowing_dedup_suffix": 99.98,
+  "export_file_counts_by_extension": {
+    ".mat": 2398,
+    ".meta": 58761,
+    ".anim": 4371,
+    ".controller": 545,
+    ".ogg": 10363,
+    ".asset": 19978,
+    ".png": 16695,
+    ".cs": 1387,
+    ".ttf": 7,
+    ".prefab": 3070,
+    ".lighting": 36,
+    ".shader": 40,
+    ".rendertexture": 33,
+    ".bmp": 1,
+    ".overridecontroller": 57,
+    ".unity": 62,
+    ".playable": 13,
+    ".csv": 218,
+    ".dll": 39,
+    ".txt": 37,
+    ".mixer": 1,
+    ".bytes": 3
+  },
+  "miss_by_extension": {
+    ".shader": 4,
+    ".mat": 1
+  },
+  "miss_by_dir": {
+    "Assets/MFG/Fonts/DFG-PopMix-W5 CharaSelectNum1.mat": 1,
+    "Assets/Shaders/DefaultResourcesExtra/Mobile": 1,
+    "Assets/Shaders/DefaultResourcesExtra/Normal-VertexLit.shader": 1,
+    "Assets/Shaders/DefaultResourcesExtra/Standard.shader": 1,
+    "Assets/Shaders/DefaultResourcesExtra/UI": 1
+  },
+  "miss_samples": [
+    "Assets/MFG/Fonts/DFG-PopMix-W5 CharaSelectNum1.mat",
+    "Assets/Shaders/DefaultResourcesExtra/Mobile/Mobile-Particle-Add.shader",
+    "Assets/Shaders/DefaultResourcesExtra/Normal-VertexLit.shader",
+    "Assets/Shaders/DefaultResourcesExtra/Standard.shader",
+    "Assets/Shaders/DefaultResourcesExtra/UI/UI-Default.shader"
+  ],
+  "miss_total": 5
+}

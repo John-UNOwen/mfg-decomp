@@ -1,5 +1,6 @@
 out/
-tmp/
+tmp/*
+!tmp/checkup-scratch/
 .cache/
 *.tmp
 Thumbs.db
@@ -27,7 +28,6 @@ build/unity-project/
 build/unity-project-auxiliary/
 build/export-primary-content/
 build/export-logs/
-build/catalog-*.json
 tmp/assetripper/
 tmp/streamingassets-stage/
 
@@ -61,8 +61,19 @@ build/project-merge-analysis/verify/*/obj/Release/
 
 # runtime artifacts and local working dirs (docs/28 risk item 8: logs carry real ids)
 log.txt
-.audit/
 .dsh-vision-router/
+
+# audit lanes: our probes and reports are committed; db copies, run dumps, and copies of
+# the upstream server modules stay out of git
+.audit/*
+!.audit/*.py
+!.audit/*.js
+!.audit/*.ps1
+!.audit/*.md
+tmp/checkup-scratch/*.txt
+tmp/checkup-scratch/audit_tsc_out/
+.audit/{AsphyxiaCore,bot,CardManager,EamuseCoin,EamuseIO,EamuseMiddleware,EamusePlugin,EamuseRouteContainer,EamuseSend,ExternalPluginLoader,ArgConfig,KBinJSON,KDataReader,sdvx_jacket_resolver,SqliteStore,leaderboard,plugin,settings,helpers}.js
+tmp/checkup-scratch/{AsphyxiaCore,bot,CardManager,EamuseCoin,EamuseIO,EamuseMiddleware,EamusePlugin,EamuseRouteContainer,EamuseSend,ExternalPluginLoader,ArgConfig,KBinJSON,KDataReader,sdvx_jacket_resolver,SqliteStore,leaderboard,plugin,settings,helpers}.js
 
 # owner reference material - never commit
 /ref/

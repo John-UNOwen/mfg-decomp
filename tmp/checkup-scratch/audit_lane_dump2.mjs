@@ -1,0 +1,11 @@
+import { DatabaseSync } from 'node:sqlite';
+const db = new DatabaseSync('C:/mfg/tmp/RyuNET-core/scratch-run/lane-id/dist/savedata/core.db', { readOnly: true });
+const users = db.prepare("SELECT _id,data FROM documents WHERE __s='user_account'").all().map((r) => ({ id: r._id, ...JSON.parse(r.data) }));
+console.log(users.map((u) => ({ id: u.id, username: u.username, card: u.cardNumber, created: u.createdAt })));
+const cards = db.prepare("SELECT _id,__refid,data FROM documents WHERE __s='card'").all().map((r) => ({ id: r._id, refid: r.__refid, ...JSON.parse(r.data) }));
+console.log('cards:', cards.length, cards.map((c) => c.cid + '->' + c.refid));
+const race = users.filter((u) => u.username === 'raceuser').length;
+console.log('raceuser accounts:', race);
+const owned = new Set(users.map((u) => u.cardNumber).filter(Boolean));
+console.log('orphan cards (no user):', cards.filter((c) => !owned.has(c.cid)).map((c) => c.cid));
+db.close();

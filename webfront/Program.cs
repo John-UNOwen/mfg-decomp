@@ -163,15 +163,21 @@ namespace WebFront
         // Attempts during a lockout are refused with 429 + Retry-After and never extend it,
         // so a locked visitor cannot self-perpetuate the block; the correct code wipes the
         // failure history (and the window quota stays as the baseline limiter).
-        private static readonly Dictionary<string, (int Fails, long Until)> LobbyLockouts = new Dictionary<string, (int, long)>();
+        // Checkup L11/L12: the fail history survives a penalty expiry (so the ladder can
+        // actually escalate), decays per entry (one idle hour restarts at 1), and pruning
+        // is per-entry by last-activity - it never drops other visitors' active lockouts.
+        private const long LobbyFailTtlMs = 3600000;   // idle history older than this restarts at 1 fail
+        private const long LobbyEntryEvictMs = 86400000; // entries idle this long are pruned
+        private static readonly Dictionary<string, (int Fails, long Until, long Last)> LobbyLockouts = new Dictionary<string, (int, long, long)>();
         private static bool LobbyLockedOut(string ip, long now, out long retryAfterSec)
         {
             retryAfterSec = 0;
             lock (VisitorLock)
             {
                 if (!LobbyLockouts.TryGetValue(ip, out var e)) return false;
+                if (e.Last + LobbyEntryEvictMs < now) { LobbyLockouts.Remove(ip); return false; }
                 // Until == 0 means "failures counted, no penalty active yet": keep the history.
-                if (e.Until > 0 && e.Until <= now) { LobbyLockouts.Remove(ip); return false; }
+                if (e.Until > 0 && e.Until <= now) { LobbyLockouts[ip] = (e.Fails, 0, e.Last); return false; }
                 if (e.Until <= now) return false;
                 retryAfterSec = (e.Until - now + 999) / 1000;
                 return true;
@@ -188,13 +194,24 @@ namespace WebFront
         {
             lock (VisitorLock)
             {
-                if (LobbyLockouts.Count >= MaxVisitorEntries) LobbyLockouts.Clear();
+                if (LobbyLockouts.Count >= MaxVisitorEntries)
+                {
+                    foreach (string k in new List<string>(LobbyLockouts.Keys))
+                        if (LobbyLockouts[k].Last + LobbyEntryEvictMs < now) LobbyLockouts.Remove(k);
+                    if (LobbyLockouts.Count >= MaxVisitorEntries) LobbyLockouts.Clear();
+                }
                 int fails = 1;
                 long until = 0;
-                if (LobbyLockouts.TryGetValue(ip, out var e)) { fails = e.Fails + 1; until = e.Until; }
+                if (LobbyLockouts.TryGetValue(ip, out var e))
+                {
+                    // L12: an idle gap longer than the fail TTL restarts the campaign at 1;
+                    // otherwise the count continues across rate windows and lockout periods.
+                    fails = (e.Last + LobbyFailTtlMs < now) ? 1 : e.Fails + 1;
+                    until = e.Until;
+                }
                 long penalty = LobbyFailPenaltyMs(fails);
                 if (penalty > 0) until = Math.Max(until, now + penalty);
-                LobbyLockouts[ip] = (fails, until);
+                LobbyLockouts[ip] = (fails, until, now);
                 Console.WriteLine("webfront lobby: wrong code from " + ip + " fails=" + fails + (penalty > 0 ? " locked " + (until - now) / 1000 + "s" : ""));
             }
         }
@@ -744,13 +761,7 @@ namespace WebFront
                                     lobbyHandled = true;
                                     if (method == "POST")
                                     {
-                                        long ra;
-                                        if (LobbyLockedOut(visitorIp, Environment.TickCount64, out ra))
-                                        {
-                                            Console.WriteLine("webfront lobby: locked-out attempt from " + visitorIp + " (" + ra + "s left)");
-                                            Respond(writer, origin, 429, "Too Many Requests", "text/plain", "locked after wrong codes - retry in " + ra + "s", null, "no-store", new string[] { "Retry-After: " + ra }, isHead);
-                                        }
-                                        else if (!LobbyAttemptAllowed(visitorIp, Environment.TickCount64))
+                                        if (!LobbyAttemptAllowed(visitorIp, Environment.TickCount64))
                                         {
                                             Console.WriteLine("webfront lobby: rate-limited unlock attempts from " + visitorIp);
                                             Respond(writer, origin, 429, "Too Many Requests", "text/plain", "too many access attempts - wait a minute", null, "no-store", new string[] { "Retry-After: 60" }, isHead);
@@ -761,6 +772,9 @@ namespace WebFront
                                             string given = FormValue(formText, "code");
                                             string nxt = FormValue(formText, "next");
                                             if (string.IsNullOrEmpty(nxt)) nxt = QueryOf(relayTarget, "next");
+                                            // Checkup L13: the correct code is checked before any
+                                            // lockout refusal - a visitor who knows the code always
+                                            // gets in and wipes their failure history.
                                             if (!string.IsNullOrEmpty(given) && CodeMatches(given))
                                             {
                                                 LobbyClearFails(visitorIp);
@@ -768,6 +782,11 @@ namespace WebFront
                                                 Console.WriteLine("webfront lobby: unlocked for " + visitorIp);
                                                 Respond(writer, origin, 302, "Found", null, null, null, "no-store",
                                                     new string[] { "Set-Cookie: mfg_lobby=" + tok + "; path=/; HttpOnly; SameSite=Lax; Max-Age=86400" + (xproto.Equals("https", StringComparison.OrdinalIgnoreCase) ? "; Secure" : ""), "Location: " + SafeNext(nxt) }, isHead);
+                                            }
+                                            else if (LobbyLockedOut(visitorIp, Environment.TickCount64, out long ra))
+                                            {
+                                                Console.WriteLine("webfront lobby: locked-out attempt from " + visitorIp + " (" + ra + "s left)");
+                                                Respond(writer, origin, 429, "Too Many Requests", "text/plain", "locked after wrong codes - retry in " + ra + "s", null, "no-store", new string[] { "Retry-After: " + ra }, isHead);
                                             }
                                             else
                                             {

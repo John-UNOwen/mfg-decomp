@@ -521,3 +521,11 @@ cheeks, and with the framing taken out of the way.
 8. Owner-side verdicts still open: the deployed mouth-bias removal (stamp F80A81F86F35), the 14 disabled
    `Mt_outline_facepart` mouth-outline renderers, the fitted −0.13 v-shift, outline sign-off, stutter
    retest.
+9. The artefact does not need the mouth animation. The owner's live capture of Character 4 (Amato Tenshi) shows the
+   same hard-edged darker area under a closed mouth. On that character, at the 24° framing with the serialized
+   `_MouthIndex 0`, the full and shell-dropped renders are identical at every sampled pixel in the mouth-card window,
+   so the mouth card alone paints it: `MULGROUP kind=card … mulLum=0.996 chinColouredPixels=1165` against
+   `kind=shell … mulLum=1.183`. `ARTPIX` at its 22 inked art triangles reads `obs=233,187,174` against
+   `artTexel=204,138,121` and `faceMapTexel=251,217,202` at `mouthWeight=0.648`. `_MouthOverlayMode 0` moves those
+   pixels 22 units; `_RShadowColor.a 0` and `_FaceShadowColor (1,1,1,1)` move nothing. The frame comparison and the
+   full numbers are in docs/27 §"Measured 2026-11-05".

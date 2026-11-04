@@ -125,11 +125,17 @@ when the result line says Succeeded.)
 select, so other characters can only be verified in the game build by eye. The owner asked that agents don't run
 captures themselves: build, assemble, then ask them to look.
 
-## Open problem: grey teeth + moving grey oval inside the open mouth
+## Open problem: the mouth area reads the wrong colour (grey oval, dull teeth)
+
+Owner correction 2026-11-05: the teeth are not grey. What makes them read wrong is the shade put over them, so the
+lever is the mouth program's lighting terms, not the art, the mask or the mesh.
 
 Known:
 - Not the art: `mdl_mouth.png` teeth are ~(236,229,228) and the texture, mask and mouth mesh normals equal the export exactly.
-- Not the mouth shader's shade term: with C1 settings `firstStep` is always 1 (`_1st_ShadeColor_Step 0`).
+- Withdrawn: "not the mouth shader's shade term". `firstStep` sitting at 1 with C1's `_1st_ShadeColor_Step 0` only rules out
+  the ramp's dark branch. The colour that reaches the screen is the blend at `Mouth.shader:615` and `:644`:
+  `lerp(litBase, lerp(art, art * _FaceShadowColor, 1 - firstStep), mouthWeight)` with
+  `litBase = _MainTex(uv1) * _BaseColor * shadeRamp` and `mouthWeight = saturate(_MouthMaskTex.r * _MouthTex.a)`.
 - Not a separate inner-mouth asset: the game exports none (only `model_face_mouth` + `mdl_mouth*.png`).
 - The size changes with the animation, so it is depth-related. The mouth (queue Geometry+450, ZWrite Off, ZTest LEqual,
   clip bias `o.pos.z -= 0.003*o.pos.w`) loses the depth test against the face (2449, ZWrite On) where the
@@ -180,6 +186,46 @@ rasterizes are counted: `sg_cha_outline` is `Cull Front`, the rest `Cull Back`. 
   renderer sharing the mesh) is switched off in 14 C001 prefabs - Character1, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21 -
   a change our face round made between `1a37ae344b` and HEAD; the rip ships every renderer enabled in all 197 CharaModel prefabs.
   Probe `tmp/prefab_renderer_diff.py` (main repo scratch) reproduces the list.
+
+### Measured 2026-11-05: Character 4 shows the patch at rest, and only the mouth card is there
+
+The owner's live capture of Character 4 (Amato Tenshi) has a hard-edged darker area under a closed mouth, so no
+animation is needed to see it. Compared against that character's own reference capture `C:\mfg\ref\vncviewer_zfAa76iqZA.png`,
+down the centre column of the face:
+
+- live frame: pale plate (247,224,205) sat 0.17 down to row 354; rows 355-357 fall to (179,130,113) sat 0.37 in one step
+  (-22,-30,-31) and come back in one step (+27,+36,+37); rows 358-374 hold at (226,193,178) sat 0.21.
+- original frame: pale (251,215,202) sat 0.14 down to row 301; rows 302-304 dip to (175,109,87) sat 0.50; rows 305-314 go
+  back to pale (253,217,203) sat 0.14.
+
+Both frames carry a 2-3 px dark line under the mouth. The difference is below it: the original returns to pale skin, our
+frame stays about 25 units darker and more saturated for the whole lower chin.
+
+`FaceLightProbe` on Character 4 (MahjongPlay, C001, rest pose, `MFG_FL_ELEV 24`, serialized `_MouthIndex 0`;
+`MOUTHSTATE … localPos=0.000,0.000,0.000 anim=none controller=none`). Inside the mouth-card window (rows 555-675,
+cols 335-565, 3-px stride) the full render and the shell-dropped render differ at 0 of 3080 sampled pixels, while the
+full and card-dropped renders differ at 1357 and show background where the card was. The mouth card alone paints that
+window; the face shell contributes nothing visible in it.
+
+The card's own numbers put the dark inside it: `MULGROUP kind=card frontUv n=12245 obs=247,205,191 texel=248,207,191
+mulLum=0.996 chinColouredPixels=1165` against `kind=shell … n=644 obs=244,199,180 texel=231,166,131 mulLum=1.183
+chinColouredPixels=269`. The shell lifts its texels 18%; the card draws its texels 1:1 and 1165 of its own pixels are
+chin-coloured.
+
+`ARTPIX` at the 22 inked art triangles (rows 613-620): `obs=233,187,174 artTexel=204,138,121 afterInteriorAO=139,86,71
+faceMapTexel=251,217,202 rawBlend=218,163,148 mouthWeight=0.648/max1`. The mask weight lets a third of the pale face-map
+texel through the art. Shade variants on the instance material: `overlay0` (`_MouthOverlayMode 0`) moves those pixels to
+(211,170,158); `ao_off` (`_RShadowColor.a 0`) and `shadow_white` (`_FaceShadowColor (1,1,1,1)`) leave them where they
+were, and no sampled pixel in the mouth window moves in either variant. The overlay blend at `Mouth.shader:644` is what
+colours them; the interior AO at `:604` and the `_FaceShadowColor` tint at `:634` do not reach them at these settings.
+
+The teeth themselves are still unmeasured: with `_MouthIndex 0` (Character 4) and `_MouthIndex 12` (Character 7) the teeth
+bucket in `ARTPIX` is empty (`teeth n=0`), so no tooth texel has yet landed on a visible art triangle. That measurement
+has to come before any teeth claim.
+
+Mouth shade settings are not uniform across characters: `SHADECFG` reports `_FaceShadowColor 0.481,0,0,a1`,
+`_RimLight_InsideMask 0.0001` and `_RimLight_Power 0` for Character 4 against `0.502,0.502,0.502,a1`, `0.588` and `1` for
+Character 7.
 
 ## Tools (all in `C:\mfgtmp\claude\scripts\`)
 

@@ -7,7 +7,7 @@ Reference captures for that character: `C:\mfg\ref\vncviewer_vcAe76NLpo.png` (44
 Nothing shipped was changed for this pass. `Assets/Editor/FaceLightProbe.cs` and
 `Assets/Editor/MfgAmbientProbe.shader` (Editor-only, never packed, no scene saved, material flips on
 throwaway instances only) produced everything below. The earlier version of this document is superseded:
-its sampler read mirrored rows and a local-space mesh bake, and §8 lists what that invalidated.
+its sampler read mirrored rows and a local-space mesh bake, and §10 lists what that invalidated.
 
 ## 1. The band is in the original too — ours is wider and higher
 
@@ -184,7 +184,92 @@ step is a player-side effect the probe cannot see: per `webgl-shader-variant-got
 offscreen render is inert to keyword and variant effects, so these numbers describe the reconstruction's
 data and materials, not proof about the WebGL frame.
 
-## 8. Measurement integrity, and what was withdrawn
+## 8. The mouth mesh does carry a zero-uv backing piece — owner's report, verified
+
+Report from the owner (mesh and shader data only, nothing changed or built): every mouth mesh holds a
+hidden second piece behind the front mouth piece, larger, spanning cheek to cheek under the mouth, whose
+texture coordinates all point at one blank spot on the mouth sheet, so it never shows mouth art and only
+ever paints face skin; Character1 has 172 of them out of 486, always stored after the front piece, and
+they appear in characters 1, 3, 5-16 but not 2 and 4, whose mouth UVs were remapped.
+
+Measured on the meshes this build actually uses (`MESHUV` scan over characters 1-16, probe `eff228e27d`):
+
+| Char | mouth mesh | tris | flat-uv0 tris | shared uv | triangle range |
+|---|---|---|---|---|---|
+| 1 | model_face_mouth | 486 | 172 | (0,0) | 314-485 |
+| 2 | model_face_mouth | 446 | 0 | uv box starts 0.008,0.816 | - |
+| 3 | model_face_mouth | 474 | 144 | (0,0) | 330-473 |
+| 4 | model_face_mouth | 492 | 0 | uv box starts 0.012,0.846 | - |
+| 5 | model_face_mouth | 486 | 124 | (0,0) | 362-485 |
+| 6 | model_face_mouth | 484 | 152 | (0,0) | 332-483 |
+| 7 | model_face_mouth | 486 | 136 | (0,0) | 350-485 |
+| 8 | model_face_mouth | 486 | 152 | (0,0) | 334-485 |
+| 9 | model_face_mouth | 486 | 172 | (0,0) | 314-485 |
+| 10 | model_face_mouth | 484 | 160 | (0,0) | 324-483 |
+| 11 | model_face_mouth | 486 | 290 | (0,0) | 196-485 |
+| 12 | face_mouth | 486 | 290 | (0,0) | 196-485 |
+| 13 | model_face_mouth | 486 | 172 | (0,0) | 314-485 |
+| 14 | mdl_face_mouth | 486 | 136 | (0,0) | 350-485 |
+| 15 | mdl_mouth | 486 | 136 | (0,0) | 350-485 |
+| 16 | model_mouth | 486 | 136 | (0,0) | 350-485 |
+
+Every count, the tail position, and the 2-and-4 exception are exactly as reported. Details that matter for
+any fix:
+
+* Each flagged triangle has all three vertices at `uv0 = (0,0)`, and they are the tail of a **single
+  submesh with a single material** (`subMeshes=1 mats=1`) — so the piece cannot be switched off per
+  renderer; a shader-side test is the only lever, as the owner says.
+* `uv0` is the atlas channel; `uv1` (the aux channel the Mouth shader samples at Mouth.shader:566) is
+  **live** on these triangles. That is why a first pass of mine that tested both channels for zero found
+  nothing. What the zero `uv0` kills is the art overlay: at the atlas corner `_MouthTex` is (230,172,136)
+  — the sheet's own background — and `_MouthMaskTex` is (0,0,0), so `mouthWeight = maskR x artA = 0`
+  (`ZEROTEX`). The piece paints real `mdl_face` skin through `uv1`.
+* Its normals do lean away, as reported: mean `dot(normal, view)` 0.650 for the backing against 0.834 for
+  the front piece (Character7), 0.715 against 0.838 (Character1).
+
+## 9. What the backing piece is responsible for, and what it is not
+
+Ray attribution over the pixels that change when the mouth renderer is switched off (`BACKING`, `MULGROUP`,
+MahjongPlay, ScorePanel camera, pose 0,0):
+
+| Char | card pixels | painted by backing | backing rows-cols | front piece rows-cols |
+|---|---|---|---|---|
+| 1 | 13984 | 5292 (38%) | 496-580, 346-553 | 474-559, 380-519 |
+| 7 | 12559 | 2533 (20%) | 740-819, 352-547 | 717-810, 369-530 |
+
+So the piece is on screen, it is wider and lower than the front piece, and on Character7 its lower edge
+(row 819) is exactly where the shell's exposed chin strip begins (rows 718-855, §2). It is what makes the
+painted plate reach cheek to cheek.
+
+What it is **not** is a darker surface. Against the face map both pieces multiply at about 1:
+
+* Character7: front `obs 247,218,209 sat 0.154 mulLum 0.992`, backing `obs 247,216,206 sat 0.164 mulLum
+  1.048`, exposed shell `obs 219,144,126 sat 0.424 mulLum 0.989`.
+* Character1: front `246,216,206 sat 0.163 mulLum 0.995`, backing `240,197,185 sat 0.228 mulLum 1.000`,
+  exposed shell `212,123,102 sat 0.518 mulLum 0.994`.
+
+The colour step that reads as an oval is **card against shell** (saturated chin texels against pale ones),
+not the mouth program lighting the backing differently — consistent with §3 and §4, where every axis
+correlates with the multiplier at about zero. On Character1 the backing is indeed a shade darker than the
+front piece, but it is still far brighter than the shell behind it, so that shade is not what forms the band.
+
+The depth half of the report is half right, and the difference is ours. The shipped Mouth forward pass
+writes depth; ours is `ZWrite Off` on purpose (Mouth.shader 334-341) because our restored Eye forward pass
+tests `LEqual` where the shipped eye composite tests `Always`. With no depth write inside the card's own
+draw call, the backing — stored after the front piece — paints over it wherever both are visible, which is
+a real mechanism for flattening mouth art in **our** build and would not happen with the shipped pass
+states. The census sees the overlap: `behind: ... Card:Mt_mouth=299` on Character7 and 208 on Character1.
+
+Skipping the piece would not open a hole to the background: `nothingBehind=0` on both characters, and what
+lies behind is already-drawn character geometry — Character7 `Shell:Mt_face=1220 Hair:Mt_hair=705
+Outline:Mt_outline_face=309 Card:Mt_mouth=299`, Character1 `Shell:Mt_face=4696 Hair:Mt_hair=388
+Card:Mt_mouth=208`. So the jaw-open gap concern is bounded, but a fair share of those pixels would become
+hair or outline rather than skin.
+
+The pattern is not mouth-only: `model_face_eye_L/R` carry 61 zero-uv0 triangles each out of 321. Any
+shader-side test has to be scoped to the mouth program, not applied wherever uv is zero.
+
+## 10. Measurement integrity, and what was withdrawn
 
 * `Texture2D.GetPixels32()` row 0 is the **bottom** row. The first sampler generation flipped it
   (`RTH-1-y`) and sampled mirrored positions.
@@ -207,7 +292,7 @@ data and materials, not proof about the WebGL frame.
   does ship `Assets/MFG/Scenes/<Scene>/<Scene>/LightingData.asset` (124 of them), so those views likely
   carry baked rather than realtime light.
 
-## 9. Open items
+## 11. Open items
 
 1. Coverage, not light, is where the difference lives: the original keeps the chin centre pale down to
    row 1.1 and puts its shade at/below the chin line, while our card's painted lower edge (row 819 at

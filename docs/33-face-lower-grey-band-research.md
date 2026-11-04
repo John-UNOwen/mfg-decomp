@@ -299,6 +299,16 @@ to paint do not become skin:
 | 0 | (247,216,206) sat 0.166 | (216,200,223) sat 0.105 — cooler than the skin it replaced, blue above red |
 | −24 | (246,217,209) sat 0.151 | (167,118,151) sat 0.293 — dark crimson, hard edge under the mouth |
 
+Those two rows are level-camera measurements. Re-run at the select-like 24° (`MFG_FL_ELEV=24`, report
+`flp_report_dropback_e24.txt`), the same removal exposes far less and shows something different: 948 px at
+pose 0 and 1274 px at pose −24 (against 2510 and 2174), reporting `obs 238,203,195 texel 221,148,129
+mulLum 1.317 sat 0.182 dotView 0.106` and `obs 236,197,188 texel 220,146,126 mulLum 1.299 sat 0.205`, with
+442 and 664 of those pixels chin-coloured. So at the angle the player actually sees, the hole left behind is a
+small, over-lit pale patch — the unclamped `Blend One One` ForwardAdd lift, multiplier 1.3 — rather than the
+crimson cavity the level camera produced. Still not the flat-lit chin skin it replaces (the texel is
+(221,148,129) at saturation 0.42, what lands on screen is (238,203,195) at 0.18), and the chin-region mean in
+that band moves to (247,219,210): paler than the card it removed.
+
 The shell now reports `obs 234,189,179 texel 220,147,127 mulLum 1.248 sat 0.235 dotView 0.335` across 4278
 exposed px against 2423 before removal: the surfaces revealed are edge-on ones carrying the unclamped
 `Blend One One` ForwardAdd lift, not the flat-lit chin texels of §3. In `tmp/backing_ab.png` (scratch
@@ -365,6 +375,91 @@ original carries a handful of dark warm pixels just under the mouth corners (row
 1-2 px per run at cols 174-191 and 205-223). Nothing card-sized about them; they are where the 14 disabled
 `Mt_outline_facepart` renderers would have been.
 
+### The probe camera looks the wrong way, and `MFG_FL_ELEV` fixes it
+
+The ScorePanel clone sits **level with the mouth card** (`SELFTEST camPos 0.000,1.370,-7.040`, card centre
+0.000,1.242,0.042): it reads the jaw underside. The player's select view is level with the **face**, which is
+above the card's height — reading the crop (`tmp/shot_crops.py`, source 814×1046 live-lane select capture,
+Toy-Toy nameplate, head upright) says the head is upright and the view is not tilted down onto the chin. So
+the elevation to look for is measured from the card centre upward, and the framing that matches the captures
+lands near 24°, not at 0°. `MFG_FL_ELEV`(`probe d8318422b0`) puts the chosen camera — cloned or synthetic — at
+that many degrees above the card centre on the face axis, keeping its distance, and `LANDMARK` / `MOUTHART`
+report where the eyes and the inked mouth triangles land so a render and a capture can be lined up on the same
+landmarks.
+
+The chin texels respond to that angle far more than to anything else. Same pose, same lighting, same
+materials, `MULGROUP kind=shell` painted pixels:
+
+| camera elevation above the face axis | shell pixels painted | shell rows | card front rows | card painted px |
+|---|---|---|---|---|
+| 0° (level, every earlier number in this note) | 2548 | 549-689 | 549-643 | 10091 |
+| 12° | 1397 | 637-671 | 555-643 | 9331 |
+| 18° | 759 | 634-661 | 559-642 | 8795 |
+| 24° | 171 | 635-650 | 563-641 | 8162 |
+| 30° | **1** | 567 | 567-639 | 7396 |
+
+At a select-like 24-30° the card covers the shell's chin texels almost completely; at the level angle the
+same geometry leaves a wide strip of them in view. The earlier §2 and §6 numbers were measured at 0°.
+
+Where the chin texels first show, per frame, measured down from that frame's own mouth-art bottom in units
+of its own eye-to-mouth distance, at the face centre and ±0.15 / ±0.30 of the card's width
+(`tmp/framing_match.py`, scratch):
+
+| frame | −0.30 | −0.15 | centre | +0.15 | +0.30 |
+|---|---|---|---|---|---|
+| folder-7 original bust | 0.04 | 0.23 | 0.36 | 0.25 | 0.07 |
+| live lane crop | 0.02 | 0.23 | 0.35 | 0.19 | 0.01 |
+| render 0° | none | 0.52 | 0.40 | 0.58 | none |
+| render 12° | 0.36 | 0.26 | 0.32 | 0.23 | 0.36 |
+| render 18° | 0.23 | 0.18 | 0.31 | 0.18 | 0.23 |
+| render 24° | 0.08 | 0.13 | 0.27 | 0.14 | 0.08 |
+| render 30° | 0.01 | 0.10 | 0.25 | 0.11 | 0.01 |
+| render 36° | 0.01 | 0.06 | 0.21 | 0.05 | 0.01 |
+
+Two things fall out. The **live lane frame and the folder-7 original agree** on this signature almost
+column for column (0.02/0.23/0.35/0.19/0.01 against 0.04/0.23/0.36/0.25/0.07): the shipped select screen and
+our select screen frame the same chin in the same way. And the **level render is the odd one out** — it
+shows no chin texels at the outer columns at all and its latest onset is in the middle, the reverse of both
+captures. Raising the camera reproduces the captures' early lateral onset (24-30°) but not their late centre
+onset: no elevation tried, with head pitches 0, −12 and −24, puts the centre onset as low as the captures'.
+The centre-vs-side gradient our card produces is flatter than the shipped frame's, and that is the part still
+unexplained.
+
+Attribution, so this is not colour guesswork: `MULGROUP … chinColouredPixels=` counts samples whose own
+observed colour falls in the chin band (saturation ≥ 0.28, luminance 120-200). At 18° the shell's 759 exposed
+pixels are 759 chin-coloured; the card's front piece contributes 67 out of 8795 and the backing 0 out of 1956.
+The chin band is drawn by the shell, not by the card sampling chin texels through `uv1`.
+
+### At the select angle the Editor render reproduces the original; the live frame is the desaturated one
+
+Sampling all four frames on one axis — row 0.0 = eye centre, 1.0 = that frame's own mouth-art bottom — at the
+cheeks ±0.28 of the face width and at the centre, 5×5 averages (`tmp/select_profile.py`, scratch):
+
+| row | original, cheek −0.28 | live select crop, cheek −0.28 | render 24°, cheek −0.28 | render 0°, cheek −0.28 |
+|---|---|---|---|---|
+| 0.80 | (247,218,207) 16 | (229,213,201) 12 | (246,213,205) 16 | (246,206,196) 20 |
+| 0.95 | (247,223,213) 13 | (237,223,210) 11 | (251,236,228) 9 | (246,219,210) 14 |
+| 1.10 | **(217,152,126) 41** | **(211,162,131) 37** | **(225,156,132) 41** | (245,212,204) 16 |
+| 1.20 | **(225,158,132) 41** | **(211,162,131) 37** | **(225,156,132) 41** | (194,33,115) 82 |
+| 1.35 | **(225,158,132) 41** | **(211,162,131) 37** | (229,168,148) 35 | (194,33,115) 82 |
+| 1.50 | (249,219,214) 14 | (242,220,214) 11 | (242,209,195) 19 | (194,33,115) 82 |
+
+Centre column, same axis: original 1.35 **(219,169,148) 32**; live 1.35 **(217,175,149) 31**; render 24° 1.35
+**(225,156,132) 41**; render 0° 1.35 (233,195,182) 21, and its saturated jaw texel only appears at 1.50.
+
+At 24° the Editor render lands on the original's band: **(225,156,132) sat 41** against the original's
+**(225,158,132) sat 41**, on the same rows (1.10-1.20 at the cheeks, 1.35 at the centre). 18° puts it too
+late (1.35 at the cheeks), 30-36° too early (0.95), and the 0° level camera never shows the jaw band at the
+cheeks at all — at 1.20-1.35 that column is hair and collar ((33,85,181) sat 81 at the right cheek,
+(194,33,115) at the left). Every §2 and §6 number in this note was taken at that 0° angle.
+
+The live frame is the one that does not match: its band is **(211,162,131) sat 37** where both the original
+and our own matched-framing Editor render give **(225,157,132) sat 41** — 14 units less red, 5 more blue,
+saturation down 4 points; at the centre (217,175,149) 31 against (219,169,148) 32. The band's *rows* agree
+with the original at these columns; its *colour* is washed toward grey. That is the same direction and about
+the same size as the live-vs-Editor gap recorded in §7, now measured on the band itself rather than on
+cheeks, and with the framing taken out of the way.
+
 ## 10. Measurement integrity, and what was withdrawn
 
 * `Texture2D.GetPixels32()` row 0 is the **bottom** row. The first sampler generation flipped it
@@ -395,11 +490,15 @@ original carries a handful of dark warm pixels just under the mouth corners (row
 ## 11. Open items
 
 1. Coverage is settled as authored geometry (see §9's last subsection): alpha 1 across the card footprint, no
-   clip in the mouth forward pass, no blend shapes, and the live crop already matches the folder-7 bust on
-   where the chin texels show. What separates our frame from the original's is tone, not extent.
-2. The probe camera is not the live camera. The ScorePanel clone reads the jaw underside; the select camera
-   looks down on the chin. A probe framing that matches the select screen has to be built before §2/§6
-   numbers can be read as what the player sees. `CharaSelect` is the scene to use.
+   clip in the mouth forward pass, no blend shapes. With the framing taken out of the way, the band's rows at
+   the sampled columns agree with the folder-7 bust; what separates our live frame from the original's is tone.
+2. Framing is now a knob, not a guess. `MFG_FL_ELEV` tilts the cloned or synthetic camera to that elevation
+   above the card centre on the face axis, and 24° reproduces the original's band colour and rows. Read §2 and
+   §6 as **0° measurements**: the wide strip of exposed chin texels, the crimson cavity in the removal test and
+   the chin-brighter-than-cheek ordering are all products of a camera level with the mouth card. The part
+   elevation does not reproduce is the captures' centre-vs-side onset gradient (0.36 centre against 0.04 side),
+   which no elevation from 0° to 36°, with head pitches 0, −12 and −24, matched — that points at where the card
+   sits on the head, not at where the camera is.
 3. The mouth pass depth pairing is the other live lever. Ours is `ZWrite Off` where the shipped pass writes
    depth, and that is what lets the tail-ordered backing flatten mouth art. Matching the shipped pairing
    (`ZWrite On` plus the eye composite testing `Always`) is untested here; it needs owner sign-off and a
@@ -407,13 +506,15 @@ original carries a handful of dark warm pixels just under the mouth corners (row
    the current pairing was chosen to avoid.
 4. Whether the card's rim belongs there at all. `Mt_mouth` has `_RimLight 1` with a white rim colour and
    no `_Set_RimLightMask` bound; the original mouth program has no rim stage in its cbuffer layout
-   (`cb_layout_mouth.txt`). Turning it off removes the wash in-editor; on the player it needs a rebuild.
+   (`cb_layout_mouth.txt`). Turning it off removes the wash in-editor; on the player it needs a rebuild. The
+   §8 measurement of that fringe (883 px, rows 723-819) is a 0°-camera number and has not been re-run at 24°.
 5. What the unbound `_Set_RimLightMask`, `_Set_1st_ShadePosition`, `_Set_HighColorMask` sample as in this
    build (white default or black), which decides how far the rim reaches into the plate interior.
-6. The live band is ~16 units desaturated relative to the Editor render (§7); only an in-browser
-   frame-diff can say what adds it. Against the original itself the live chin patches read (211,162,131)
-   sat 0.374 versus (222,158,130) sat 0.414, and the live card skin (240,219,212) sat 0.117 versus
-   (247,219,212) sat 0.142 — the same direction, ~7-15 units.
+6. The live band is ~16 units desaturated relative to the Editor render (§7), and at matched 24° framing the
+   gap shows up on the band itself: live (211,162,131) sat 37 against (225,156,132) sat 41 in the render and
+   (225,158,132) sat 41 in the original. Against the original the live card skin reads (240,219,212) sat 0.117
+   versus (247,219,212) sat 0.142. Only an in-browser frame-diff can say what adds it; no browser harness for
+   that exists in the repo yet.
 7. Runtime mouth state, narrowed: the mouth mesh has no blend shapes and no Animator reaches it, so the only
    runtime switch left is the art sheet (`_MouthIndex`: serialized 0 vs live 12, `Face_Smile.anim`). The
    "+31 px card offset" is not a lever; it was a registration-tool artifact.

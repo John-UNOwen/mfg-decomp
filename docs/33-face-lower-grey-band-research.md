@@ -311,6 +311,60 @@ cavity when the head tips down. The piece is load-bearing, which is the risk the
 The pattern is not mouth-only: `model_face_eye_L/R` carry 61 zero-uv0 triangles each out of 321. Any
 shader-side test has to be scoped to the mouth program, not applied wherever uv is zero.
 
+### What decides how far the card paints
+
+Three candidates set that lower edge. Two of them are dead, measured.
+
+**The mask does not cut coverage.** `Mt_mouth` ships `USE_MASK_TEX` enabled, and the forward pass ends with
+`baseTexAlpha = tex2D(_MainTex, auxUV).a; alpha = tex2D(_MaskTex, auxUV).a * baseTexAlpha;` written into
+`res.a` (Mouth.shader:715-721). There is no `clip()` in that pass — the only `clip()` calls in the file are
+the dissolve ones (:577, :814, :898) — so a low-alpha fragment would blend what is behind it rather than
+being cut away. It does not get low: `_MaskTex` on this character resolves to `msk_black`, an opaque 16×16
+fill (`MASKTEX mat=Mt_mouth USE_MASK_TEX=1 maskTex=msk_black 16x16 readable=1 baseColorA=1`), and sampling
+`_MaskTex.a(auxUV) × _MainTex.a(auxUV)` at every painted card pixel gives `alpha=1.000` on both pieces
+(front 10026 px, backing 2533 px, `alphaUnder098=0`). Alpha is 1 across the whole footprint, so the painted
+area *is* the triangle coverage: `PIXDIFF full_vs_nocard=12559` equals the ray-attributed 10026 + 2533.
+
+**Nothing runtime moves it either.** `MOUTHSTATE smr=model_face_mouth mesh=model_face_mouth blendShapes=0
+localPos=0.000,-0.079,0.014 localScale=1.000,1.000,1.000 anim=none controller=none`: the mouth mesh has no
+blend shapes and no Animator reaches that node, so the only runtime mouth switch is which sheet of the atlas
+is sampled (`_MouthIndex`), which changes the art and not the coverage. The "+31 px card offset" an earlier
+pass kept as a runtime lever was traced to the registration tool and retracted — `docs/26-claude-face-match-rounds.md`
+records "Defect B (the '+31 px mouth offset') does not exist".
+
+**What is left is authored geometry**, the same shipped mesh both builds carry: front piece rows 717-810,
+backing 740-819 at pose 0,0. The stencil relationship runs the other way: Mouth.shader:343-348 writes
+`Ref [_StencilMask] … Comp Always Pass [_StencilMode]` (`_StencilMask 4`, `_StencilMode 2` = Replace) so the
+mouth stamps a mask for `Mt_face` (`_StencilMask 4`, `_StencilNo 1`) to mask against; nothing gates the mouth.
+`_ClippingMask` is unbound on `Mt_face` and on `Mt_mouth`, so the UTS clipping path is inactive on this face.
+
+**Measured against folder 7 on anatomy, not frame rows.** With `t = (row − eye)/(chin − eye)` (original bust
+eye 247 / chin 312 / mouth bottom 303; live crop eye 329 / chin 557 / mouth bottom 512; Editor render eye 674 /
+chin 807 / mouth bottom 759), the shell's saturated chin texels show up in the face-centre column between
+these multiples of that column's own mouth-to-eye distance:
+
+| frame | chin texels exposed, measured down from the bottom of the mouth art | what the chin-line row looks like |
+|---|---|---|
+| folder-7 original bust | 0.39-0.45 | pale chin centre, saturated jaw patches left and right of it |
+| live lane crop | 0.37-0.50 | the same: pale centre, two lateral saturated patches |
+| Editor probe (ScorePanel camera, pose 0,0) | 0.72-1.19 | one continuous saturated band across the chin |
+
+The two real select-screen frames agree within what the reference allows: that bust spans only 65 px from eye
+to chin, so 2 px of landmark error is 0.03 of the scale, and the live band begins 0.37 against the original's
+0.39 — a few pixels closer to the mouth, not a different placement. Only the probe frame disagrees, and by a
+wide margin, because the ScorePanel camera sits level with the head and reads the jaw underside, where the
+select camera looks down onto the chin. The row-by-row scratch maps (`tmp/coverage_rows.py`, scratch) say the
+same thing: in the original the chin-class texels form two lateral runs with a pale centre, in the probe
+render they form one run spanning the centre. So the footprints in §2 and §6 (shell 718-855 against card
+717-819) describe the jaw underside at that camera, not what the select screen frames, and coverage is not
+what separates our frame from the original's.
+
+A scan for a boundary line (`tmp/boundary_line.py`, scratch; mean channel < 135, row by row from t 0.85 to
+1.80) found none in either of our frames — 0 dark pixels in the live crop from t 0.90 to 1.50 — while the
+original carries a handful of dark warm pixels just under the mouth corners (rows 312-322, (170,112,84),
+1-2 px per run at cols 174-191 and 205-223). Nothing card-sized about them; they are where the 14 disabled
+`Mt_outline_facepart` renderers would have been.
+
 ## 10. Measurement integrity, and what was withdrawn
 
 * `Texture2D.GetPixels32()` row 0 is the **bottom** row. The first sampler generation flipped it
@@ -333,29 +387,36 @@ shader-side test has to be scoped to the mouth program, not applied wherever uv 
   layer, `LITBY charMask=1 lights=0`, `_LightColor0=0,0,0`, and the face renders near-black. Each scene
   does ship `Assets/MFG/Scenes/<Scene>/<Scene>/LightingData.asset` (124 of them), so those views likely
   carry baked rather than realtime light.
+* A `CharaSelect` run (same layer problem, no seat to read the character layer off) renders nothing worth
+  reading either: `CAMUSE synthetic dist=2.0 fov=10.0 charMask=1`, `PIXDIFF tag=baseline full_vs_nocard=0
+  full_vs_noshell=0`, `cardSamples=0 shellSamples=0`. The face is not in that frame at all; treat its PNGs
+  as void until the instance is placed on the scene's character layer and the scene's own camera is cloned.
 
 ## 11. Open items
 
-1. Coverage, not light, is where the difference lives: the original keeps the chin centre pale down to
-   row 1.1 and puts its shade at/below the chin line, while our card's painted lower edge (row 819 at
-   pose 0,0) leaves the shell's authored chin texels exposed across the chin. That edge is now known to be
-   authored geometry — the front piece ends at row 810 and the zero-uv backing carries it on to 819 — so the
-   question is what the original does with its own backing piece, and against the folder-7 capture rather
-   than against our own frame.
-2. The mouth pass depth pairing is the other live lever. Ours is `ZWrite Off` where the shipped pass writes
+1. Coverage is settled as authored geometry (see §9's last subsection): alpha 1 across the card footprint, no
+   clip in the mouth forward pass, no blend shapes, and the live crop already matches the folder-7 bust on
+   where the chin texels show. What separates our frame from the original's is tone, not extent.
+2. The probe camera is not the live camera. The ScorePanel clone reads the jaw underside; the select camera
+   looks down on the chin. A probe framing that matches the select screen has to be built before §2/§6
+   numbers can be read as what the player sees. `CharaSelect` is the scene to use.
+3. The mouth pass depth pairing is the other live lever. Ours is `ZWrite Off` where the shipped pass writes
    depth, and that is what lets the tail-ordered backing flatten mouth art. Matching the shipped pairing
    (`ZWrite On` plus the eye composite testing `Always`) is untested here; it needs owner sign-off and a
    `-Full` rebuild, and the eye card overlap (mouth band 1.384-1.466 against eye band 1.444-1.573) is what
    the current pairing was chosen to avoid.
-3. Whether the card's rim belongs there at all. `Mt_mouth` has `_RimLight 1` with a white rim colour and
+4. Whether the card's rim belongs there at all. `Mt_mouth` has `_RimLight 1` with a white rim colour and
    no `_Set_RimLightMask` bound; the original mouth program has no rim stage in its cbuffer layout
    (`cb_layout_mouth.txt`). Turning it off removes the wash in-editor; on the player it needs a rebuild.
-4. What the unbound `_Set_RimLightMask`, `_Set_1st_ShadePosition`, `_Set_HighColorMask` sample as in this
+5. What the unbound `_Set_RimLightMask`, `_Set_1st_ShadePosition`, `_Set_HighColorMask` sample as in this
    build (white default or black), which decides how far the rim reaches into the plate interior.
-5. The live band is ~16 units desaturated relative to the Editor render (§7); only an in-browser
-   frame-diff can say what adds it.
-6. Runtime mouth state: serialized `_MouthIndex 0` vs live index 12 (`Face_Smile.anim`), and the
-   live-only card offset.
-7. Owner-side verdicts still open: the deployed mouth-bias removal (stamp F80A81F86F35), the 14 disabled
+6. The live band is ~16 units desaturated relative to the Editor render (§7); only an in-browser
+   frame-diff can say what adds it. Against the original itself the live chin patches read (211,162,131)
+   sat 0.374 versus (222,158,130) sat 0.414, and the live card skin (240,219,212) sat 0.117 versus
+   (247,219,212) sat 0.142 — the same direction, ~7-15 units.
+7. Runtime mouth state, narrowed: the mouth mesh has no blend shapes and no Animator reaches it, so the only
+   runtime switch left is the art sheet (`_MouthIndex`: serialized 0 vs live 12, `Face_Smile.anim`). The
+   "+31 px card offset" is not a lever; it was a registration-tool artifact.
+8. Owner-side verdicts still open: the deployed mouth-bias removal (stamp F80A81F86F35), the 14 disabled
    `Mt_outline_facepart` mouth-outline renderers, the fitted −0.13 v-shift, outline sign-off, stutter
    retest.

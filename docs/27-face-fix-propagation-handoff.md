@@ -151,6 +151,36 @@ Ideas not yet tried:
 - Pull the original game's mouth/face render state (ZTest/Stencil/queue) from the serialized shader. The DXBC in
   `C:\mfgtmp\mouth_dxbc` has no state, but the shader blob header might.
 
+### Resolved 2026-11-05: the bias is deleted, the sink was never the problem
+
+`build/unity-project/Assets/Editor/MouthDepthProbe.cs` (build commit 6b944aef8d) instantiates a CharaModel in a throwaway
+scene, bakes every skinned mesh at sampled animation times and compares view depths at the MahjongPlay panel-camera settings
+(near 0.3, far 15, FOV 10, 2 m, camera on the horizontal face axis taken from the eye cards). Only faces each pass actually
+rasterizes are counted: `sg_cha_outline` is `Cull Front`, the rest `Cull Back`. Report `C:\mfgtmp\mouth_depth_pass4.txt`,
+354 frame rows over Character1 / 9 / 10 C001 (bind, Shy, Think, Reach, Surprise, Result, Hand_Yose).
+
+- The face shell blocks 0 of the card's ~440 visible triangles at bind pose and never more than 17 in a frame, always under
+  1 cm. The card's front is already ~1.6 cm outside the shell's frontmost point: the shell has an aperture and the card fills it.
+- A hand over the face sits 11-15 cm nearer the camera than the card and covers 34-161 of its triangles.
+- Hair crossing the mouth band occludes it too (Character9 Shy: 190-360 triangles), which is the correct arcade behaviour.
+- So `o.pos.z -= 0.003 * o.pos.w` (3.9 cm at 2 m) was about 40x the sink it was hiding, and it is what painted hands and hair.
+  Deleted in build commit 7785e975d8; `ZTest LEqual` and the queue 450 placement are unchanged.
+- `ZWrite` stays Off deliberately. The shipped Mouth pass writes depth, but our restored Eye forward pass tests LEqual where the
+  shipped eye composite pass tests Always (`export-primary-content/.../Eye.json`, pass3 `m_ZTest 0`), and the bands overlap
+  (mouth card y 1.384-1.466, eye card y 1.444-1.573): copying the write without the eye's test lets the card clip the eye card.
+  Hands need the test, not the write; they write depth at 2449.
+- The grey-oval defect of row 1 in docs/25 was measured while the vestigial `model_face_front` hull sheet still closed the
+  aperture; that GameObject is now `m_IsActive: 0` in every prefab that has it, so the card rides in the hole as authored.
+- Original mechanism, for the record: aperture + honest depth. `build/_tmp_audit_moutheye/mouth_asm02_ann.txt:54-62` builds the
+  clip position as `unity_MatrixVP * (unity_ObjectToWorld * pos)` with no added term and never reads `_Offset_Z`; queue 2450 with
+  `ZWrite 1` / `ZTest LEqual`. Nothing at runtime moves the card: `FaceController`/`MouthController` push only material floats
+  (`_MouthIndex`, `_MouthOffsetX/Y`, `_GBlend`), the `Face_*.anim` clips animate the controller's own fields (`classID: 114`) with
+  the offsets left at 0, and no MahjongPlay scene override references the mouth node.
+- Open follow-up, untouched so far: the mouth's own silhouette copy (`Mt_outline_facepart` on a second `model_face_mouth`
+  renderer sharing the mesh) is switched off in 14 C001 prefabs - Character1, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21 -
+  a change our face round made between `1a37ae344b` and HEAD; the rip ships every renderer enabled in all 197 CharaModel prefabs.
+  Probe `tmp/prefab_renderer_diff.py` (main repo scratch) reproduces the list.
+
 ## Tools (all in `C:\mfgtmp\claude\scripts\`)
 
 | Script | Use |

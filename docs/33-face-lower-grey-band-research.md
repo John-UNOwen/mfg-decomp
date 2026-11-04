@@ -133,6 +133,26 @@ Two knock-on facts that already changed the reading of this file:
 * `_1st_ShadeColor_Step` and `_1st_ShadeColor_Feather` are not shader properties on Mouth.shader, so
   `mat.GetFloat` on them yields 0 → `shadeRamp = _BaseColor` → the card's own ramp is inert.
 
+### How big the rim actually is
+
+The table above compares bins, not the frame. Switching off only the mouth card's rim
+(`MFG_FL_RIM=off_card`, `RIM mode=off_card _RimLight set to 0 on 1 instance materials`) and diffing the two
+full renders: **883 changed pixels out of 1 080 000**, box rows 723-819 cols 352-547, with the busiest
+columns at the plate's outer extremities (352-359 and 540-547) and rows 767-800. Those pixels go from
+(254,241,235) sat 0.072 with the rim to (232,190,178) sat 0.234 without it. Card mean
+`CARDPIX (246,220,208) → (242,211,197)`.
+
+So the rim is a thin achromatic fringe on the plate's lower and outer boundary — a shallow arc along the
+lower jaw line — not a wash across the plate and not the chin band. The mouth artwork and the chin read the
+same with the rim on or off. It is still worth removing on principle: the shipped mouth cbuffer has no rim
+stage at all (`cb_layout_mouth.txt`), so this highlight is ours, not the original's. But it is not the lever
+that closes the gap in §1.
+
+Against the folder-7 capture on the same normalized eye-to-chin scale (`tmp/rim_vs_ref.py`): the original
+turns saturated at t 1.2 (225,158,132 sat 0.41) and is pale neck by t 1.4 (249,219,214); our Editor render
+is saturated at 1.2 (219,144,126 sat 0.42) **and still at 1.4** (225,156,132 sat 0.41), only pale by 1.6.
+The colour of the band matches; its extent does not — ours runs about 0.2 normalized units further down.
+
 ## 5. Scene lighting, for the record
 
 ```

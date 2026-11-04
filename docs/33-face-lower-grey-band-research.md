@@ -100,7 +100,7 @@ the view direction. With `_RimLight` forced to 0 the strip is unchanged except i
 (214,144,127 → 211,141,124). Consistent with the shell's shade algebra (`_Use_BaseAs1st 1`, white
 `_BaseColor`/`_1st_ShadeColor`, cginc:301-318): the toon shade on this material is a colour no-op.
 
-## 4. The washed skin on the plate is the card's own rim light
+## 4. The card's rim light: real, confined to a fringe
 
 Mouth card at pose 0,0, `axis=view`, baseline against the same render with `_RimLight` set to 0 on the
 20 instance materials that carry it:

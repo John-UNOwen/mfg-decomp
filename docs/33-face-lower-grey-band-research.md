@@ -260,11 +260,33 @@ draw call, the backing — stored after the front piece — paints over it where
 a real mechanism for flattening mouth art in **our** build and would not happen with the shipped pass
 states. The census sees the overlap: `behind: ... Card:Mt_mouth=299` on Character7 and 208 on Character1.
 
-Skipping the piece would not open a hole to the background: `nothingBehind=0` on both characters, and what
-lies behind is already-drawn character geometry — Character7 `Shell:Mt_face=1220 Hair:Mt_hair=705
+Skipping the piece would not open a hole to the *background* — `nothingBehind=0` on both characters, and
+what lies behind is already-drawn character geometry: Character7 `Shell:Mt_face=1220 Hair:Mt_hair=705
 Outline:Mt_outline_face=309 Card:Mt_mouth=299`, Character1 `Shell:Mt_face=4696 Hair:Mt_hair=388
-Card:Mt_mouth=208`. So the jaw-open gap concern is bounded, but a fair share of those pixels would become
-hair or outline rather than skin.
+Card:Mt_mouth=208`. What that geometry actually looks like is a separate question, and rendering it answers
+it.
+
+### Removing the piece, measured
+
+`MFG_FL_DROPBACK=1` (probe `3825252a18`) renders that fix candidate without touching a shader or an asset:
+the throwaway instance gets a private copy of its mouth mesh with the 136 zero-uv0 triangles deleted
+(`DROPBACK smr=model_face_mouth dropped=136 kept=350`, `ZEROUV tris=350 zeroUvTris=0`, card footprint
+12559 → 10028 px, `BACKING onScreenPixels=0`). The chin strip is untouched; the 2510 pixels the piece used
+to paint do not become skin:
+
+| pose | the piece painted | what shows after removal |
+|---|---|---|
+| 0 | (247,216,206) sat 0.166 | (216,200,223) sat 0.105 — cooler than the skin it replaced, blue above red |
+| −24 | (246,217,209) sat 0.151 | (167,118,151) sat 0.293 — dark crimson, hard edge under the mouth |
+
+The shell now reports `obs 234,189,179 texel 220,147,127 mulLum 1.248 sat 0.235 dotView 0.335` across 4278
+exposed px against 2423 before removal: the surfaces revealed are edge-on ones carrying the unclamped
+`Blend One One` ForwardAdd lift, not the flat-lit chin texels of §3. In `tmp/backing_ab.png` (scratch
+render, not committed) the mouth still reads as a mouth at pose 0 with no hole, while at pose −24 a dark
+crimson cavity with hard boundaries appears under and to the right of the mouth.
+
+So skipping the zero-uv0 triangles trades the pale wash for a cool grey patch at level gaze and a visible
+cavity when the head tips down. The piece is load-bearing, which is the risk the owner flagged.
 
 The pattern is not mouth-only: `model_face_eye_L/R` carry 61 zero-uv0 triangles each out of 321. Any
 shader-side test has to be scoped to the mouth program, not applied wherever uv is zero.
@@ -296,19 +318,24 @@ shader-side test has to be scoped to the mouth program, not applied wherever uv 
 
 1. Coverage, not light, is where the difference lives: the original keeps the chin centre pale down to
    row 1.1 and puts its shade at/below the chin line, while our card's painted lower edge (row 819 at
-   pose 0,0) leaves the shell's authored chin texels exposed across the chin. What sets that edge — the
-   card's authored mesh and `uv1`, the `_MaskTex`/map alpha clip (Mouth.shader:715-718), or the runtime
-   card position — is the next thing to measure, against the folder-7 capture rather than against our own
-   frame.
-2. Whether the card's rim belongs there at all. `Mt_mouth` has `_RimLight 1` with a white rim colour and
+   pose 0,0) leaves the shell's authored chin texels exposed across the chin. That edge is now known to be
+   authored geometry — the front piece ends at row 810 and the zero-uv backing carries it on to 819 — so the
+   question is what the original does with its own backing piece, and against the folder-7 capture rather
+   than against our own frame.
+2. The mouth pass depth pairing is the other live lever. Ours is `ZWrite Off` where the shipped pass writes
+   depth, and that is what lets the tail-ordered backing flatten mouth art. Matching the shipped pairing
+   (`ZWrite On` plus the eye composite testing `Always`) is untested here; it needs owner sign-off and a
+   `-Full` rebuild, and the eye card overlap (mouth band 1.384-1.466 against eye band 1.444-1.573) is what
+   the current pairing was chosen to avoid.
+3. Whether the card's rim belongs there at all. `Mt_mouth` has `_RimLight 1` with a white rim colour and
    no `_Set_RimLightMask` bound; the original mouth program has no rim stage in its cbuffer layout
    (`cb_layout_mouth.txt`). Turning it off removes the wash in-editor; on the player it needs a rebuild.
-3. What the unbound `_Set_RimLightMask`, `_Set_1st_ShadePosition`, `_Set_HighColorMask` sample as in this
+4. What the unbound `_Set_RimLightMask`, `_Set_1st_ShadePosition`, `_Set_HighColorMask` sample as in this
    build (white default or black), which decides how far the rim reaches into the plate interior.
-4. The live band is ~16 units desaturated relative to the Editor render (§7); only an in-browser
+5. The live band is ~16 units desaturated relative to the Editor render (§7); only an in-browser
    frame-diff can say what adds it.
-5. Runtime mouth state: serialized `_MouthIndex 0` vs live index 12 (`Face_Smile.anim`), and the
+6. Runtime mouth state: serialized `_MouthIndex 0` vs live index 12 (`Face_Smile.anim`), and the
    live-only card offset.
-6. Owner-side verdicts still open: the deployed mouth-bias removal (stamp F80A81F86F35), the 14 disabled
+7. Owner-side verdicts still open: the deployed mouth-bias removal (stamp F80A81F86F35), the 14 disabled
    `Mt_outline_facepart` mouth-outline renderers, the fitted −0.13 v-shift, outline sign-off, stutter
    retest.

@@ -98,8 +98,24 @@ foreach ($asset in 'webgl.loader.js', 'webgl.framework.js', 'webgl.data', 'webgl
     $from = '"/' + $asset + '"'
     $html3 = $html3.Replace($from, ('"/' + $asset + '?v=' + $stamp + '"'))
 }
+# Auto-refresh watchdog. The stamp file lives in the webroot; open game pages poll it every
+# 2 minutes with a random nonce (?n= makes the URL unique, so neither the browser cache nor
+# the Cloudflare default text cache can answer from a stale copy). On stamp mismatch the page
+# shows a 'New game version available / Reload' prompt; the player picks the moment.
+Set-Content -LiteralPath (Join-Path $Webroot 'build_stamp.txt') $stamp -Encoding UTF8 -NoNewline
+$watchdog = @'
+<script>
+(function(){var STAMP="__STAMP__";function chk(){fetch("/build_stamp.txt?n="+Math.random(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(t){var s=(t||"").trim();if(s&&s!==STAMP)show();}).catch(function(){});}function show(){if(document.getElementById("mfg-update"))return;var d=document.createElement("div");d.id="mfg-update";d.style.cssText="position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:#181820;color:#fff;padding:10px 14px;border-radius:8px;font:14px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.45);display:flex;gap:10px;align-items:center";var m=document.createElement("span");m.textContent="New game version available";var b=document.createElement("button");b.textContent="Reload";b.style.cssText="background:#4a6cf7;color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer";b.onclick=function(){location.reload();};d.appendChild(m);d.appendChild(b);document.body.appendChild(d);}setTimeout(chk,20000);setInterval(chk,120000);})();
+</script>
+'@
+$watchdog = $watchdog.Replace('__STAMP__', $stamp)
+if ($html3 -match '</head>') {
+    $html3 = $html3.Replace('</head>', $watchdog + '</head>')
+} else {
+    $html3 += $watchdog
+}
 Set-Content $idx2.FullName $html3 -Encoding UTF8 -NoNewline
-'stamped build asset urls v=' + $stamp
+'stamped build asset urls v=' + $stamp + '; auto-refresh watchdog baked'
 # brotli sidecars
 & (Join-Path $root 'scripts\brotli-sidecar\bin\Release\net8.0\sidecar.exe') $Webroot
 if ($Serve) {

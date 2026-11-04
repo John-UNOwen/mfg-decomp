@@ -31,9 +31,12 @@ if not exist "%SEC_FILE%" (
 )
 set /p PRESENTER_SECRET=<"%SEC_FILE%"
 
-rem --- refuse to double-start ---
-netstat -ano | findstr /r /c:":8083 .*LISTENING" >nul 2>&1 && (echo core already answers 8083 - stop it first& set RC=1& goto end)
-tasklist /fi "imagename eq WebFront.exe" | findstr /i "WebFront.exe" >nul 2>&1 && (echo a WebFront is already running - stop it first& set RC=1& goto end)
+rem --- reclaim leftover lane processes (gates/tunnels started detached by chain
+rem restarts or earlier sessions used to block every re-run of this script) ---
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='WebFront.exe' or Name='cloudflared.exe'\" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue; Write-Output ('reclaimed leftover lane process: ' + $_.Name + ' pid ' + $_.ProcessId) }"
+
+rem --- refuse to double-start the core only (a live core means the server is still up) ---
+netstat -ano | findstr /r /c:":8083 .*LISTENING" >nul 2>&1 && (echo core already answers 8083 - the server is still up - close it first or run scripts\hosting_down.ps1& set RC=1& goto end)
 
 rem --- core: presenter armed, native listener loopback-only, https-ready cookies on tunnel shape ---
 if exist "%RYU_DIST%\config.ini" powershell -NoProfile -Command "(Get-Content -LiteralPath '%RYU_DIST%\config.ini' -Raw) -replace 'mfg_http_bind=[^\r\n]*','mfg_http_bind=127.0.0.1' | Set-Content -LiteralPath '%RYU_DIST%\config.ini' -Encoding UTF8 -NoNewline"

@@ -24,8 +24,16 @@ $repoReal = (Get-Item 'C:\mfg' -EA SilentlyContinue).Target
 if (-not $repoReal) { $repoReal = 'C:\mfg' }
 $ryuDist = Join-Path $repoReal.TrimEnd('\') 'tmp\RyuNET-core\dist'
 
-if (Get-Process -Name WebFront -EA SilentlyContinue) { throw 'a WebFront is already running - stop the lane first (preview_game.ps1 -Stop)' }
-if (Get-NetTCPConnection -LocalPort 8083 -State Listen -EA SilentlyContinue) { throw 'a core already answers 8083 - stop the lane first' }
+# Reclaim leftover lane processes instead of refusing to start (owner report
+# 2026-11-03): closing the core window used to leave a detached gate/tunnel
+# behind (chain restarts run them hidden), and every later hosting_up threw.
+# Gate and tunnel binaries are lane-owned, so stopping them here is safe.
+foreach ($p in Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.Name -eq 'WebFront.exe' -or $_.Name -eq 'cloudflared.exe' }) {
+    Stop-Process -Id $p.ProcessId -Force -EA SilentlyContinue
+    'reclaimed leftover lane process: ' + $p.Name + ' pid ' + $p.ProcessId
+}
+Start-Sleep -Milliseconds 400
+if (Get-NetTCPConnection -LocalPort 8083 -State Listen -EA SilentlyContinue) { throw 'a core already answers 8083 - the server is still up (close it, or run scripts/hosting_down.ps1)' }
 
 # core: presenter armed, native 22421 listener loopback-only, https-ready cookie
 # config.ini is patched while the core is stopped (core rewrites it live);

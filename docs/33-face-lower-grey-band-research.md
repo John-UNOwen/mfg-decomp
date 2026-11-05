@@ -211,6 +211,16 @@ step is a player-side effect the probe cannot see: per `webgl-shader-variant-got
 offscreen render is inert to keyword and variant effects, so these numbers describe the reconstruction's
 data and materials, not proof about the WebGL frame.
 
+Where to re-measure in the folder-7 select capture (`vncviewer_3EQLRU24PD.png`, 1920x1080): the face column at
+the mouth is x 350-405, the pale cheek above the mouth reads (250,226,215), the authored warm line under it
+(225,158,132) sat 0.41 over rows 648-660, the chin plate below that is flat at (249,219,214) sat 0.141 across
+rows 664-692, and cool grey clothing - (200,193,206), (170,173,195) - starts at row 696.
+`tmp/mouthband_profile.py --anchor 0.19896,0.5769` walks that column; anything quoted as "the band" has to say
+whether it is the chin plate or the authored line. Character 4's select capture (`vncviewer_nzrVWYMwSE.png`) has
+no exposed chin skin in x 344-472 at those rows, hair and collar cover it, so its comparison anchors on the
+mouth ink instead - rows 604-622, ink runs x 324-348 and x 376-420, cool-white teeth gap x 352-372 - and a lane
+frame registers into it by patch correlation at scale 1.5 (`tmp/patch_match.py`), not by colour centroid.
+
 ## 8. The mouth mesh does carry a zero-uv backing piece — owner's report, verified
 
 Report from the owner (mesh and shader data only, nothing changed or built): every mouth mesh holds a

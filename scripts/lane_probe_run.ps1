@@ -24,6 +24,8 @@ param(
     [int]$PostClickDelay = 0,       # ms after target-scene arrival before that click lands
     [int]$PostClickRounds = 1,      # how many times to repeat the post-arrival click
     [int]$ArrivalFrames = 0,        # screenshots taken before any settling, to see the live select window
+    [int]$ArrivalGapMs = 400,       # gap between those screenshots; 250-300 resolves a second-scale change
+    [int]$Trace = 0,                # seconds of per-poll light/material tracing after each scene visit
     [int]$SettleMs = 2000,          # wait after arrival before the page-info pass and the frame loop
     [string]$Label = '',
     [int]$Frames = 6,
@@ -42,6 +44,7 @@ if ($Shade -ne '') { $query += '&-MFGSHADE=' + $Shade }
 if ($Overlay -ne '') { $query += '&-MFGOVERLAY=' + $Overlay }
 if ($Hide -ne '') { $query += '&-MFGHIDE=' + $Hide }
 if ($HideMat -ne '') { $query += '&-MFGHIDEMAT=' + $HideMat }
+if ($Trace -gt 0) { $query += '&-MFGTRACE=' + $Trace }
 if ($Decide) { $query += '&-MFGCHARADECIDE' }
 $url = $page + '?' + $query
 
@@ -62,7 +65,7 @@ if ($NoMatDump) {
     $url = $url.Replace('&-MFGMATDUMP', '')
 }
 
-"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' shade='$Shade' hide='$Hide' hideMat='$HideMat' decide=$Decide postClick='$PostClick' arrivalFrames=$ArrivalFrames settleMs=$SettleMs"
+"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' shade='$Shade' hide='$Hide' hideMat='$HideMat' trace=$Trace decide=$Decide postClick='$PostClick' arrivalFrames=$ArrivalFrames arrivalGapMs=$ArrivalGapMs settleMs=$SettleMs"
 "url=$url"
 $env:TARGET_SCENE = 'FirstCharaSelect'
 $env:FRAME_COUNT = "$Frames"
@@ -72,7 +75,7 @@ $env:FRAME_COUNT = "$Frames"
 # roster cell has to be caught with -ArrivalFrames and clicked with -PostClick, not with the frame loop.
 $env:SETTLE_MS = "$SettleMs"
 $env:ARRIVAL_FRAMES = "$ArrivalFrames"
-$env:ARRIVAL_GAP_MS = '400'
+$env:ARRIVAL_GAP_MS = "$ArrivalGapMs"
 if ($PostClick -ne '') { $env:POST_CLICK_PLAN = $PostClick }
 $env:POST_CLICK_DELAY_MS = "$PostClickDelay"
 $env:POST_CLICK_ROUNDS = "$PostClickRounds"

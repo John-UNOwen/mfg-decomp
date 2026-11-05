@@ -12,6 +12,7 @@
 //      OUT_DIR (C:\mfgtmp\lane_frames) LABEL (lane) INJECT_COOKIE (name=value, hosted lanes)
 //      PROFILE_DIR (reuse one Edge profile and its asset cache across runs)
 //      ARRIVAL_FRAMES (0) ARRIVAL_GAP_MS (400) POST_CLICK_PLAN POST_CLICK_DELAY_MS (0) POST_CLICK_ROUNDS (1) CLICK_PLAN
+//      CLICK_COOLDOWN_MS (2500) CLICK_DELAY_MS (0, spacing between clicks in one pass)
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -200,6 +201,9 @@ const timed = (p, ms, tag) => Promise.race([
       return { scene, fx, fy, last: 0 };
     });
     const clickCooldown = parseInt(process.env.CLICK_COOLDOWN_MS || '2500', 10);
+    // CLICK_DELAY_MS spaces the clicks inside one plan pass. A click that opens a dialog needs a frame
+    // or two before the next click can land on it, otherwise the follow-up click is swallowed.
+    const clickDelay = parseInt(process.env.CLICK_DELAY_MS || '0', 10);
     let rect = null; let rectAt = 0;
     const getRect = async () => {
       if (rect && Date.now() - rectAt < 4000) return rect;
@@ -233,6 +237,7 @@ const timed = (p, ms, tag) => Promise.race([
         if (Date.now() - p.last < clickCooldown) continue;
         p.last = Date.now();
         try { await dispatchClick(p.fx, p.fy); } catch (e) { log('click failed: ' + e.message); }
+        if (clickDelay > 0) await new Promise((r) => setTimeout(r, clickDelay));
       }
     }
     if (!scenes.includes(TARGET)) {

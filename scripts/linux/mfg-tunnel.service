@@ -1,0 +1,29 @@
+; mfg-tunnel.service - the cloudflared tunnel for the lane.
+; Template: install_systemd.sh substitutes the at-sign placeholder tokens and stages the result.
+; Modelled on scripts/hosting_up.ps1:87-91 (cloudflared tunnel run mfg) and
+; lane_up.sh section 10. Omit this unit on boxes that do not front the lane with
+; Cloudflare (lane_up.sh uses CLOUDFLARED=0 for the same effect).
+
+[Unit]
+Description=MFG lane cloudflared tunnel (@TUNNEL_NAME@)
+After=network-online.target mfg-gate.service
+Wants=mfg-gate.service
+
+[Service]
+Type=simple
+User=@USER@
+ExecStart=@CLOUDFLARED_BIN@ tunnel run @TUNNEL_NAME@
+; the tunnel name must be one already installed in the operator account
+; (hosting_up.ps1:88 ran the same command for tunnel "mfg"; the origin stays loopback -
+; Cloudflare reaches it only through this tunnel)
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=15
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=@HOME@/.cloudflared
+; cloudflared reads the tunnel definition and its cert cache from the operator's
+; ~/.cloudflared; the name comes from the same config hosting_up.ps1 relied on
+
+[Install]
+WantedBy=multi-user.target

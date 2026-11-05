@@ -1,0 +1,35 @@
+; mfg-gate.service - the WebFront gate (WEBFRONT_GATE=1) under systemd.
+; Template: install_systemd.sh substitutes the at-sign placeholder tokens and stages the result.
+; Modelled on scripts/hosting_up.ps1:63-78 (gate env + WebFront started from
+; webfront/bin/Release/net8.0) and lane_up.sh section 9.
+
+[Unit]
+Description=MFG lane gate (WebFront, hosted gate mode)
+After=network-online.target mfg-lane.service
+Wants=mfg-lane.service
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@WEBFRONT_DIR@/bin/Release/net8.0
+; hosting_up.ps1:76-78 started the gate from that directory. On Linux the
+; framework-dependent assembly runs through the runtime - WebFront.dll, not the
+; Windows .exe apphost (same reasoning as assemble_webroot.sh:58-60).
+EnvironmentFile=@ENV_FILE@
+; The gate reads WEBFRONT_ROOT/UPSTREAM/AUTH/PORT/BIND/GATE/TRUST_PROXY/
+; PAGE_FRONTURL/PRESENTER_SECRET_FILE/ACCESS_CODE_FILE from the environment
+; (webfront/Program.cs:25-74); the secret material itself stays in files under
+; @SEC_DIR@ (Program.cs:56-57,71-72) - never in the EnvironmentFile.
+ExecStart=@DOTNET_BIN@ WebFront.dll
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=@WEBROOT@
+; the gate calls Directory.CreateDirectory(Root) at startup (webfront/Program.cs:341),
+; so WEBFRONT_ROOT needs create permission; static serving is read-only
+; (Program.cs:1041-1098) and the gate writes no files otherwise
+
+[Install]
+WantedBy=multi-user.target

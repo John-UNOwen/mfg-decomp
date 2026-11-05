@@ -130,8 +130,15 @@ Two knock-on facts that already changed the reading of this file:
   `UNITY_LIGHTMODEL_AMBIENT * 2` branch (Mouth.shader:635-636); only 9 eye materials lack it. The
   ambient-doubled ramp described in an earlier pass of this document does not apply to the live card.
   The 16 builtin `Diffuse` card materials exist only in motion/cut-in prefabs.
-* `_1st_ShadeColor_Step` and `_1st_ShadeColor_Feather` are not shader properties on Mouth.shader, so
-  `mat.GetFloat` on them yields 0 → `shadeRamp = _BaseColor` → the card's own ramp is inert.
+* `_1st_ShadeColor_Step` and `_1st_ShadeColor_Feather` are read by Mouth.shader:641 but declared nowhere in its
+  Properties block, so they never bind. `mat.GetFloat` returns 0 on the live `Mt_mouth` for Character4 **and**
+  Character7 alike (`SHADECFG`, `C:\mfgtmp\flp_sel_c47.log`, FirstCharaSelect run 2026-11-04) even though 16 of
+  the 21 mouth `.mat` files author `_1st_ShadeColor_Feather: 0.01` — the authored value is dropped. The ramp is
+  not inert, it is stuck: `ToonStep` with `max(step,1e-5)` and `max(feather,1e-5)` returns 0.5 wherever
+  `HalfLambertShade = saturate((dot+0.5)/1.5)` clamps to 0 (all of `dot(N,L) <= -0.5`) and 1 elsewhere, so the
+  card paints half `_FaceShadowColor` — warm (0.481,0,0) on Character4, grey (0.502) on Character7 — against
+  full light everywhere else, with a hard edge at `dot = -0.5`. An earlier reading of these same GetFloat zeros
+  as "the card's own ramp is inert" is void.
 
 ### How big the rim actually is
 

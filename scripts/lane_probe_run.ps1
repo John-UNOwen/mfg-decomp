@@ -6,6 +6,7 @@
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Mouth 1,1           Character 4 with mouth ramp 1 / tint 1
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Hide model_face_mouth   card off: what the shell paints there
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Hide '!model_face'      shell off (exact name): what the card alone paints
+#   .\scripts\lane_probe_run.ps1 -Chara 4 -HideMat Mt_face_outline  outline copies off: what they paint over the face
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Gain 1.19            card lit colour lifted to the shell's multiplier
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Shade 0.55,0.01      card shade graded like the face shell's
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Decide              let the flow decide after the pick
@@ -16,6 +17,7 @@ param(
     [string]$Shade = '',            # "<step>,<feather>" written as _1st_ShadeColor_Step/_Feather on Mt_mouth
     [string]$Overlay = '',          # 0 or 1: write _MouthOverlayMode on Mt_mouth
     [string]$Hide = '',             # renderer-name substrings to disable; "!name" matches the name exactly
+    [string]$HideMat = '',          # material-name substrings to disable (reaches the outline copies)
     [switch]$Decide,
     [switch]$NoMatDump,
     [string]$PostClick = '',        # canvas fractions clicked the moment the target scene appears, "0.5,0.62;0.7,0.62"
@@ -39,6 +41,7 @@ if ($Gain -ne '') { $query += '&-MFGMOUTHGAIN=' + $Gain }
 if ($Shade -ne '') { $query += '&-MFGSHADE=' + $Shade }
 if ($Overlay -ne '') { $query += '&-MFGOVERLAY=' + $Overlay }
 if ($Hide -ne '') { $query += '&-MFGHIDE=' + $Hide }
+if ($HideMat -ne '') { $query += '&-MFGHIDEMAT=' + $HideMat }
 if ($Decide) { $query += '&-MFGCHARADECIDE' }
 $url = $page + '?' + $query
 
@@ -49,6 +52,7 @@ if ($Label -eq '') {
     if ($Shade -ne '') { $Label += '_s' + $Shade.Replace(',', '').Replace('.', '') }
     if ($Overlay -ne '') { $Label += '_o' + $Overlay }
     if ($Hide -ne '') { $Label += '_hid' }
+    if ($HideMat -ne '') { $Label += '_hidmat' }
     if ($Decide) { $Label += '_dec' }
     if ($PostClick -ne '') { $Label += '_pick' }
 }
@@ -58,7 +62,7 @@ if ($NoMatDump) {
     $url = $url.Replace('&-MFGMATDUMP', '')
 }
 
-"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' shade='$Shade' hide='$Hide' decide=$Decide postClick='$PostClick' arrivalFrames=$ArrivalFrames settleMs=$SettleMs"
+"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' shade='$Shade' hide='$Hide' hideMat='$HideMat' decide=$Decide postClick='$PostClick' arrivalFrames=$ArrivalFrames settleMs=$SettleMs"
 "url=$url"
 $env:TARGET_SCENE = 'FirstCharaSelect'
 $env:FRAME_COUNT = "$Frames"

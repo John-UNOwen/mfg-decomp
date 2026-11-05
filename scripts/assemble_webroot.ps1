@@ -5,6 +5,10 @@
 # C:\mfgtmp\webroot, .br sidecars next to compressible files. Docs/22 contract.
 param(
     [switch]$Serve,
+    # Probe assembly: leave every gate process alone (the owner's gate may be serving another webroot).
+    [switch]$NoGateStop,
+    # Skip the brotli sidecar pass (a loopback probe lane serves plain files fine; saves ~5 min).
+    [switch]$NoSidecar,
     [string]$Build = 'C:\mfg\build\unity-project\out\webgl',
     [string]$Webroot = 'C:\mfgtmp\webroot',
     [string]$Upstream = 'http://127.0.0.1:8080',
@@ -23,7 +27,7 @@ if (-not (Test-Path $Build)) { throw "no webgl build at $Build" }
 # lane recorded in gate_pid.txt (checked by process name). Never touch other processes;
 # whoever restarted the gate must restart it again after the assemble.
 $gatePidFile = 'C:\mfgtmp\gate_pid.txt'
-if (Test-Path $gatePidFile) {
+if (-not $NoGateStop -and (Test-Path $gatePidFile)) {
     $gp = 0
     if ([int]::TryParse((Get-Content $gatePidFile -Raw).Trim(), [ref]$gp)) {
         $gpProc = Get-CimInstance Win32_Process -Filter "ProcessId=$gp" -ErrorAction SilentlyContinue
@@ -126,7 +130,9 @@ if ($html3 -match '</head>') {
 Set-Content $idx2.FullName $html3 -Encoding UTF8 -NoNewline
 'stamped build asset urls v=' + $stamp + '; catalog-fetch stamp + auto-refresh watchdog baked'
 # brotli sidecars
-& (Join-Path $root 'scripts\brotli-sidecar\bin\Release\net8.0\sidecar.exe') $Webroot
+if ($NoSidecar) { 'skipped brotli sidecars (-NoSidecar)' } else {
+    & (Join-Path $root 'scripts\brotli-sidecar\bin\Release\net8.0\sidecar.exe') $Webroot
+}
 if ($Serve) {
     $env:WEBFRONT_ROOT = $Webroot
     $env:WEBFRONT_UPSTREAM = $Upstream

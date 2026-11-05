@@ -145,7 +145,10 @@ const timed = (p, ms, tag) => Promise.race([
         if (!text) return;
         consoleLines.push(text);
         if (consoleLines.length % 40 === 0 || /MFGDBG|AUTOSERVE|LoadScene|Exception/.test(text)) {
-          log('console: ' + text.slice(0, 180));
+          // The dump lines are long by design - a whole material's bound set on one line - so they get a
+          // wider slice than the rest of the console trail. At 180 chars the ramp, tint and gain values,
+          // which are the proof a knob landed, were cut off.
+          log('console: ' + text.slice(0, /MFGDBG (MATDUMP|LIGHTDUMP|CAMDUMP)/.test(text) ? 760 : 180));
         }
         const m = /active='([^']+)'/.exec(text);
         if (m && !scenes.includes(m[1])) { scenes.push(m[1]); log('scene: ' + m[1]); }

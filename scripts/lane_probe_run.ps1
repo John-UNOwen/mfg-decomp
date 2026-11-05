@@ -47,7 +47,10 @@ if ($NoMatDump) {
 "url=$url"
 $env:TARGET_SCENE = 'FirstCharaSelect'
 $env:FRAME_COUNT = "$Frames"
-$env:SETTLE_MS = '4000'
+# Measured on the live lane (plumb_probe1, 2026-11-04): FirstCharaSelect appears at ~93 s and the flow walks on
+# to Guide at ~105 s, with an INFORMATION modal covering the screen by frame 4. Settle short so the picked
+# character is captured inside that window.
+$env:SETTLE_MS = '2000'
 $env:OUT_DIR = $out
 $env:LABEL = $Label
 # Story skip-all button, then the confirm dialog's skip button (canvas fractions, measured on a

@@ -7,11 +7,13 @@
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Hide model_face_mouth   card off: what the shell paints there
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Hide '!model_face'      shell off (exact name): what the card alone paints
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Gain 1.19            card lit colour lifted to the shell's multiplier
+#   .\scripts\lane_probe_run.ps1 -Chara 4 -Shade 0.55,0.01      card shade graded like the face shell's
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Decide              let the flow decide after the pick
 param(
     [int]$Chara = 1,
     [string]$Mouth = '',            # "<ramp>,<tint>" written onto Mt_mouth (see Mouth.shader)
     [string]$Gain = '',             # "<float>" light gain written onto Mt_mouth
+    [string]$Shade = '',            # "<step>,<feather>" written as _1st_ShadeColor_Step/_Feather on Mt_mouth
     [string]$Overlay = '',          # 0 or 1: write _MouthOverlayMode on Mt_mouth
     [string]$Hide = '',             # renderer-name substrings to disable; "!name" matches the name exactly
     [switch]$Decide,
@@ -34,6 +36,7 @@ $out = 'C:\mfgtmp\lane_frames'
 $query = '-MFGDBG&-MFGMATDUMP&-MFGLIGHT&-MFGCHARA=' + $Chara
 if ($Mouth -ne '') { $query += '&-MFGMOUTH=' + $Mouth }
 if ($Gain -ne '') { $query += '&-MFGMOUTHGAIN=' + $Gain }
+if ($Shade -ne '') { $query += '&-MFGSHADE=' + $Shade }
 if ($Overlay -ne '') { $query += '&-MFGOVERLAY=' + $Overlay }
 if ($Hide -ne '') { $query += '&-MFGHIDE=' + $Hide }
 if ($Decide) { $query += '&-MFGCHARADECIDE' }
@@ -43,6 +46,7 @@ if ($Label -eq '') {
     $Label = 'c' + $Chara
     if ($Mouth -ne '') { $Label += '_m' + $Mouth.Replace(',', '') }
     if ($Gain -ne '') { $Label += '_g' + $Gain.Replace('.', '') }
+    if ($Shade -ne '') { $Label += '_s' + $Shade.Replace(',', '').Replace('.', '') }
     if ($Overlay -ne '') { $Label += '_o' + $Overlay }
     if ($Hide -ne '') { $Label += '_hid' }
     if ($Decide) { $Label += '_dec' }
@@ -54,7 +58,7 @@ if ($NoMatDump) {
     $url = $url.Replace('&-MFGMATDUMP', '')
 }
 
-"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' hide='$Hide' decide=$Decide postClick='$PostClick' arrivalFrames=$ArrivalFrames settleMs=$SettleMs"
+"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' shade='$Shade' hide='$Hide' decide=$Decide postClick='$PostClick' arrivalFrames=$ArrivalFrames settleMs=$SettleMs"
 "url=$url"
 $env:TARGET_SCENE = 'FirstCharaSelect'
 $env:FRAME_COUNT = "$Frames"

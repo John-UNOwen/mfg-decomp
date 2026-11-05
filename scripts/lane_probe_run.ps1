@@ -24,7 +24,7 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $page = 'http://127.0.0.1:8095/aog/index.html'
 $out = 'C:\mfgtmp\lane_frames'
 
-$query = '-MFGDBG&-MFGMATDUMP&-MFGCHARA=' + $Chara
+$query = '-MFGDBG&-MFGMATDUMP&-MFGLIGHT&-MFGCHARA=' + $Chara
 if ($Mouth -ne '') { $query += '&-MFGMOUTH=' + $Mouth }
 if ($Overlay -ne '') { $query += '&-MFGOVERLAY=' + $Overlay }
 if ($Hide -ne '') { $query += '&-MFGHIDE=' + $Hide }
@@ -66,7 +66,7 @@ Get-Content $outFile -Tail 12
 
 $log = Join-Path $out ($Label + '_page.json')
 $logTxt = Join-Path $out ($Label + '_console.log.txt')
-foreach ($pattern in 'WEBGLARGS', 'AUTOSERVE installed', 'chara pick', 'MATDUMP', 'Standing CharaManager: Loaded ItemID') {
+foreach ($pattern in 'WEBGLARGS', 'AUTOSERVE installed', 'chara pick', 'MATDUMP', 'LIGHTDUMP', 'CAMDUMP', 'Standing CharaManager: Loaded ItemID') {
     $hits = Select-String -LiteralPath $logTxt -Pattern $pattern -EA SilentlyContinue | Select-Object -First 6
     if ($hits) { foreach ($h in $hits) { ($h.Line.Length -gt 260 ? $h.Line.Substring(0,260) : $h.Line) } } else { "no console line for '$pattern'" }
 }

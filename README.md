@@ -38,8 +38,8 @@ This repo holds research notes, tooling, inventories, recovered code, and the re
 | [inventory/](docs/inventory/) | Generated + traced evidence: assemblies, native exports, ea3 API surface, full flow trace, platform callsites |
 | 12-13 | First desktop light; provider capture evidence |
 | 15-18 | Match command contract, live-match report, RyuNET comparison, local runbook |
-| 19-24 | Assembly compile, content extraction, project merge, browser front, WebGL bring-up, face asset inventory |
-| [26-claude-face-match-rounds](docs/26-claude-face-match-rounds.md) | Face-match lane report: smile line, registration, outlines |
+| 19-23 | Assembly compile, content extraction, project merge, browser front, WebGL bring-up |
+| 24, 26 | Face asset inventory and face-match fix rounds, kept local and out of git |
 | [28-web-identity-hosting-plan](docs/28-web-identity-hosting-plan.md) | The hosted lane: identity model, gate design, delivery matrix |
 | [29-checkup-2026-11-02-findings](docs/29-checkup-2026-11-02-findings.md) | Checkup findings against the shipped lane (open defects with evidence) |
 

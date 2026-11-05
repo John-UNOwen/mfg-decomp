@@ -83,3 +83,8 @@ tmp/checkup-scratch/{AsphyxiaCore,bot,CardManager,EamuseCoin,EamuseIO,EamuseMidd
 *.dxbc
 *.mat.bin
 .research/
+
+# face-match round notes kept on disk only, not tracked
+docs/24-face-asset-inventory.md
+docs/26-claude-face-match-rounds.md
+notes/

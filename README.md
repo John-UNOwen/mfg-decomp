@@ -39,7 +39,7 @@ This repo holds research notes, tooling, inventories, recovered code, and the re
 | 12-13 | First desktop light; provider capture evidence |
 | 15-18 | Match command contract, live-match report, RyuNET comparison, local runbook |
 | 19-24 | Assembly compile, content extraction, project merge, browser front, WebGL bring-up, face asset inventory |
-| 25-27 | Face-match handoff rounds (asset fixing) |
+| [26-claude-face-match-rounds](docs/26-claude-face-match-rounds.md) | Face-match lane report: smile line, registration, outlines |
 | [28-web-identity-hosting-plan](docs/28-web-identity-hosting-plan.md) | The hosted lane: identity model, gate design, delivery matrix |
 | [29-checkup-2026-11-02-findings](docs/29-checkup-2026-11-02-findings.md) | Checkup findings against the shipped lane (open defects with evidence) |
 

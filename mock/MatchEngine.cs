@@ -50,6 +50,7 @@ internal sealed class MatchEngine
         public int Honba;
         public int DealerSeat;
         public int RenchanCount;
+        public readonly List<int> Resigned = new List<int>();   // seats that gave the match up (棄和)
 
         public readonly Seat[] Seats = { new Seat(), new Seat { IsCpu = true }, new Seat { IsCpu = true }, new Seat { IsCpu = true } };
         public readonly List<Cell> Queue = new List<Cell>();
@@ -243,11 +244,17 @@ internal sealed class MatchEngine
                     else Program.Log("MATCH_ANOMALY NAKINASHI without sute window");
                     break;
 
-                case 13: // KIKEN (resign)
+                case 13: // KIKEN (resign): the seat gave the match up, so its settlement lands
+                         // behind every seat that plays on, whatever its points say right now
+                         // (DanLevelMaster.cs:1336 is what makes that last rank cost a quit).
+                         // The shipping table hands such a seat to its CPU and plays the match out
+                         // for the seats that stayed; this mock has no second live seat to play
+                         // for, so the match stops here and only the settlement is mirrored.
+                    match.Resigned.Add(0);                     // seat 0 is this mock's live seat
                     match.MatchActive = false;
                     match.Queue.Clear();
                     match.Window = OpenWindow.None;
-                    Program.Log("MATCH resign");
+                    Program.Log("MATCH resign: seat 0 settled last");
                     break;
 
                 case 15: // NEXT_KYOKU_READY: the only inter-kyoku trigger (CPU readiness is implicit)
@@ -753,9 +760,26 @@ internal sealed class MatchEngine
         return rank;
     }
 
+    // Standing order first, then every seat that resigned moved behind the seats that played
+    // the match out: 棄和 is a loss, not a standing.
+    private static int[] SettleRanks(Match match)
+    {
+        var order = Enumerable.Range(0, 4)
+            .OrderByDescending(s => match.Seats[s].Score)
+            .ThenBy(s => s)                                    // the tie-break RankOf uses
+            .ToList();
+        var settled = order.Where(s => !match.Resigned.Contains(s))
+            .Concat(order.Where(s => match.Resigned.Contains(s)));
+        var ranks = new int[4];
+        int rank = 0;
+        foreach (int s in settled) ranks[s] = rank++;
+        return ranks;
+    }
+
     private static string Mgresult(Match match)
     {
         int[] uma = { 30, 20, 10, -60 };                         // tonnan uma, display only
+        int[] settle = SettleRanks(match);
         var sb = new StringBuilder("<mgresult>");
         sb.Append("<gmode>1</gmode><taku_class>1</taku_class><continue_state>0</continue_state><continue_fee>0</continue_fee>");
         sb.Append("<breakdown><exp><base_exp>120</base_exp><group_adjust_exp>0</group_adjust_exp><bonus_list /></exp>")
@@ -763,7 +787,7 @@ internal sealed class MatchEngine
           .Append("<actual_affinity_growth_point>100</actual_affinity_growth_point></affinity_point></breakdown>");
         for (int s = 0; s < 4; s++)
         {
-            int rank = RankOf(match.Seats, s);      // 0-based, see RankOf
+            int rank = settle[s];              // 0-based, see SettleRanks
             sb.Append("<player_" + s + "><rank>" + rank + "</rank><score>" +
                       match.Seats[s].Score.ToString(CultureInfo.InvariantCulture) + "</score><uma>" +
                       uma[rank] + "</uma></player_" + s + ">");

@@ -3,6 +3,11 @@
 <!-- TODO: confirm bonus_type_id vocabulary (read as a raw string into AffinityBonusInfo.BonusTypeID; "1" is a placeholder) -->
 <!-- TODO: confirm sub_cate must be a SchoolID enum name (SchoolID getter does Enum.Parse on it lazily) -->
 <!-- SKIPPED old / new (PlayerGameData snapshots, optional, large) and battle_item_use_info (needs PlayerItemMaster object ids) -->
+<!-- Kiken rule (DanLevelMaster.cs:1336 turns it into the dan points a quit has to cost): the seat
+     that gave the match up is settled last, whatever its points said, so this sample puts player_0
+     4th with the losing uma. A server that hands back the standing rank turns a resign into a win.
+     Engine-driven kiken_game settles through MatchEngine.SettleRanks; this body is what is served
+     when no live match is behind the session. -->
 <res>
   <serv_st><code>0</code></serv_st>
   <code>0</code>
@@ -28,15 +33,15 @@
       </affinity_point>
     </breakdown>
     <player_0>
-      <rank>1</rank>
+      <rank>3</rank>
       <score>30000</score>
-      <uma>20</uma>
+      <uma>-60</uma>
     </player_0>
     <g2result>
       <r>
         <id>1</id>
         <sub_cate>School001</sub_cate>
-        <win>1</win>
+        <win>0</win>
       </r>
     </g2result>
   </mgresult>

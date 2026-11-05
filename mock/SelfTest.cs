@@ -20,6 +20,7 @@ internal static class SelfTest
     public static int Run()
     {
         CheckMahjongPrimitives();
+        CheckResignSettlement();
 
         int passed = 0, tsumoMatches = 0, ronMatches = 0, drawMatches = 0;
         for (int m = 0; m < 12; m++)
@@ -41,6 +42,32 @@ internal static class SelfTest
     private static void Expect(bool condition, string label)
     {
         if (!condition) { failures++; Console.WriteLine("SELFTEST RULE FAIL: " + label); }
+    }
+
+    // 棄和: the seat that gave the match up is settled behind every seat that plays on. Ranked by
+    // standing alone, the quitting dealer kept rank 0 and the client read a resign as a win - the
+    // opposite of what DanLevelMaster.cs:1336 is built for.
+    private static void CheckResignSettlement()
+    {
+        var engine = new MatchEngine(4242);
+        string pcuid = "selftest-resign";
+        string body = "user_id=" + pcuid + "&pcuid=" + pcuid + "&tid=1027&pindex=0&mid=1000001&version=2.0.2";
+        Func<string, string> template = (spec) => "<res><serv_st><code>0</code></serv_st><code>0</code><entry><next_sno>0</next_sno></entry></res>";
+
+        engine.Handle("entry_game", body, template);
+        engine.Handle("gpost", body + "&must=2.0.2/" + pcuid + "/1027/0/1000001/0/13/0/0/0/0/0/0/0/0", template);
+        var doc = XDocument.Parse(engine.Handle("kiken_game", body, template));
+        var players = doc.Descendants("mgresult").Elements().Where(e => e.Name.LocalName.StartsWith("player_")).ToList();
+        Expect(players.Count == 4, "kiken_game settles all four seats");
+        if (players.Count != 4) return;
+
+        int quitRank = int.Parse(players[0].Element("rank").Value, CultureInfo.InvariantCulture);
+        int quitUma = int.Parse(players[0].Element("uma").Value, CultureInfo.InvariantCulture);
+        Expect(quitRank == 3, "the seat that resigned is settled last (got rank " + quitRank + ")");
+        Expect(quitUma == -60, "the seat that resigned pays the last-place uma (got " + quitUma + ")");
+        var stayed = players.Skip(1).Select(p => int.Parse(p.Element("rank").Value, CultureInfo.InvariantCulture));
+        Expect(string.Join(",", stayed) == "0,1,2", "the seats that played on take the ranks above it");
+        Console.WriteLine("selftest: resign settles seat 0 last, uma " + quitUma);
     }
 
     private static void CheckMahjongPrimitives()

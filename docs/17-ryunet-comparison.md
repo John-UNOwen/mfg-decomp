@@ -318,14 +318,27 @@ capture shows the client accepting (~2.9 KB on the inter-kyoku hop, `mock/mock.l
 seq=37, bytes=2931). OURS: same single-answer latch (mock/MatchEngine.cs:253-257). So docs/15
 §11 Q4's "does the server need all four" answers as: *needed for human seats only*.
 
-Resign: THEIRS `S_KIKEN` marks the table over server-side (taikyoku.ts:1343-1346) and `kiken_game`
-is the *same handler* as `end_game` (route map aog.ts:3298-3299 → `handle_end_or_kiken`
-:2431-2503) — it archives only tables already `finished` (:2452-2495), so a kiken writes no
-archive row and no `player_record` history. Both now demand the tid they address: a request whose
-tid is not the caller's table is answered `serv_st 770` (:2433-2448). OURS: `kind=13` clears the
-match (mock/MatchEngine.cs:246-251) and `kiken_game` returns the same `mgresult` as `end_game`
-(:130-137) — but ours also returns a `g2result` block in kiken that theirs only sends when the
-match was scramble-designated (mock/specs/kiken_game.xml).
+Resign: `end_game` and `kiken_game` share one handler (`handle_end_or_kiken` aog.ts:2790) because
+`EndGame.cs:21` and `KikenGame.cs:21` post the same fields, so what separates them is the route:
+`kiken_game: (f, c) => handle_end_or_kiken(f, c, true)` (aog.ts:3744). They used to share an outcome
+as well — `S_KIKEN` set `state="game_end"` and `finished`, and the settlement ranked the quitting
+seat by standing, so a dealer who quit before any scoring came home 1st with +20000 uma. Both sides
+now do what the original game does with 棄和 (DanLevelMaster.cs:1336 is the client branch that makes
+the *last* rank the one a quit costs): `Table.resign(seat)` records the seat, drops it from `humans`
+and hands it to the CPU for the rest of the match (taikyoku.ts:253, dispatch :1382), the table stays
+open for the seats that stayed, and `result_rows()` settles resigned seats behind them whatever their
+points say, so the quitter takes the last rank and its uma (taikyoku.ts:1503, :1515). Only a match
+the engine played out is archived: the engine stamps `completed` at its last kyoku (taikyoku.ts:1306)
+and the handler archives on that rather than on `finished` (aog.ts:2814, :2838), so a resign
+mid-match writes no `match_archive` row and does not burn the latch for the seats still playing. The
+quitting session's seat record is released — a re-login, even a fresh session on the same account,
+cannot take the seat back — with its account kept in `table.seat_quit` so the archive still names who
+sat there (`kiken: 1`). Both still demand the tid they address: a request whose tid is not the
+caller's table is answered `serv_st 770`. OURS: the mock stops the match (mock/MatchEngine.cs:247)
+because it has no second live seat to play on for, and mirrors the settlement through `SettleRanks`
+(mock/MatchEngine.cs:765), asserted by `MockServer selftest`; its `g2result` in kiken
+(mock/specs/kiken_game.xml) is still ours alone, sent by theirs only when the match was
+scramble-designated.
 
 Disconnect / kiken / reconnect: THEIRS' only liveness mechanism is in `handle_gget`: a human seat
 whose `lastSeen` — bumped by any request that addresses its table (`addressedSeat`, aog.ts:360-374) —

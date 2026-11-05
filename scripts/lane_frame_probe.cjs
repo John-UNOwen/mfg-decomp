@@ -10,7 +10,7 @@
 //   node scripts/lane_frame_probe.cjs [url] [timeoutMs]
 // env: TARGET_SCENE (FirstCharaSelect) FRAME_COUNT (6) SETTLE_MS (9000) HEADED (0)
 //      OUT_DIR (C:\mfgtmp\lane_frames) LABEL (lane)
-//      ARRIVAL_FRAMES (0) ARRIVAL_GAP_MS (400) POST_CLICK_PLAN POST_CLICK_ROUNDS (1) CLICK_PLAN
+//      ARRIVAL_FRAMES (0) ARRIVAL_GAP_MS (400) POST_CLICK_PLAN POST_CLICK_DELAY_MS (0) POST_CLICK_ROUNDS (1) CLICK_PLAN
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -230,6 +230,14 @@ const timed = (p, ms, tag) => Promise.race([
       return { fx, fy };
     });
     const rounds = parseInt(process.env.POST_CLICK_ROUNDS || '1', 10);
+    // POST_CLICK_DELAY_MS: the roster slides in, so a click has to land after it settles and before the
+    // shipped AutoServe's next decide poll. The arrival frames above also cost wall time; the delay is
+    // counted from the moment the target scene was first seen.
+    const postDelay = parseInt(process.env.POST_CLICK_DELAY_MS || '0', 10);
+    if (postDelay > 0) {
+      log('post click delay ' + postDelay + 'ms');
+      await new Promise((r) => setTimeout(r, postDelay));
+    }
     for (let round = 0; round < rounds; round++) {
       for (const p of postPlan) {
         try { await dispatchClick(p.fx, p.fy); } catch (e) { log('post click failed: ' + e.message); }

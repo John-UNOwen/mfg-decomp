@@ -17,6 +17,7 @@ param(
     [switch]$Decide,
     [switch]$NoMatDump,
     [string]$PostClick = '',        # canvas fractions clicked the moment the target scene appears, "0.5,0.62;0.7,0.62"
+    [int]$PostClickDelay = 0,       # ms after target-scene arrival before that click lands
     [int]$ArrivalFrames = 0,        # screenshots taken before any settling, to see the live select window
     [int]$SettleMs = 2000,          # wait after arrival before the page-info pass and the frame loop
     [string]$Label = '',
@@ -64,6 +65,7 @@ $env:SETTLE_MS = "$SettleMs"
 $env:ARRIVAL_FRAMES = "$ArrivalFrames"
 $env:ARRIVAL_GAP_MS = '400'
 if ($PostClick -ne '') { $env:POST_CLICK_PLAN = $PostClick }
+$env:POST_CLICK_DELAY_MS = "$PostClickDelay"
 $env:POST_CLICK_ROUNDS = '1'
 $env:OUT_DIR = $out
 $env:LABEL = $Label

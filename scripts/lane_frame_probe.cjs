@@ -9,7 +9,8 @@
 // a post-arrival click, not after the settling passes.
 //   node scripts/lane_frame_probe.cjs [url] [timeoutMs]
 // env: TARGET_SCENE (FirstCharaSelect) FRAME_COUNT (6) SETTLE_MS (9000) HEADED (0)
-//      OUT_DIR (C:\mfgtmp\lane_frames) LABEL (lane)
+//      OUT_DIR (C:\mfgtmp\lane_frames) LABEL (lane) INJECT_COOKIE (name=value, hosted lanes)
+//      PROFILE_DIR (reuse one Edge profile and its asset cache across runs)
 //      ARRIVAL_FRAMES (0) ARRIVAL_GAP_MS (400) POST_CLICK_PLAN POST_CLICK_DELAY_MS (0) POST_CLICK_ROUNDS (1) CLICK_PLAN
 const fs = require('fs');
 const path = require('path');
@@ -33,7 +34,14 @@ const logFile = path.join(OUT, LABEL + '_console.log.txt');
 fs.writeFileSync(logFile, '');
 const log = (s) => { const line = `[${stamp()}s] ${s}`; console.log(line); fs.appendFileSync(logFile, line + '\n'); };
 
-const udd = fs.mkdtempSync(path.join(os.tmpdir(), 'edge-frameprobe-'));
+// PROFILE_DIR reuses one Edge profile across runs so the HTTP cache (wasm, data, bundles) is warm;
+// without it each run gets a throwaway profile and re-downloads the whole asset tree.
+const udd = process.env.PROFILE_DIR || fs.mkdtempSync(path.join(os.tmpdir(), 'edge-frameprobe-'));
+const uddTemporary = !process.env.PROFILE_DIR;
+if (uddTemporary) log('throwaway profile ' + udd); else fs.mkdirSync(udd, { recursive: true });
+// A reused profile still holds DevToolsActivePort from the previous run; reading it sends the
+// probe to a dead debugging socket and the connect fails with a bare socket error.
+if (!uddTemporary) { try { fs.rmSync(path.join(udd, 'DevToolsActivePort')); } catch (e) { } }
 const flags = [
   '--no-sandbox', '--enable-features=SharedArrayBuffer', '--allow-cross-origin-authentication',
   '--window-size=1300,820', '--window-position=40,40', '--disable-background-timer-throttling',
@@ -55,7 +63,7 @@ function cleanup() {
       { stdio: 'ignore' });
   } catch (e) { /* nothing matched */ }
   try { if (spawnedPid) process.kill(spawnedPid); } catch (e) { }
-  fs.rmSync(udd, { recursive: true, force: true });
+  if (uddTemporary) fs.rmSync(udd, { recursive: true, force: true });
 }
 
 async function waitEndpoint() {
@@ -122,6 +130,24 @@ const timed = (p, ms, tag) => Promise.race([
     cdp = await timed(cdpConnect(`ws://127.0.0.1:${port}/devtools/page/${target.targetId}`), 20000, 'page connect');
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    // Hosted-lane sessions: INJECT_COOKIE="name=value" plants a session cookie before the page
+    // loads, so a WEBFRONT_GATE=1 front serves the spliced play page (-DATAID pinned, no
+    // -AUTOSERVE) instead of bouncing to /login. Get the cookie by POSTing /login with the
+    // browser's own origin. The value is never logged, only its length and the cookie names.
+    await cdp.send('Network.enable');
+    if (process.env.INJECT_COOKIE) {
+      const eq = process.env.INJECT_COOKIE.indexOf('=');
+      if (eq < 1) throw new Error('INJECT_COOKIE is not name=value');
+      const cname = process.env.INJECT_COOKIE.slice(0, eq);
+      const cval = process.env.INJECT_COOKIE.slice(eq + 1);
+      const origin = new URL(URL0).origin;
+      await cdp.send('Network.setCookie', {
+        name: cname, value: cval, url: origin, path: '/', httpOnly: true, secure: false, sameSite: 'Lax',
+      });
+      log('cookie injected for ' + origin + ': ' + cname + ' (' + cval.length + ' chars)');
+      const got = await cdp.send('Network.getCookies', { urls: [origin] });
+      log('cookies present now: ' + ((got.cookies || []).map((c) => c.name).join(',') || 'none'));
+    }
     // Deterministic geometry (the WebGL template letterboxes to 16:9). dpr 1 keeps canvas CSS
     // pixels mapping 1:1 to screenshot pixels, which is what the fixed-anchor scores assume. Raise
     // VIEWPORT_DPR only for crops that need more pixels on a face: it doubles the screenshot and

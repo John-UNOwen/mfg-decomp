@@ -4,13 +4,14 @@
 # assembled loader splices into argv (params separated by &, "name=value" split into two argv tokens).
 #   .\scripts\lane_probe_run.ps1 -Chara 7                      Character 7 select frames
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Mouth 1,1           Character 4 with mouth ramp 1 / tint 1
-#   .\scripts\lane_probe_run.ps1 -Chara 4 -Hide model_face_mouth   frame pair that shows card-owned pixels
+#   .\scripts\lane_probe_run.ps1 -Chara 4 -Hide model_face_mouth   card off: what the shell paints there
+#   .\scripts\lane_probe_run.ps1 -Chara 4 -Hide '!model_face'      shell off (exact name): what the card alone paints
 #   .\scripts\lane_probe_run.ps1 -Chara 4 -Decide              let the flow decide after the pick
 param(
     [int]$Chara = 1,
     [string]$Mouth = '',            # "<ramp>,<tint>" written onto Mt_mouth (see Mouth.shader)
     [string]$Overlay = '',          # 0 or 1: write _MouthOverlayMode on Mt_mouth
-    [string]$Hide = '',             # renderer-name substrings to disable
+    [string]$Hide = '',             # renderer-name substrings to disable; "!name" matches the name exactly
     [switch]$Decide,
     [switch]$NoMatDump,
     [string]$Label = '',

@@ -122,9 +122,14 @@ const timed = (p, ms, tag) => Promise.race([
     cdp = await timed(cdpConnect(`ws://127.0.0.1:${port}/devtools/page/${target.targetId}`), 20000, 'page connect');
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
-    // Deterministic geometry (the WebGL template letterboxes to 16:9) and dpr 1 so canvas CSS
-    // pixels map 1:1 to screenshot pixels across runs.
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+    // Deterministic geometry (the WebGL template letterboxes to 16:9). dpr 1 keeps canvas CSS
+    // pixels mapping 1:1 to screenshot pixels, which is what the fixed-anchor scores assume. Raise
+    // VIEWPORT_DPR only for crops that need more pixels on a face: it doubles the screenshot and
+    // every fixed pixel coordinate in it.
+    const viewW = Number(process.env.VIEWPORT_W || 1280);
+    const viewH = Number(process.env.VIEWPORT_H || 720);
+    const viewDpr = Number(process.env.VIEWPORT_DPR || 1);
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: viewW, height: viewH, deviceScaleFactor: viewDpr, mobile: false });
     // The Unity WebGL player grabs fullscreen on any canvas interaction, which rescales the canvas
     // and breaks fixed pixel coordinates; neuter it before the loader runs.
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', {

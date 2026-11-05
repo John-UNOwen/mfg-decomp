@@ -16,6 +16,9 @@ param(
     [string]$Hide = '',             # renderer-name substrings to disable; "!name" matches the name exactly
     [switch]$Decide,
     [switch]$NoMatDump,
+    [string]$PostClick = '',        # canvas fractions clicked the moment the target scene appears, "0.5,0.62;0.7,0.62"
+    [int]$ArrivalFrames = 0,        # screenshots taken before any settling, to see the live select window
+    [int]$SettleMs = 2000,          # wait after arrival before the page-info pass and the frame loop
     [string]$Label = '',
     [int]$Frames = 6,
     [int]$TimeoutSec = 420
@@ -41,6 +44,7 @@ if ($Label -eq '') {
     if ($Overlay -ne '') { $Label += '_o' + $Overlay }
     if ($Hide -ne '') { $Label += '_hid' }
     if ($Decide) { $Label += '_dec' }
+    if ($PostClick -ne '') { $Label += '_pick' }
 }
 if ($NoMatDump) {
     # -MFGMATDUMP is always sent unless asked off: the material dump line is what proves which face
@@ -48,14 +52,19 @@ if ($NoMatDump) {
     $url = $url.Replace('&-MFGMATDUMP', '')
 }
 
-"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' hide='$Hide' decide=$Decide"
+"probe run label=$Label chara=$Chara mouth='$Mouth' gain='$Gain' hide='$Hide' decide=$Decide postClick='$PostClick' arrivalFrames=$ArrivalFrames settleMs=$SettleMs"
 "url=$url"
 $env:TARGET_SCENE = 'FirstCharaSelect'
 $env:FRAME_COUNT = "$Frames"
-# Measured on the live lane (plumb_probe1, 2026-11-04): FirstCharaSelect appears at ~93 s and the flow walks on
-# to Guide at ~105 s, with an INFORMATION modal covering the screen by frame 4. Settle short so the picked
-# character is captured inside that window.
-$env:SETTLE_MS = '2000'
+# Measured on the live lane (plumb_probe1_console.log.txt, 2026-11-04): FirstCharaSelect loads at 94 s, the
+# shipped AutoServe decides the window at 97 s (`AUTOSERVE invoked chara window decide (reflection)`) and the
+# flow is in Home at 97 s. Settle plus the page-info pass together cost more than the window lasts, so a
+# roster cell has to be caught with -ArrivalFrames and clicked with -PostClick, not with the frame loop.
+$env:SETTLE_MS = "$SettleMs"
+$env:ARRIVAL_FRAMES = "$ArrivalFrames"
+$env:ARRIVAL_GAP_MS = '400'
+if ($PostClick -ne '') { $env:POST_CLICK_PLAN = $PostClick }
+$env:POST_CLICK_ROUNDS = '1'
 $env:OUT_DIR = $out
 $env:LABEL = $Label
 # Story skip-all button, then the confirm dialog's skip button (canvas fractions, measured on a

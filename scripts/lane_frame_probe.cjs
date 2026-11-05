@@ -3,10 +3,14 @@
 //
 // Guest boot by default: the served page carries -AUTOSERVE (Title -> Login guest start ->
 // StoryPlay skipped -> FirstCharaSelect) and no -REGULAR/-DATAID splice, so the client mints a
-// fresh guest identity and stops on the character-select scene, which no AutoServe rule clicks.
+// fresh guest identity and reaches character select. The shipped player's AutoServe *does* decide
+// that window, about 3 s after the scene loads (observed: arrival 94 s, decide 97 s, Home 97 s), so
+// anything that has to land inside the window - a roster cell pick - goes in as an arrival frame or
+// a post-arrival click, not after the settling passes.
 //   node scripts/lane_frame_probe.cjs [url] [timeoutMs]
 // env: TARGET_SCENE (FirstCharaSelect) FRAME_COUNT (6) SETTLE_MS (9000) HEADED (0)
 //      OUT_DIR (C:\mfgtmp\lane_frames) LABEL (lane)
+//      ARRIVAL_FRAMES (0) ARRIVAL_GAP_MS (400) POST_CLICK_PLAN POST_CLICK_ROUNDS (1) CLICK_PLAN
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -199,6 +203,24 @@ const timed = (p, ms, tag) => Promise.race([
     }
     if (!scenes.includes(TARGET)) {
       log('target scene ' + TARGET + ' never reached; scenes seen: ' + scenes.join(','));
+    }
+
+    // Screenshots the moment the target scene appears, before any settling (ARRIVAL_FRAMES, gap
+    // ARRIVAL_GAP_MS). Character select is decided by the shipped harness about 3 s after the scene
+    // loads, so a roster cell can only be seen - or picked - in the first frames after arrival; the
+    // settling and page-info passes together cost more than the window lasts.
+    const arrivalFrames = parseInt(process.env.ARRIVAL_FRAMES || '0', 10);
+    const arrivalGap = parseInt(process.env.ARRIVAL_GAP_MS || '400', 10);
+    for (let i = 0; i < arrivalFrames; i++) {
+      const fn = path.join(OUT, `${LABEL}_${TARGET}_arrive_${String(i).padStart(2, '0')}.png`);
+      try {
+        const r = await getRect();
+        const clip = r ? { x: r.x, y: r.y, width: r.w, height: r.h, scale: 1 } : undefined;
+        const shot = await timed(cdp.send('Page.captureScreenshot', { format: 'png', clip }), 12000, 'screenshot');
+        fs.writeFileSync(fn, Buffer.from(shot.data, 'base64'));
+        log('arrive frame ' + fn + ' ' + fs.statSync(fn).size + ' bytes');
+      } catch (e) { log('arrive frame failed: ' + e.message); }
+      await new Promise((r) => setTimeout(r, arrivalGap));
     }
 
     // Post-arrival clicks (POST_CLICK_PLAN="fx,fy;fx,fy") repeated POST_CLICK_ROUNDS times:

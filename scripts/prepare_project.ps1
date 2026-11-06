@@ -396,13 +396,10 @@ foreach ($n in $dllKeep) {
 "loose dlls: deleted $($deleted.Count) items (files+metas), metas editor-enabled for $flagged kept dlls"
 
 # ---------- phase 3.6: editor automation entry points (compiled against UnityEditor modules) ----------
-$autoDir = Join-Path $PSScriptRoot 'editor-automation'
-foreach ($f in (Get-ChildItem $autoDir -Filter *.cs)) {
-  $dstDir = Join-Path $proj 'Assets\Editor'
-  New-Item -ItemType Directory -Force $dstDir | Out-Null
-  Copy-Item $f.FullName (Join-Path $dstDir $f.Name) -Force
-}
-"editor automation: copied $((Get-ChildItem $autoDir -Filter *.cs).Count) script(s) to Assets\Editor"
+# Newest-wins, not a blind overwrite: the build tree carries its own Assets\Editor copies and
+# its own history (BuildWebGLPlayerFast, added in the build repo on 2026-11-03), and a -Force
+# copy from scripts/editor-automation reverts them every time this prep runs (ledger L42).
+& (Join-Path $PSScriptRoot 'sync_editor_automation.ps1') -SourceDir (Join-Path $PSScriptRoot 'editor-automation') -ProjectDir $proj
 
 # ---------- phase 4: manifest + csc.rsp ----------
 

@@ -14,9 +14,10 @@
 #   malformed pid file     -> refused with the reason, file kept
 #   pid 1 / own pid        -> refused with the reason, file kept
 #   pid not running        -> reported stale, stale pid file removed
-#   command line mismatch  -> NOT signalled (the recorded child is gone or the pid
-#                             was recycled); the stale pid file is removed, with the
-#                             mismatch reported
+#   identity mismatch      -> NOT signalled, pid file KEPT: the pid is alive, so deleting
+#                             its file would leave an unmanaged server holding its port
+#                             (the 2026-11-05 core/127.0.0.1:8083 incident); the mismatch
+#                             and the CORE_DIR/WEBFRONT_DIR assumed are printed
 #   command line match     -> SIGTERM, bounded poll, SIGKILL if still alive, then
 #                             the pid file is removed
 #
@@ -29,9 +30,10 @@
 #              directory is <CORE_DIR>/dist. This matters because AsphyxiaCore rewrites
 #              the node process title, so /proc/<pid>/cmdline reads
 #              "MFG Local v1.70b | P" and no command-line rule can match it (observed
-#              on the VPS lane on 2026-11-05). default: ~/mfg/core
+#              on the VPS lane on 2026-11-05). default: <repo>/tmp/RyuNET-core - the
+#              same value lane_up.sh:78 starts the core from (<repo> = parent of scripts/)
 #   WEBFRONT_DIR  gate repo root. Same rule for the gate: working directory
-#              <WEBFRONT_DIR>/bin/Release/net8.0. default: ~/mfg/webfront
+#              <WEBFRONT_DIR>/bin/Release/net8.0. default: <repo>/webfront (lane_up.sh:79)
 #   STOP_TRIES poll attempts (0.5 s apart, never over 1 s each) between SIGTERM and
 #              SIGKILL. default: 40 (= 20 s)
 #   KILL_TRIES poll attempts after SIGKILL before declaring survival. default: 10 (= 5 s)
@@ -46,10 +48,13 @@ export LC_ALL=C
 
 # ---------------------------- configuration ----------------------------
 SCRIPT_PATH=${BASH_SOURCE[0]}
+SCRIPT_DIR=${SCRIPT_PATH%/*}                 # <repo>/scripts/linux
+REPO_ROOT=${SCRIPT_DIR%/*}                   # <repo>/scripts
+REPO_ROOT=${REPO_ROOT%/*}                    # <repo>  (the lane_up.sh:74-76 model)
 
 PID_DIR=${PID_DIR:-"$HOME/mfgtmp/lane_pids"}
-CORE_DIR=${CORE_DIR:-"$HOME/mfg/core"}
-WEBFRONT_DIR=${WEBFRONT_DIR:-"$HOME/mfg/webfront"}
+CORE_DIR=${CORE_DIR:-"$REPO_ROOT/tmp/RyuNET-core"}        # = lane_up.sh:78
+WEBFRONT_DIR=${WEBFRONT_DIR:-"$REPO_ROOT/webfront"}       # = lane_up.sh:79
 STOP_TRIES=${STOP_TRIES:-40}
 KILL_TRIES=${KILL_TRIES:-10}
 POLL_STEP=0.5
@@ -177,8 +182,8 @@ stop_entry() {
   fi
   if ! entry_matches "$_kind" "$_pid"; then
     _cmd=$(cmdline_pretty "$_pid")
-    say "$_label: REFUSED - pid $_pid is neither the $_label program by command line ('$_cmd') nor by working directory ('$(cwd_of "$_pid")'); not signalled; pid file was stale, removed"
-    rm -f -- "$_file"
+    say "$_label: REFUSED - pid $_pid is neither the $_label program by command line ('$_cmd') nor by working directory ('$(cwd_of "$_pid")'); not signalled; pid file KEPT (deleting it would strand a live server with no handle)"
+    say "$_label: if this is the lane's own $_label, run lane_down.sh with the CORE_DIR/WEBFRONT_DIR lane_up.sh used (this run assumed CORE_DIR=$CORE_DIR WEBFRONT_DIR=$WEBFRONT_DIR PID_DIR=$PID_DIR)"
     refused=$((refused+1)); return 1
   fi
   _cmd=$(cmdline_pretty "$_pid")

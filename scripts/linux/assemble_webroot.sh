@@ -37,10 +37,21 @@
 #   BIND            'any' (all interfaces, guest VMs can load the page) or 'loopback'.
 #                                                  default: any
 #                   Only used by --serve (WEBFRONT_BIND).
+#   PID_DIR         Lane pid directory - the one lane_up.sh:88 and lane_down.sh:50 use.
+#                                                  default: ~/mfgtmp/lane_pids
 #   GATE_PID_FILE   File holding the pid of the gate this lane owns.
-#                                                  default: ~/mfgtmp/gate_pid.txt
-#                   If the file is absent, nothing is signalled. The pid is only
-#                   signalled if its /proc command line names the gate program.
+#                                                  default: $PID_DIR/gate.pid
+#                   ONE recorded gate pid: lane_up.sh:427 writes exactly this file,
+#                   lane_down.sh:209 stops it, and --serve here records the gate it
+#                   starts into the same file. The old default (~/mfgtmp/gate_pid.txt)
+#                   was read by this script and assemble_webroot.ps1:29 and written by
+#                   nothing in the repo, so the stop step was a guaranteed no-op for a
+#                   lane_up.sh lane.
+#                   If the file is absent, nothing is signalled. A pid is signalled only
+#                   when its command line names the gate program AND its working
+#                   directory is the gate's own bin dir - the cwd rule lane_up.sh:171-182
+#                   and lane_down.sh:120-131 use. When a live recorded gate cannot be
+#                   stopped, the webroot wipe is refused instead of run under it.
 #   GATE_PROCESS    Process name the recorded pid must match before any signal.
 #                                                  default: WebFront
 #                   Matches comm, argv[0] basename or argv[1] basename (dotnet
@@ -82,7 +93,8 @@ WEBROOT=${WEBROOT:-"$HOME/mfgtmp/webroot"}
 UPSTREAM=${UPSTREAM:-'http://127.0.0.1:8080'}
 FRONT_URL=${FRONT_URL:-'http://127.0.0.1:8090/aog'}
 BIND=${BIND:-'any'}
-GATE_PID_FILE=${GATE_PID_FILE:-"$HOME/mfgtmp/gate_pid.txt"}
+PID_DIR=${PID_DIR:-"$HOME/mfgtmp/lane_pids"}           # same default as lane_up.sh:88
+GATE_PID_FILE=${GATE_PID_FILE:-"$PID_DIR/gate.pid"}   # the file lane_up.sh:427 writes
 GATE_PROCESS=${GATE_PROCESS:-'WebFront'}
 NO_GATE_STOP=${NO_GATE_STOP:-0}
 NO_BROTLI=${NO_BROTLI:-0}
@@ -188,6 +200,8 @@ case $WEBROOT in ''|'/') die "refusing to wipe WEBROOT=$WEBROOT" ;; esac
 # any signal. Never a name kill, never pkill/pgrep, never a pattern, never a port owner:
 # if the pid does not match the gate, nothing is signalled. If the file is absent,
 # nothing happens at all.
+pid_alive() { [ -e "/proc/$1" ] || kill -0 "$1" 2>/dev/null; }   # lane_down.sh:112 rule
+
 stop_recorded_gate() {
   if [ "$NO_GATE_STOP" = 1 ]; then
     printf 'gate stop skipped (NO_GATE_STOP=1)\n'
@@ -200,7 +214,7 @@ stop_recorded_gate() {
   # Anything else (inner spaces, text) fails the digit test below and nothing is killed.
   pid=$(sed -n '1p' "$GATE_PID_FILE" 2>/dev/null | tr -d '\r\t' | sed 's/^ *//; s/ *$//') || pid=''
   case $pid in
-    ''|*[!0-9]*) printf 'gate pid file has no usable pid; nothing signalled\n'; return 0 ;;
+    ''|*[!0-9]*) printf 'gate pid file %s has no usable pid; nothing signalled\n' "$GATE_PID_FILE"; return 0 ;;
   esac                                       # [int]::TryParse failure (ps1 :32)
   if [ "$pid" -le 1 ]; then
     printf 'gate pid file holds pid %s; refusing to signal it\n' "$pid"; return 0
@@ -208,8 +222,14 @@ stop_recorded_gate() {
   if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
     printf 'gate pid file holds our own pid %s; refusing to signal it\n' "$pid"; return 0
   fi
+  if ! pid_alive "$pid"; then
+    printf 'gate pid %s is not running; stale pid file %s removed\n' "$pid" "$GATE_PID_FILE"
+    rm -f -- "$GATE_PID_FILE"
+    return 0
+  fi
   if [ ! -r "/proc/$pid/cmdline" ]; then
-    printf 'gate pid %s is not running; nothing to stop\n' "$pid"; return 0
+    printf 'gate pid %s is alive but its command line cannot be read; nothing signalled\n' "$pid"
+    return 1                                 # no identity proof: the wipe below must not run under it
   fi
   argv0=$(tr '\0' '\n' < "/proc/$pid/cmdline" | sed -n '1p') || argv0=''
   argv1=$(tr '\0' '\n' < "/proc/$pid/cmdline" | sed -n '2p') || argv1=''
@@ -220,14 +240,36 @@ stop_recorded_gate() {
   got_arg=$(_norm_name "${argv1##*/}")       # dotnet WebFront.dll form
   if [ "$got_comm" != "$want" ] && [ "$got_exe" != "$want" ] && [ "$got_arg" != "$want" ]; then
     printf 'gate pid %s is "%s", not "%s"; not signalled\n' "$pid" "${got_exe:-$got_comm}" "$GATE_PROCESS"
-    return 0                                 # never kill a pid that does not match
+    return 1                                 # never kill a pid that does not match
   fi
-  if kill -0 "$pid" 2>/dev/null; then
+  # Identity rule two (lane_up.sh:171-182, lane_down.sh:120-131): the gate this lane owns
+  # runs with its cwd at the bin dir of the assembly named by WEBFRONT_DLL. A recycled pid
+  # that merely carries a gate-looking name is somebody else's process.
+  gate_bin_dir=$(readlink -f "${WEBFRONT_DLL%/*}" 2>/dev/null) || gate_bin_dir=''
+  pid_cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null) || pid_cwd=''
+  if [ -n "$gate_bin_dir" ] && [ "$pid_cwd" != "$gate_bin_dir" ]; then
+    printf 'gate pid %s names the gate program but its working directory is %s, not %s: not signalled (not the gate this lane started)\n' "$pid" "${pid_cwd:-<unreadable>}" "$gate_bin_dir"
+    return 1
+  fi
+  kill -TERM "$pid" 2>/dev/null || true      # let the gate close its listener before Force
+  _st=1
+  while [ $_st -le 10 ]; do pid_alive "$pid" || break; sleep 0.5; _st=$((_st+1)); done
+  if pid_alive "$pid"; then
     kill -KILL "$pid" 2>/dev/null || true    # Stop-Process -Id <pid> -Force (ps1 :34)
-    printf 'stopped gate pid=%s (%s)\n' "$pid" "${got_exe:-$got_comm}"
+    _st=1
+    while [ $_st -le 10 ]; do pid_alive "$pid" || break; sleep 0.5; _st=$((_st+1)); done
   fi
+  if pid_alive "$pid"; then
+    printf 'gate pid %s survived SIGTERM and SIGKILL; refusing to wipe %s under a serving gate\n' "$pid" "$WEBROOT"
+    return 1
+  fi
+  printf 'stopped gate pid=%s (%s); pid file %s cleared\n' "$pid" "${got_exe:-$got_comm}" "$GATE_PID_FILE"
+  rm -f -- "$GATE_PID_FILE"
+  return 0
 }
-stop_recorded_gate
+if ! stop_recorded_gate; then
+  die "the recorded gate ($GATE_PID_FILE) is live and was not signalled: refusing to wipe $WEBROOT under a serving gate. Stop that gate first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service) and run again, or pass --no-gate-stop for a probe assembly."
+fi
 
 # ---------------------------- 3. wipe + mirror ----------------------------
 # ps1 :37-38  Remove-Item $Webroot -Recurse -Force ; Copy-Item $Build $Webroot -Recurse
@@ -359,12 +401,23 @@ fi
 
 # ---------------------------- 10. optional serve ----------------------------
 # ps1 :136-147. Off by default; nothing is started unless SERVE=1 / --serve.
-# WEBFRONT_GATE=0 is relay mode, as in the PowerShell dev serve. The PowerShell version
-# did not record the pid it started: record it yourself (echo $! > "$GATE_PID_FILE") if
-# you want the next assemble run to be able to stop it.
+# WEBFRONT_GATE=0 is relay mode, as in the PowerShell dev serve. The pid this script
+# starts is recorded in GATE_PID_FILE - the same single gate pid file lane_up.sh writes
+# and lane_down.sh stops - so the next assemble run can stop it. It is never recorded
+# over a live pid: step 2 already stopped the recorded gate (or --no-gate-stop was asked
+# for, in which case the record belongs to somebody else and is left alone).
 if [ "$SERVE" = 1 ]; then
   if [ ! -f "$WEBFRONT_DLL" ]; then die "no webfront build at $WEBFRONT_DLL"; fi
   if ! command -v dotnet >/dev/null 2>&1; then die "dotnet runtime not on PATH (needed for $WEBFRONT_DLL)"; fi
+  if [ -f "$GATE_PID_FILE" ]; then
+    _live=$(sed -n '1p' "$GATE_PID_FILE" 2>/dev/null | tr -d '\r\t' | sed 's/^ *//; s/ *$//')
+    case $_live in
+      ''|*[!0-9]*) : ;;
+      *) if pid_alive "$_live"; then
+           die "--serve would overwrite the gate record $GATE_PID_FILE while pid $_live is live: stop that gate first (lane_down.sh) or assemble without --serve"
+         fi ;;
+    esac
+  fi
   WEBFRONT_ROOT=$WEBROOT
   WEBFRONT_UPSTREAM=$UPSTREAM
   WEBFRONT_BIND=$BIND
@@ -373,5 +426,8 @@ if [ "$SERVE" = 1 ]; then
   _logdir=${TMPDIR:-/tmp}
   ( cd "${WEBFRONT_DLL%/*}" && exec dotnet "${WEBFRONT_DLL##*/}" ) \
     >"$_logdir/webfront.out.txt" 2>"$_logdir/webfront.err.txt" &
-  printf 'webfront started (bind=%s WEBFRONT_UPSTREAM=%s)\n' "$BIND" "$UPSTREAM"
+  servePid=$!
+  mkdir -p -- "$PID_DIR"
+  echo "$servePid" > "$GATE_PID_FILE"
+  printf 'webfront started (pid %s, recorded in %s) bind=%s WEBFRONT_UPSTREAM=%s\n' "$servePid" "$GATE_PID_FILE" "$BIND" "$UPSTREAM"
 fi

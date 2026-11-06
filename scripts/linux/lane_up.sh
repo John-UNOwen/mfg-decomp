@@ -40,10 +40,21 @@
 #   GATE_PORT       gate port (WEBFRONT_PORT).   default: 8090 (hosting_up.ps1:67,80-84)
 #   GATE_BIND       WEBFRONT_BIND: 'loopback' or 'any'. default: loopback
 #                   (hosting_up.ps1:68; accepted values in Program.cs:343-344)
-#   CLOUDFLARED     0 = skip the tunnel entirely. default: 1
+#   CLOUDFLARED     0 = skip the tunnel entirely. default: 0
+#                   hosting_up.ps1 arms this posture only with the explicit -Tunnel
+#                   switch (:52, :71) and the verified VPS lane runs with CLOUDFLARED=0,
+#                   cloudflared installed but no tunnel configured (README.md, "Still
+#                   unverified"). A default of 1 armed Secure cookies and CF-Connecting-IP
+#                   trust on a plain http loopback lane before any tunnel existed.
 #                   With the tunnel on, WEB_SECURE_COOKIE=1 and WEBFRONT_TRUST_PROXY=
-#                   cloudflare - exactly the -Tunnel shape of hosting_up.ps1 (:52, :71).
+#                   cloudflare are exported ONLY after the tunnel is proven live.
 #   TUNNEL_NAME     cloudflared tunnel name.     default: mfg (hosting_up.ps1:88)
+#   TUNNEL_CONFIG   cloudflared config that must name TUNNEL_NAME before the posture is
+#                   armed.                        default: ~/.cloudflared/config.yml
+#                   (the config mfg-tunnel.service:25-26 and hosting_up.ps1:88 rely on)
+#   TUNNEL_UP_TRIES poll attempts (0.5 s apart) for the tunnel to register a connection.
+#                   default: 60 (= 30 s). The tunnel starts BEFORE the core and gate:
+#                   they inherit the posture at exec, so it must be proven first.
 #   PID_DIR         holds core.pid gate.pid tunnel.pid. default: ~/mfgtmp/lane_pids
 #                   lane_up refuses to overwrite a pid file whose pid is alive.
 #   LOG_DIR         per-child stdout/stderr.     default: ~/mfgtmp/lane_logs
@@ -83,8 +94,10 @@ CORE_PORT=${CORE_PORT:-8083}
 CORE_HTTP_PORT=${CORE_HTTP_PORT:-22421}
 GATE_PORT=${GATE_PORT:-8090}
 GATE_BIND=${GATE_BIND:-'loopback'}
-CLOUDFLARED=${CLOUDFLARED:-1}
+CLOUDFLARED=${CLOUDFLARED:-0}                # posture is armed only on a proven tunnel
 TUNNEL_NAME=${TUNNEL_NAME:-'mfg'}
+TUNNEL_CONFIG=${TUNNEL_CONFIG:-"$HOME/.cloudflared/config.yml"}
+TUNNEL_UP_TRIES=${TUNNEL_UP_TRIES:-60}
 PID_DIR=${PID_DIR:-"$HOME/mfgtmp/lane_pids"}
 LOG_DIR=${LOG_DIR:-"$HOME/mfgtmp/lane_logs"}
 SEC_DIR=${SEC_DIR:-"$HOME/.mfg-web"}
@@ -211,15 +224,42 @@ wait_up() {
   return 1
 }
 
-# stop only the child we just started, after re-verifying its command line
+# The tunnel proves itself before anything that depends on it is armed: the child must
+# still be alive AND its own log must report a registered connection (cloudflared prints
+# "Registered tunnel connection" when the tunnel is up at the Cloudflare edge). Nothing
+# about the tunnel is inferred from the exit status of `tunnel run`.
+wait_tunnel() {
+  local _pid=$1 _tries=$2 _i=1
+  while [ $_i -le $_tries ]; do
+    pid_alive "$_pid" || return 1
+    grep -q 'Registered tunnel connection' "$tunnelOut" "$tunnelErr" 2>/dev/null && return 0
+    sleep "$POLL_STEP"
+    _i=$((_i+1))
+  done
+  return 1
+}
+
+# A posture is only armable against a tunnel this box can actually start: the config must
+# exist and must name TUNNEL_NAME (`tunnel: <name>` at the top level, or an entry of a
+# `tunnels:` map - the shape scripts/hosting_cloudflared.yml:1 shows).
+tunnel_preflight() {
+  [ -f "$TUNNEL_CONFIG" ] || die "CLOUDFLARED=$CLOUDFLARED but there is no cloudflared config at $TUNNEL_CONFIG: refusing to arm WEB_SECURE_COOKIE/WEBFRONT_TRUST_PROXY with no tunnel behind them (set CLOUDFLARED=0 for a plain http lane)"
+  grep -Eq "^[[:space:]]*tunnels?[[:space:]]*:[[:space:]]*['\"]?${TUNNEL_NAME}(['\"]|[[:space:]]*$)|^[[:space:]]+${TUNNEL_NAME}[[:space:]]*:" "$TUNNEL_CONFIG" \
+    || die "$TUNNEL_CONFIG does not name tunnel \"$TUNNEL_NAME\": refusing to arm the Secure-cookie posture (set CLOUDFLARED=0, or point TUNNEL_CONFIG/TUNNEL_NAME at the real tunnel)"
+}
+# identity cannot be proven the pid file is KEPT - a live process must never be left
+# without a handle (same rule as lane_down.sh, and the 2026-11-05 core incident).
 cleanup_child() {
   local _kind=$1 _pid=$2 _file="$PID_DIR/$1.pid"
+  if ! pid_alive "$_pid"; then rm -f -- "$_file"; return 0; fi   # nothing alive to strand (lane_down.sh:169-173 rule)
   if entry_matches "$_kind" "$_pid"; then
     kill -TERM "$_pid" 2>/dev/null || true
     sleep 1
     kill -KILL "$_pid" 2>/dev/null || true
+    rm -f -- "$_file"
+  else
+    say "warning: pid $_pid cannot be verified as the $_kind child just started (working directory $(cwd_of "$_pid")); not signalled; pid file KEPT ($_file) - run lane_down.sh to deal with it"
   fi
-  rm -f -- "$_file"
 }
 
 trim_line() { sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
@@ -298,6 +338,9 @@ if [ "$CLOUDFLARED" != 0 ] && ! command -v cloudflared >/dev/null 2>&1; then
   if [ $DRY_RUN = 1 ]; then say "dry-run: 'cloudflared' not on PATH (would be fatal for real)"
   else die "cloudflared not on PATH (set CLOUDFLARED=0 to skip the tunnel)"; fi
 fi
+# the config must name the tunnel before any posture can be armed (read-only check, run
+# in dry-run too so the operator sees the refusal before a real run)
+if [ "$CLOUDFLARED" != 0 ]; then tunnel_preflight; fi
 
 # ---------------------------- 4. pid files must not cover live children ----------------------------
 guard_pid_file core core
@@ -350,12 +393,24 @@ fi
 if [ $DRY_RUN = 1 ]; then
   printf '%s\n' \
     'lane_up --dry-run: nothing executed, no probes, no writes' \
-    "  mkdir -p '$LOG_DIR' '$PID_DIR'" \
+    "  mkdir -p '$LOG_DIR' '$PID_DIR'"
+  if [ "$CLOUDFLARED" != 0 ]; then
+    printf '%s\n' \
+      '' \
+      "  tunnel FIRST (hosting_up.ps1:88-89, moved before the children because the posture is inherited at exec):" \
+      "    nohup cloudflared tunnel run '$TUNNEL_NAME' >'$tunnelOut' 2>'$tunnelErr' &" \
+      "    echo \$! > '$PID_DIR/tunnel.pid'" \
+      "    wait: 'Registered tunnel connection' in $tunnelOut/$tunnelErr, $TUNNEL_UP_TRIES tries, sleep $POLL_STEP" \
+      "    no registered connection -> tunnel stopped, lane NOT started (no armed posture without a proven tunnel)"
+  else
+    printf '%s\n' '' '  tunnel: skipped (CLOUDFLARED=0) - plain http LAN posture'
+  fi
+  printf '%s\n' \
     '' \
     '  environment exported for the CORE child (hosting_up.ps1:46-52):' \
     "    VFG_PRESENTER_SECRET=<value read from $secFile - content not printed>" \
     '    mfg_http_bind=127.0.0.1'
-  [ "$CLOUDFLARED" != 0 ] && printf '%s\n' '    WEB_SECURE_COOKIE=1'
+  [ "$CLOUDFLARED" != 0 ] && printf '%s\n' '    WEB_SECURE_COOKIE=1   # armed only on the proven tunnel above'
   printf '%s\n' \
     '' \
     "  core (cwd $coreDist, like hosting_up.ps1:53 -WorkingDirectory <ryuDist>):" \
@@ -371,7 +426,7 @@ if [ $DRY_RUN = 1 ]; then
     "    WEBFRONT_BIND='$GATE_BIND'" \
     "    WEBFRONT_GATE='1'" \
     "    WEBFRONT_PRESENTER_SECRET_FILE='$secFile'"
-  [ "$CLOUDFLARED" != 0 ] && printf '%s\n' "    WEBFRONT_TRUST_PROXY='cloudflare'"
+  [ "$CLOUDFLARED" != 0 ] && printf '%s\n' "    WEBFRONT_TRUST_PROXY='cloudflare'   # armed only on the proven tunnel above"
   [ -f "$codeFile" ] && printf '%s\n' "    WEBFRONT_ACCESS_CODE_FILE='$codeFile'"
   [ -n "$publicUrl" ] && printf '%s\n' "    WEBFRONT_PAGE_FRONTURL='$publicUrl'   # from caller's WEBFRONT_PUBLIC_URL (hosting_up.ps1:11,75)"
   printf '%s\n' \
@@ -380,24 +435,44 @@ if [ $DRY_RUN = 1 ]; then
     "    nohup bash -c 'cd \"\$1\" && exec dotnet WebFront.dll' _ '$gateWd' >'$gateOut' 2>'$gateErr' &" \
     "    echo \$! > '$PID_DIR/gate.pid'" \
     "  wait: probe $CORE_HOST:$GATE_PORT, $GATE_UP_TRIES tries, sleep $POLL_STEP"
-  if [ "$CLOUDFLARED" != 0 ]; then
-    printf '%s\n' \
-      '' \
-      "  tunnel (hosting_up.ps1:88-89):" \
-      "    nohup cloudflared tunnel run '$TUNNEL_NAME' >'$tunnelOut' 2>'$tunnelErr' &" \
-      "    echo \$! > '$PID_DIR/tunnel.pid'"
-  else
-    printf '%s\n' '' '  tunnel: skipped (CLOUDFLARED=0)'
-  fi
   printf '%s\n' '' 'lane_up --dry-run: done (no secrets printed)'
   exit 0
 fi
 
-# ---------------------------- 8. core up (hosting_up.ps1:46-61) ----------------------------
+# ---------------------------- 8. tunnel first: it is what arms the posture ----------------------------
+# The core and gate inherit the posture at exec, so the tunnel has to be proven before
+# they start. hosting_up.ps1 starts the tunnel last (:87-91) but only arms the posture
+# with the explicit -Tunnel switch (:52, :71); with a default-on tunnel that ordering
+# reported a hosted lane with Secure cookies and CF-Connecting-IP trust and no proof
+# either of them had a tunnel behind them.
 mkdir -p -- "$LOG_DIR" "$PID_DIR"
+tunnelPid=''
+if [ "$CLOUDFLARED" != 0 ]; then
+  nohup cloudflared tunnel run "$TUNNEL_NAME" >"$tunnelOut" 2>"$tunnelErr" &
+  tunnelPid=$!
+  echo "$tunnelPid" > "$PID_DIR/tunnel.pid"
+  if ! wait_tunnel "$tunnelPid" "$TUNNEL_UP_TRIES"; then
+    tail -n 12 "$tunnelErr" >&2 2>/dev/null || true
+    tail -n 6 "$tunnelOut" 2>/dev/null | sed 's/^/tunnel: /' >&2 || true
+    cleanup_child tunnel "$tunnelPid"
+    die "cloudflared tunnel \"$TUNNEL_NAME\" did not register a connection (see $tunnelOut / $tunnelErr): the lane stays down rather than run with WEB_SECURE_COOKIE=1 and WEBFRONT_TRUST_PROXY=cloudflare on a plain http front"
+  fi
+  say "tunnel proven: \"$TUNNEL_NAME\" registered a connection (pid $tunnelPid, log $tunnelOut)"
+else
+  say "tunnel skipped (CLOUDFLARED=0): plain http LAN posture - no WEB_SECURE_COOKIE, no WEBFRONT_TRUST_PROXY"
+fi
+
+stop_tunnel_on_lane_failure() {   # the lane is not up: do not leave a registered tunnel fronting nothing
+  if [ "$CLOUDFLARED" != 0 ] && [ -n "$tunnelPid" ]; then
+    cleanup_child tunnel "$tunnelPid"
+    say "tunnel pid $tunnelPid stopped too (the lane is down)"
+  fi
+}
+
+# ---------------------------- 9. core up (hosting_up.ps1:46-61) ----------------------------
 export VFG_PRESENTER_SECRET=$secret
 export mfg_http_bind=127.0.0.1
-if [ "$CLOUDFLARED" != 0 ]; then export WEB_SECURE_COOKIE=1; fi   # hosting_up.ps1:52
+if [ "$CLOUDFLARED" != 0 ]; then export WEB_SECURE_COOKIE=1; fi   # hosting_up.ps1:52; tunnel proven in section 8
 
 nohup bash -c 'cd "$1" && exec node AsphyxiaCore.js' _ "$coreDist" >"$coreOut" 2>"$coreErr" &
 corePid=$!
@@ -406,11 +481,12 @@ echo "$corePid" > "$PID_DIR/core.pid"
 if ! wait_up "$CORE_HOST" "$CORE_PORT" "$CORE_UP_TRIES"; then
   tail -n 12 "$coreErr" >&2 2>/dev/null || true        # hosting_up.ps1:60 prints the core error tail
   cleanup_child core "$corePid"
-  die "core did not bind $CORE_HOST:$CORE_PORT (see $coreErr); pid file removed"
+  stop_tunnel_on_lane_failure
+  die "core did not bind $CORE_HOST:$CORE_PORT (see $coreErr); core pid file removed only while the child was still identifiable"
 fi
 say "core up: presenter armed, mfg_http_bind=127.0.0.1 (pid $corePid, cwd $coreDist)"
 
-# ---------------------------- 9. gate up (hosting_up.ps1:63-85) ----------------------------
+# ---------------------------- 10. gate up (hosting_up.ps1:63-85) ----------------------------
 export WEBFRONT_ROOT=$WEBROOT
 export WEBFRONT_UPSTREAM="http://$CORE_HOST:$CORE_PORT"
 export WEBFRONT_AUTH="http://$CORE_HOST:$CORE_PORT"
@@ -429,21 +505,16 @@ echo "$gatePid" > "$PID_DIR/gate.pid"
 if ! wait_up "$CORE_HOST" "$GATE_PORT" "$GATE_UP_TRIES"; then
   tail -n 6 "$gateErr" >&2 2>/dev/null || true         # hosting_up.ps1:84 prints the gate error tail
   cleanup_child gate "$gatePid"
+  stop_tunnel_on_lane_failure
   say "the core is still up (pid $(cat "$PID_DIR/core.pid" 2>/dev/null || echo '?')); run lane_down.sh to stop it"
   die "webfront did not bind $CORE_HOST:$GATE_PORT (see $gateErr)"
 fi
 tail -n 2 "$gateOut" 2>/dev/null || true               # hosting_up.ps1:85 echoes the gate banner
 say "gate up (pid $gatePid, cwd $gateWd, WEBFRONT_GATE=1, bind $GATE_BIND)"
 
-# ---------------------------- 10. tunnel (hosting_up.ps1:87-91) ----------------------------
-if [ "$CLOUDFLARED" != 0 ]; then
-  nohup cloudflared tunnel run "$TUNNEL_NAME" >"$tunnelOut" 2>"$tunnelErr" &
-  tunnelPid=$!
-  echo "$tunnelPid" > "$PID_DIR/tunnel.pid"
-  say "cloudflared tunnel \"$TUNNEL_NAME\" starting (pid $tunnelPid, log $tunnelOut)"
+say "lane up: core pid $corePid, gate pid $gatePid$([ "$CLOUDFLARED" != 0 ] && printf ', tunnel pid %s (proven)' "$tunnelPid"); pids in $PID_DIR"
+if [ "$CLOUDFLARED" = 0 ]; then
+  say "lane up on plain http: WEB_SECURE_COOKIE and WEBFRONT_TRUST_PROXY are NOT set - anonymous visitors reach the gate directly (lane_smoke.sh checks the bounce)"
 else
-  say "tunnel skipped (CLOUDFLARED=0)"
+  say "hosted lane up - anonymous visitors must bounce to /login (hosting_up.ps1:92); lane_smoke.sh checks it"
 fi
-
-say "lane up: core pid $corePid, gate pid $gatePid$([ "$CLOUDFLARED" != 0 ] && printf ', tunnel pid %s' "$tunnelPid"); pids in $PID_DIR"
-say "hosted lane up - anonymous visitors must bounce to /login (hosting_up.ps1:92); lane_smoke.sh checks it"

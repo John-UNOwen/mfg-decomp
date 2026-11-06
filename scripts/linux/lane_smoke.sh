@@ -160,14 +160,18 @@ else
 fi
 
 # ---------------------------- 5. index.html is not cached ----------------------------
-# .html/.htm (and their sidecars) are always no-store (Program.cs:1094-1096);
-# a gated 302 answer is no-store too (:982).
+# The 200 answer is what must carry no-store (Program.cs:1070 + CachePolicyOf :1094-1096).
+# Status first: every gate answer defaults to Cache-Control: no-store (Program.cs:982),
+# and gate mode answers an arbitrary .html name with 404 + no-store (Program.cs:902-907),
+# so a header-only check passes on a webroot with no index.html at all.
 GET "$BASE/index.html"
 cc=$(hdr Cache-Control)
-if printf '%s' "$cc" | grep -q 'no-store'; then
-  pass index_no_store "GET /index.html -> HTTP $GET_CODE Cache-Control: $cc"
+if [ "$GET_CODE" = 200 ] && printf '%s' "$cc" | grep -q 'no-store'; then
+  pass index_no_store "GET /index.html -> HTTP 200 Cache-Control: $cc ($(wc -c < "$BODY") body bytes)"
+elif [ "$GET_CODE" = 404 ] && ! body_has '<html'; then
+  skip index_no_store "GET /index.html -> HTTP 404 body: $(body_snip) (gate mode refuses arbitrary .html names - Program.cs:902-907): nothing was served, so there is no cache policy to prove. Run this suite against the assembled relay (assemble_webroot.sh --serve) for the 200 answer, or read play_page_autoserve / play_page_splice for the gate's own play page)"
 else
-  fail index_no_store "GET /index.html -> HTTP ${GET_CODE:-?} Cache-Control: ${cc:-<none>} (want no-store)"
+  fail index_no_store "GET /index.html -> HTTP ${GET_CODE:-?} Cache-Control: ${cc:-<none>} body: $(body_snip) (want 200 + no-store)"
 fi
 
 # ---------------------------- 6. login page ----------------------------
@@ -192,10 +196,10 @@ else
 fi
 GET "$BASE$IMG_PATH"
 ct=$(hdr Content-Type)
-if [ "$GET_CODE" = 200 ]; then
-  pass static_img "GET $IMG_PATH -> HTTP 200 Content-Type: $ct"
+if [ "$GET_CODE" = 200 ] && printf '%s' "$ct" | grep -qi '^image/' && [ -s "$BODY" ]; then
+  pass static_img "GET $IMG_PATH -> HTTP 200 Content-Type: $ct body bytes: $(wc -c < "$BODY")"
 else
-  fail static_img "GET $IMG_PATH -> HTTP ${GET_CODE:-?} Content-Type: ${ct:-<none>} (want 200)"
+  fail static_img "GET $IMG_PATH -> HTTP ${GET_CODE:-?} Content-Type: ${ct:-<none>} body bytes: $(wc -c < "$BODY") (want 200 + Content-Type image/* + a non-empty body; a 200 text/html or an empty body is not the core asset)"
 fi
 
 # ---------------------------- 9. core session page rejects a cookie-less visitor ----------------------------

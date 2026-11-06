@@ -51,6 +51,11 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Drawing
 
+# -SelfTest compares the templates against the files already on disk. Run alongside a real
+# generation it compares the files this script just wrote, which is self-confirming, so it is a
+# read-only mode (ledger L54).
+if ($SelfTest) { $DryRun = $true }
+
 $atlasDir = Join-Path $ExportRoot 'Assets\Texture2D'
 $spriteDir = Join-Path $ExportRoot 'Assets\Sprite'
 $bundleDir = Join-Path $ExportRoot 'Assets\AssetBundle'
@@ -888,8 +893,12 @@ if (-not $DryRun -and -not $SkipCatalog -and $planForCatalog.Count -gt 0) {
     foreach ($e in $planForCatalog) { [void]$labelsNew.Add($e.Label) }
     $blockStart = -1
     for ($i = 0; $i -lt $out.Count; $i++) { if ($out[$i] -eq '    m_LabelNames:') { $blockStart = $i + 1; break } }
+    # Refuse instead of guessing: with no marker $blockStart stays -1, and the forward scan below
+    # would index from the end of the file and write the result over the tracked settings file.
+    if ($blockStart -lt 1) { throw "settings splice refused: no '    m_LabelNames:' line in $settingsPath - nothing was written" }
     $blockEnd = $blockStart
-    while ($out[$blockEnd] -match '^    - ') { $blockEnd++ }
+    while ($blockEnd -lt $out.Count -and $out[$blockEnd] -match '^    - ') { $blockEnd++ }
+    if ($blockEnd -eq $blockStart) { throw "settings splice refused: the '    m_LabelNames:' table at line $blockStart of $settingsPath has no entries - nothing was written" }
     $block = $out[$blockStart..($blockEnd - 1)]
     $keep = @($block | Where-Object { $_ -eq '    - default' })
     $labels = @($block | Where-Object { $_ -ne '    - default' } | ForEach-Object { $_ -replace '^    - ', '' })
@@ -903,6 +912,26 @@ if (-not $DryRun -and -not $SkipCatalog -and $planForCatalog.Count -gt 0) {
     foreach ($l in $labelsNew) { [void]$ordered.Add($l) }
     $rebuilt = $keep + ($ordered | ForEach-Object { '    - ' + $_ })
     $newSettings = @($out[0..($blockStart - 1)]) + $rebuilt + @($out[$blockEnd..($out.Count - 1)])
+    # Additive-only check, run before anything is written. $out already carries the inserted group
+    # refs, so the only further growth is the labels the plan introduces. The splice must keep every
+    # original line in its original order (group refs go in before m_BuildSettings:, labels merge
+    # into the table) and add nothing else: a settings file that survives a splice differently is a
+    # splice that read the wrong region.
+    $i = 0
+    foreach ($line in $newSettings) { if ($i -lt $out.Count -and $line -eq $out[$i]) { $i++ } }
+    if ($i -ne $out.Count) { throw "settings splice refused: only $i of $($out.Count) original lines survive in order - nothing was written" }
+    $hadLabels = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($l in $labels) { [void]$hadLabels.Add($l) }
+    $freshLabels = @($labelsNew | Where-Object { -not $hadLabels.Contains($_) })
+    $expectedLines = $out.Count + $freshLabels.Count
+    if ($newSettings.Count -ne $expectedLines) { throw "settings splice refused: expected $expectedLines lines ($($out.Count) read + $($freshLabels.Count) new labels), built $($newSettings.Count) - nothing was written" }
+    $refCount = [System.Collections.Generic.Dictionary[string, int]]::new()
+    foreach ($e in $planForCatalog) { $refCount['  - {0}' -f ('{fileID: 11400000, guid: ' + $e.GroupGuid + ', type: 2}')] = 0 }
+    foreach ($line in $newSettings) { if ($refCount.ContainsKey($line)) { $refCount[$line] = $refCount[$line] + 1 } }
+    foreach ($kv in $refCount.GetEnumerator()) {
+        if ($kv.Value -ne 1) { throw "settings splice refused: group ref $($kv.Key) appears $($kv.Value) time(s), want exactly 1 - nothing was written" }
+    }
+    foreach ($l in $labelsNew) { if (-not $ordered.Contains($l)) { throw "settings splice refused: label $l is missing from the rebuilt table - nothing was written" } }
     Write-LfText -Path $settingsPath -Lines $newSettings
     "settings patched: +$($planForCatalog.Count) group refs, +$($labelsNew.Count) labels (label table now $($ordered.Count) plus 'default')"
 }
@@ -1043,3 +1072,10 @@ if ($collisions.Count) {
 [System.IO.File]::WriteAllLines($ReportPath, $report, (New-Object System.Text.UTF8Encoding($false)))
 
 $report | ForEach-Object { Write-Output $_ }
+
+# Collisions mean registrations were skipped, which is not a clean run. Print the report, then
+# fail so a caller driving this script can see it instead of reading a log line (ledger L54).
+if ($collisions.Count -gt 0) {
+    Write-Output "exit 1: $($collisions.Count) registration(s) skipped by a collision - the report lists them"
+    exit 1
+}

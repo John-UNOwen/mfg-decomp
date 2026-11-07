@@ -177,30 +177,42 @@ $targetFull = $webrootFull
 # list before binding; this step is its other user.
 
 function Get-FrontListener {
+    # The net has to see every front this kit keeps running, not only WebFront.exe: the static front
+    # is node serve_aog.js - preview_game.ps1:266-271 starts it and keeps it alive between launches,
+    # lane_probe_up.ps1:28 starts the same script on the probe root. node alone is not a front: the
+    # command line proves which script the interpreter runs, exactly as dotnet is proved by
+    # WebFront\.dll below, never by the image name alone. Mount is part of the identity because it is
+    # where the front answers: serve_aog.js serves only /aog and 404s every other path whatever root
+    # it serves (serve_aog.js:10, :30-31), so probing it at the webfront path read "no front serves
+    # this root" for a root that front was serving (B1 repro, 2026-11-08 review).
     $ownPids = @(Get-NetTCPConnection -State Listen -EA Stop | Select-Object -ExpandProperty OwningProcess -Unique)
     foreach ($op in $ownPids) {
         if ($op -le 3) { continue }
         $pr = Get-CimInstance Win32_Process -Filter "ProcessId=$op" -EA SilentlyContinue
         if (-not $pr) { continue }
-        $isFront = ($pr.Name -ieq 'WebFront.exe') -or ($pr.Name -ieq 'dotnet.exe' -and $pr.CommandLine -imatch 'WebFront\.dll')
-        if (-not $isFront) { continue }
+        $mount = $null
+        if (($pr.Name -ieq 'WebFront.exe') -or ($pr.Name -ieq 'dotnet.exe' -and $pr.CommandLine -imatch 'WebFront\.dll')) { $mount = '' }
+        elseif ($pr.Name -ieq 'node.exe' -and $pr.CommandLine -imatch 'serve_aog\.js') { $mount = '/aog' }
+        if ($null -eq $mount) { continue }
         foreach ($port in @(Get-NetTCPConnection -State Listen -OwningProcess $op -EA SilentlyContinue | Select-Object -ExpandProperty LocalPort -Unique)) {
-            [pscustomobject]@{ Pid = $op; Name = $pr.Name; Port = $port }
+            [pscustomobject]@{ Pid = $op; Name = $pr.Name; Port = $port; Mount = $mount }
         }
     }
 }
 
-# Probe-Webroot <- <pid>:<port>. Returns $null (no answer) or @{ Status = <int>; Body = <string> }.
-# A raw HTTP/1.0 request, because Invoke-WebRequest gives back no response object for a 404 (measured),
-# and a 404 is exactly the evidence that the front serves some other root.
-function Probe-Front([int]$port) {
+# Probe-Webroot <- <pid>:<port> at <mount>. Returns $null (no answer) or @{ Status = <int>; Body = <string> }.
+# The mount comes from Get-FrontListener: a 404 OUTSIDE a front's mount proves nothing (serve_aog.js
+# answers 404 on every path but /aog whatever it serves), so the request must go to the front's own
+# mount. A raw HTTP/1.0 request, because Invoke-WebRequest gives back no response object for a 404
+# (measured), and a 404 AT THE MOUNT is the evidence that the front serves some other root.
+function Probe-Front([int]$port, [string]$mount = '') {
     $c = New-Object System.Net.Sockets.TcpClient
     try {
         $c.Connect('127.0.0.1', $port)
         $s = $c.GetStream()
         $s.ReadTimeout = 4000
         $s.WriteTimeout = 4000
-        $req = [System.Text.Encoding]::ASCII.GetBytes("GET /build_stamp.txt HTTP/1.0`r`nHost: 127.0.0.1`r`nConnection: close`r`n`r`n")
+        $req = [System.Text.Encoding]::ASCII.GetBytes("GET $mount/build_stamp.txt HTTP/1.0`r`nHost: 127.0.0.1`r`nConnection: close`r`n`r`n")
         $s.Write($req, 0, $req.Length)
         $ms = New-Object System.IO.MemoryStream
         $buf = New-Object byte[] 4096
@@ -230,7 +242,7 @@ function Find-ServingFront($listeners) {
     if (-not $diskStamp) { return $null }
     foreach ($l in $listeners) {
         $probe = $null
-        try { $probe = Probe-Front $l.Port } catch { $probe = $null }
+        try { $probe = Probe-Front $l.Port $l.Mount } catch { $probe = $null }
         if ($probe -and ($probe.Body -ieq $diskStamp)) { return $l }
     }
     return $null
@@ -317,26 +329,27 @@ function Assert-WebrootNotServed {
     if (Test-Path -LiteralPath $stampPath -PathType Leaf) { $diskStamp = (Get-Content -LiteralPath $stampPath -Raw).Trim() }
     foreach ($l in $listeners) {
         $probe = $null
-        try { $probe = Probe-Front $l.Port } catch { $probe = $null }
-        # The refusal only needs one thing to line up: the stamp the front answers is the stamp this
-        # webroot carries. A different 200 body, or a 404 (this webroot HAS the file, so a root that
-        # answers 404 is not this root), both prove the front serves something else. Anything else is
-        # unknown, and unknown is a refusal - the whole point of the check is the case where nothing
-        # in scripts/ recorded the gate for it to find.
+        try { $probe = Probe-Front $l.Port $l.Mount } catch { $probe = $null }
+        $probePath = "$($l.Mount)/build_stamp.txt"
+        # The refusal only needs one thing to line up: the stamp the front answers at ITS mount is
+        # the stamp this webroot carries. A different 200 body, or a 404 at the mount (this webroot
+        # HAS the file, so a front that 404s its own mount does not serve this root), both prove the
+        # front serves something else. Anything else is unknown, and unknown is a refusal - the whole
+        # point of the check is the case where nothing in scripts/ recorded the gate for it to find.
         if ($probe -and $diskStamp -and ($probe.Body -ieq $diskStamp)) {
-            Fail "pid $($l.Pid) ($($l.Name)) is serving $targetFull on 127.0.0.1:$($l.Port): it answers /build_stamp.txt with $($probe.Body), the stamp in this webroot. Stop that front before assembling this root (hosting_down.ps1, or stop the front you started), or point -Webroot at another root."
+            Fail "pid $($l.Pid) ($($l.Name)) is serving $targetFull on 127.0.0.1:$($l.Port): it answers $probePath with $($probe.Body), the stamp in this webroot. Stop that front before assembling this root (hosting_down.ps1, or stop the front you started), or point -Webroot at another root."
         }
         elseif ($probe -and $probe.Status -eq 200 -and $diskStamp) {
             "front pid $($l.Pid) port $($l.Port) serves a different build (stamp '$($probe.Body)' != '$diskStamp'): not this webroot"
         }
         elseif ($probe -and $diskStamp) {
-            "front pid $($l.Pid) port $($l.Port) answers /build_stamp.txt with HTTP $($probe.Status), not this webroot's stamp: not this webroot"
+            "front pid $($l.Pid) port $($l.Port) answers $probePath with HTTP $($probe.Status), not this webroot's stamp: not this webroot"
         }
         elseif ($probe) {
             Fail "cannot prove pid $($l.Pid) ($($l.Name)) on 127.0.0.1:$($l.Port) is not serving ${targetFull}: it answered HTTP $($probe.Status) and the target has no build_stamp.txt to compare. Assemble into a fresh root (or stop the front) first."
         }
         else {
-            Fail "cannot prove pid $($l.Pid) ($($l.Name)) on 127.0.0.1:$($l.Port) is not serving ${targetFull}: it holds the port but did not answer /build_stamp.txt. Stop it first or choose another -Webroot."
+            Fail "cannot prove pid $($l.Pid) ($($l.Name)) on 127.0.0.1:$($l.Port) is not serving ${targetFull}: it holds the port but did not answer $probePath. Stop it first or choose another -Webroot."
         }
     }
 }

@@ -24,16 +24,47 @@ $repoReal = (Get-Item 'C:\mfg' -EA SilentlyContinue).Target
 if (-not $repoReal) { $repoReal = 'C:\mfg' }
 $ryuDist = Join-Path $repoReal.TrimEnd('\') 'tmp\RyuNET-core\dist'
 
+# Refuse to double-start the core BEFORE anything is touched (checkup 2026-11-06
+# item 12): the reclaim below used to run first, so this intended refusal killed
+# the running gate and the owner's tunnel and then aborted - the core left up with
+# no front and no tunnel. The guard is read-only and must stay the first action.
+if (Get-NetTCPConnection -LocalPort 8083 -State Listen -EA SilentlyContinue) { throw 'a core already answers 8083 - the server is still up (close it, or run scripts/hosting_down.ps1)' }
+
+# Ownership records (checkup 2026-11-06 item 14): hosting_down.ps1 stops exactly these pids and
+# nothing else, so what this run starts has to be written down the moment it starts - a record made
+# after a later failure would leave that child unowned. Line 1 is the pid, line 2 the command line
+# as WMI sees it now, which is what hosting_down.ps1 compares the live command line against
+# (a Windows command line never changes after creation). Same role names as lane_up.sh's PID_DIR.
+$pidDir = 'C:\mfgtmp\lane_pids'
+if (-not (Test-Path -LiteralPath $pidDir)) { New-Item -ItemType Directory -Path $pidDir | Out-Null }
+
 # Reclaim leftover lane processes instead of refusing to start (owner report
 # 2026-11-03): closing the core window used to leave a detached gate/tunnel
 # behind (chain restarts run them hidden), and every later hosting_up threw.
-# Gate and tunnel binaries are lane-owned, so stopping them here is safe.
-foreach ($p in Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.Name -eq 'WebFront.exe' -or $_.Name -eq 'cloudflared.exe' }) {
-    Stop-Process -Id $p.ProcessId -Force -EA SilentlyContinue
-    'reclaimed leftover lane process: ' + $p.Name + ' pid ' + $p.ProcessId
+# Reached only when nothing answers 8083, so what is left here is a front/tunnel with no core
+# behind it - the leftover this block exists for.
+#
+# It reclaims from the ownership records and nothing else (checkup 2026-11-06 item 12, ledger L66).
+# This block used to enumerate the machine and signal every WebFront.exe and every cloudflared.exe
+# by image name: that reaches another lane's front and the operator's own tunnel, which is a
+# different process that happens to share a binary name. hosting_down.ps1 is the one implementation
+# of the rule - it stops exactly the pids recorded in $pidDir, re-proves each one's identity before
+# signalling, and exits 1 on anything it cannot prove. A leftover with no record is reported, never
+# killed; adopting one is documented in hosting_deploy.md.
+$downScript = Join-Path $PSScriptRoot 'hosting_down.ps1'
+if (-not (Test-Path -LiteralPath $downScript)) { throw 'hosting_down.ps1 is missing next to hosting_up.ps1 - leftovers cannot be reclaimed safely' }
+& $downScript
+$downRc = $LASTEXITCODE
+if ($downRc -ne 0) {
+    throw ('leftover lane processes were not reclaimed (hosting_down.ps1 exit ' + $downRc + '). It refuses to signal a process it cannot match to a ' +
+        'record in ' + $pidDir + ': stop the pids it printed yourself, or adopt one by writing its pid into that record, then run this again.')
 }
 Start-Sleep -Milliseconds 400
-if (Get-NetTCPConnection -LocalPort 8083 -State Listen -EA SilentlyContinue) { throw 'a core already answers 8083 - the server is still up (close it, or run scripts/hosting_down.ps1)' }
+function Write-LanePid($label, $proc) {
+    $rec = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.Id)" -EA SilentlyContinue
+    Set-Content -LiteralPath (Join-Path $pidDir ($label + '.pid')) -Value @("$($proc.Id)", [string]$rec.CommandLine) -Encoding utf8
+    'recorded ' + $label + ' pid ' + $proc.Id + ' in ' + $pidDir
+}
 
 # core: presenter armed, native 22421 listener loopback-only, https-ready cookie
 # config.ini is patched while the core is stopped (core rewrites it live);
@@ -50,8 +81,9 @@ $env:mfg_http_bind = '127.0.0.1'
 # marked Secure but the request is plain http - on a LAN http origin login
 # would never stick (review round 2 major #8).
 if ($Tunnel) { $env:WEB_SECURE_COOKIE = '1' }
-Start-Process node -ArgumentList 'AsphyxiaCore.js' -WorkingDirectory $ryuDist -WindowStyle Hidden `
-    -RedirectStandardOutput 'C:\mfgtmp\ryunet.out.txt' -RedirectStandardError 'C:\mfgtmp\ryunet.err.txt' | Out-Null
+$core = Start-Process node -ArgumentList 'AsphyxiaCore.js' -WorkingDirectory $ryuDist -WindowStyle Hidden `
+    -RedirectStandardOutput 'C:\mfgtmp\ryunet.out.txt' -RedirectStandardError 'C:\mfgtmp\ryunet.err.txt' -PassThru
+Write-LanePid 'core' $core
 $up = $false
 for ($i = 0; $i -lt 120; $i++) {
     if (Get-NetTCPConnection -LocalPort 8083 -State Listen -EA SilentlyContinue) { $up = $true; break }
@@ -74,8 +106,9 @@ $codeFile = Join-Path $env:USERPROFILE '.mfg-web\access.code'
 if (Test-Path $codeFile) { $env:WEBFRONT_ACCESS_CODE_FILE = $codeFile }
 if ($publicUrl) { $env:WEBFRONT_PAGE_FRONTURL = $publicUrl }  # optional absolute -FRONTURL
 $wd = Join-Path $repoReal.TrimEnd('\') 'webfront\bin\Release\net8.0'
-Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden `
-    -RedirectStandardOutput 'C:\mfgtmp\webfront8090.out.txt' -RedirectStandardError 'C:\mfgtmp\webfront8090.err.txt' | Out-Null
+$gate = Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden `
+    -RedirectStandardOutput 'C:\mfgtmp\webfront8090.out.txt' -RedirectStandardError 'C:\mfgtmp\webfront8090.err.txt' -PassThru
+Write-LanePid 'gate' $gate
 $up = $false
 for ($i = 0; $i -lt 60; $i++) {
     if (Get-NetTCPConnection -LocalPort 8090 -State Listen -EA SilentlyContinue) { $up = $true; break }
@@ -85,8 +118,16 @@ if (-not $up) { Get-Content 'C:\mfgtmp\webfront8090.err.txt' -Tail 6 -EA Silentl
 Get-Content 'C:\mfgtmp\webfront8090.out.txt' -Tail 2
 
 if ($Tunnel) {
-    Start-Process 'C:\Program Files (x86)\cloudflared\cloudflared.exe' -ArgumentList 'tunnel', 'run', 'mfg' -WindowStyle Hidden `
-        -RedirectStandardOutput 'C:\mfgtmp\cloudflared.out.txt' -RedirectStandardError 'C:\mfgtmp\cloudflared.err.txt' | Out-Null
+    # $tunnelProc, not $tunnel: [switch]$Tunnel is a typed variable and PowerShell enforces that
+    # type on every assignment to $tunnel (parameter names are case-insensitive).
+    $tunnelProc = Start-Process 'C:\Program Files (x86)\cloudflared\cloudflared.exe' -ArgumentList 'tunnel', 'run', 'mfg' -WindowStyle Hidden `
+        -RedirectStandardOutput 'C:\mfgtmp\cloudflared.out.txt' -RedirectStandardError 'C:\mfgtmp\cloudflared.err.txt' -PassThru
+    Write-LanePid 'tunnel' $tunnelProc
     'cloudflared tunnel "mfg" starting (see C:\mfgtmp\cloudflared.out.txt)'
+} else {
+    # No tunnel on this shape: drop any tunnel record left by an earlier -Tunnel run, so
+    # hosting_down.ps1 can never later be handed a pid that has been recycled into another
+    # tunnel's cloudflared process.
+    Remove-Item -LiteralPath (Join-Path $pidDir 'tunnel.pid') -Force -EA SilentlyContinue
 }
 'hosted lane up - test at https://your-hostname: / anonymous must bounce to /login'

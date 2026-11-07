@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
-# lane_down.sh - Linux replacement for scripts/hosting_down.ps1 (13 lines).
+# lane_down.sh - Linux replacement for the old scripts/hosting_down.ps1.
 #
-# hosting_down.ps1 stopped lane components by WMI name match
+# hosting_down.ps1 used to stop lane components by WMI name match
 # (WebFront.exe / cloudflared.exe / node+AsphyxiaCore.js, :6-11). This port never
 # matches a name: it stops exactly the pids lane_up.sh recorded in PID_DIR, and it
 # verifies each pid's command line before sending any signal. Nothing is ever killed
 # by name, pattern, pgrep/pkill, or port ownership. pid 1 and this script's own
 # process (and its parent) are never signalled.
+#
+# The Windows half now follows the same rule (2026-11-06 checkup item 14, ledger L69):
+# hosting_up.ps1 records core.pid/gate.pid/tunnel.pid in C:\mfgtmp\lane_pids and
+# hosting_down.ps1 stops exactly those, with the same refuse-and-keep semantics. On
+# Windows no cwd fallback is needed: the Win32 command line, unlike /proc/cmdline, never
+# changes after the process is created, so the command line recorded at start still
+# identifies the pid at stop time.
 #
 # What it reads: PID_DIR/core.pid, PID_DIR/gate.pid, PID_DIR/tunnel.pid.
 # For each entry:

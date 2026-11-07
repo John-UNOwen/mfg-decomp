@@ -26,7 +26,23 @@ from outside. Works the same on your own PC or a Windows VPS.
 ## Start / stop
 
 - Start hosted: `pwsh scripts\hosting_up.ps1` (core armed + WebFront gate ON +
-  optional cloudflared via `-Tunnel`). Stop: `scripts\preview_game.ps1 -Stop` kills the lane.
+  optional cloudflared via `-Tunnel`). Stop: `scripts\hosting_down.ps1` stops the lane.
+  `preview_game.ps1 -Stop` closes only the preview lane's own recorded processes - it
+  never touches the hosted gate on 8090 or the core on 8083.
+- `hosting_up.ps1` writes an ownership record per child into `C:\mfgtmp\lane_pids`
+  (`core.pid`, `gate.pid`, `tunnel.pid`; line 1 the pid, line 2 the command line as WMI sees
+  it). `hosting_down.ps1` stops exactly those records - it never enumerates the machine,
+  never kills by name, pattern or port ownership (ledger L69) - and re-proves each recorded
+  pid is still that component before signalling it: a malformed, protected or recycled
+  record is refused with the reason and KEPT, only a stale one (pid not running) is removed.
+  Refused records mean exit 1, so the shape never half-stops silently.
+- A lane that started before the records existed (or one started by `hosting_up.bat`, whose
+  servers live in its own window and stop with Ctrl+C there) is never guessed at:
+  `hosting_down.ps1` prints who owns 8083/8090 and stops. To adopt one deliberately, write
+  its pid as the only line of the matching record (`"$pid" | Set-Content C:\mfgtmp\lane_pids\gate.pid`)
+  and run `hosting_down.ps1` - without a recorded command line to match, the role rule alone
+  decides (node + an `AsphyxiaCore.js` argument for the core, the gate/tunnel binaries
+  otherwise).
 - The hosted start patches `mfg_http_bind=127.0.0.1` into `config.ini` while the
   core is stopped (the core rewrites that file live); the plugin precedence is
   env > config.ini > default, and the boot log prints the bind actually used.

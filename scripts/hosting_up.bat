@@ -31,12 +31,24 @@ if not exist "%SEC_FILE%" (
 )
 set /p PRESENTER_SECRET=<"%SEC_FILE%"
 
-rem --- reclaim leftover lane processes (gates/tunnels started detached by chain
-rem restarts or earlier sessions used to block every re-run of this script) ---
-powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='WebFront.exe' or Name='cloudflared.exe'\" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue; Write-Output ('reclaimed leftover lane process: ' + $_.Name + ' pid ' + $_.ProcessId) }"
-
-rem --- refuse to double-start the core only (a live core means the server is still up) ---
+rem --- refuse to double-start the core only (a live core means the server is still up).
+rem Read-only, and it stays the FIRST action of the script: the reclaim below used to run
+rem ahead of it, so a refusal killed the running gate and tunnel and then aborted, leaving
+rem the core up with no front and no tunnel (checkup 2026-11-06 item 12, same order flip
+rem as hosting_up.ps1) ---
 netstat -ano | findstr /r /c:":8083 .*LISTENING" >nul 2>&1 && (echo core already answers 8083 - the server is still up - close it first or run scripts\hosting_down.ps1& set RC=1& goto end)
+
+rem --- reclaim leftover lane processes (gates/tunnels started detached by chain
+rem restarts or earlier sessions used to block every re-run of this script). Only
+rem reached when nothing answers 8083, so what is left here has no core behind it.
+rem From the pid records only, as hosting_up.ps1 does: this used to signal every
+rem WebFront.exe and every cloudflared.exe on the box by image name, which also
+rem reaches another lane's front and the operator's own tunnel - checkup 2026-11-06
+rem item 12, ledger L66. hosting_down.ps1 stops exactly the pids recorded in
+rem C:\mfgtmp\lane_pids after re-proving each identity, and exits 1 on anything it
+rem cannot prove, so an unrecorded leftover is reported, never killed ---
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0hosting_down.ps1"
+if errorlevel 1 (echo leftover lane processes were not reclaimed - hosting_down.ps1 refused. Stop the pids it printed, or adopt one into C:\mfgtmp\lane_pids, then run this again& set RC=1& goto end)
 
 rem --- core: presenter armed, native listener loopback-only, https-ready cookies on tunnel shape ---
 if exist "%RYU_DIST%\config.ini" powershell -NoProfile -Command "(Get-Content -LiteralPath '%RYU_DIST%\config.ini' -Raw) -replace 'mfg_http_bind=[^\r\n]*','mfg_http_bind=127.0.0.1' | Set-Content -LiteralPath '%RYU_DIST%\config.ini' -Encoding UTF8 -NoNewline"

@@ -281,6 +281,14 @@ THEIRS, in one block: `renchan = abortive || tenpai.includes(oya)` (taikyoku.ts:
 renchan `honba += 1` and `advance_kyoku = false` → `kyoku_index` is **not** incremented, so
 `oya = kyoku_index % seats`, `kyoku = kyoku_index % seats`, `ba` and `all_last` are all unchanged
 (:222-236,1253-1277); on a non-renchan draw/loss `honba = 0` and the index advances.
+**Correction (2026-11-07) — the engine cited here does not do that.** `_end_kyoku` reads
+`if (renchan || draw) this.honba += 1` (taikyoku.ts:1393, the vendored line since `33947ac`, still
+the line today), so a dealer-noten exhaustive draw, where the dealer does rotate, carries a stick
+into the next kyoku. That is standard-riichi-wrong and provider-faithful at once: nothing in
+`capture/`, `ref/`, `mock/` or the savedata records a chiyuukyoku, so whether the arcade agreed with
+the rule above is unobserved. The sentence is a statement of standard riichi, not of captured
+provider behaviour; the engine was left following the provider and the difference is an open
+question (docs/31 L77), not a settled answer.
 `game_over = busted || (kyoku_index >= KYOKU_COUNT[taku] − 1 && !renchan)` (:1259-1262), and only
 then is `KYOKUEND.end_stat = 1`. `KYOKU_COUNT` = tonnan 4, hanchan 8, sanma 3, nima 2
 (mahjong.ts:74-79); `SEATS_OF` 4/4/3/2 (:67-72); start score 25000/25000/35000/35000 (:81-86).
@@ -449,6 +457,7 @@ it either, which is itself useful (it means the shipping client cannot be relyin
 | 14 — units of the `entry_game` limit fields | **Yes** | THEIRS writes **seconds**: 20/15/20/15/15/30/30/30/60 under the name `ENTRY_LIMIT_SECONDS` (aog.ts:188-203). The only client consumer is the matching countdown, which ticks in **seconds** (`AC/CountDownTimer.cs:238` `m_time -= Time.deltaTime`; alert 5 s :36; display cap 99 :50) — so the ms-shaped numbers the first pass wrote froze the digits at 99. Practical answer: seconds, ≤ 99, and ours' `last_time 300` is the value still out of range. |
 | 15 — rank fields 0-based | **Yes** | `_ranks()` assigns 0 to the highest score, tie-broken dealer-relative (taikyoku.ts:363-375); `mgresult.player_i/rank` and `player_info_i/rank` use the same 0-based values (:360-374,1460-1474). Ours matches (mock/MatchEngine.cs:747-754). |
 | 16 — renchan dealer handling | **Yes** | Dealer keeps dealing exactly when the **dealer** was tenpai at the exhaustive draw (or on an abortive draw): `renchan = abortive \|\| tenpai.includes(oya)` → `honba += 1`, `advance_kyoku = false` (`kyoku_index`, `kyoku`, `oya`, `ba`, `all_last` unchanged) (taikyoku.ts:1249,1253-1277,222-236). A non-tenpai dealer (even with other seats tenpai) → `honba = 0` and the kyoku advances. **Ours is wrong on both halves** (mock/MatchEngine.cs:611,625-638 grants honba on any-tenpai and rotates the dealer). |
+| 16b — does THEIRS really reset honba on a dealer-rotating draw? | **No** | Correction from the 2026-11-07 review pass: the line above describes the rule, not the code. `_end_kyoku` increments on `renchan \|\| draw` (taikyoku.ts:1393), so the provider engine grants the stick on a dealer-noten draw as well. No capture of a chiyuukyoku exists in this repo, so which half the arcade followed is unrecorded; see the correction at :283 and docs/31 L77. |
 
 New questions theirs raises that docs/15 doesn't ask:
 

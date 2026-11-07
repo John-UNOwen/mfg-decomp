@@ -30,6 +30,7 @@ both ends of a run and exit 2 with `NOT LISTENING` when there is nothing to prob
 | `node .audit/p8_content_vocab.js [utils.ts]` | the content vocabulary one build actually ships - run it on a snapshot to see the before |
 | `node .audit/p8_content_unit_check.js` / `node .audit/p8_config_unit_check.js` | the shipped content helpers and their config overrides, loaded straight from `dist/.../handlers/utils.ts`: no server, no restart |
 | `python .audit/probe_notice_p8.py [REF]` / `python .audit/probe_odekake_p8.py [LENDER] [BORROWER]` | notice authoring on an account that has never read them; the friend row and the borrow it backs |
+| `pwsh tmp\stale_offer_fix\gate.ps1 -Tag fix` | the engine in process, no server: compiles the canonical tree with the core's own `tsc`, runs probe_B / probe_D / probe_E, the stale-offer checks and the three offline suites. Output: `stale_offer_replay.out.txt` |
 | `smoke_common.py` | the part both sweeps share: liveness, the reserve/play contract, fixture rotation |
 
 ## The reports
@@ -42,6 +43,11 @@ both ends of a run and exit 2 with `NOT LISTENING` when there is nothing to prob
   seven findings, the line each change lives on, and the checks that back it. Its sweep output is
   `p8_content_sweep.out.txt` (54 checks) and the failing re-run it replaced is
   `p8_content_sweep_exhausted.out.txt`.
+- `.audit/stale-offer-replay-report.md` - a rejoiner's replayed call-window answer landing on the live
+  window: why the reply handler had nothing to match a reply against, the two places the engine now
+  supplies that (an offer published inert once it is resolved, a reply checked against the live
+  `pending_call`), and `probe_D`'s D4 with the argument for why no rule can turn that one green. Output:
+  `stale_offer_replay.out.txt`.
 - repo `docs/29-checkup-2026-11-02-findings.md` - the 2026-11-02 checkup over the shipped hosted lane: open defects with evidence. The live-edge probes it names (lobby suite, play-chain probe, banner probe) run from `C:\mfgtmp` and the gitignored `tmp/checkup-scratch/`, not from here.
 
 A package that leaves code and probes but no report is not delivered: the probes are how a claim

@@ -681,7 +681,7 @@ Live corroboration: the `gget` at cursor 554 (capture line 41) is answered by a 
 seq 555 (capture line 42) — the discard sits immediately after the window that delivered
 the draw/choices.
 
-Two hard consequences:
+Three hard consequences:
 
 * A **claim-window answer is tied to the choices cell**, not to the poll cursor. The server
   must therefore, for the `SUTECHOICES` at seq *S*, accept the next cell at seq *S+1*
@@ -694,6 +694,16 @@ Two hard consequences:
   a `NAKINASHI`, hits a client-side crash. Real traffic always has the choices cell in the
   buffer because it is never trimmed except by a reconnect
   (`AC/MFG.Taikyoku.Command/CommandClient.cs:126-134`, `:197-204`).
+* **The newest choices cell in the buffer is not the cell being answered.** A rejoiner is pointed at
+  its kyoku's `KYOKUSTART` and is handed every `SUTECHOICES` cell of that kyoku, and it answers each
+  one its `pi` bit names (`AC/ExecSuteChoices.cs:74`, `:325-328`, `:390-391`). For a seat behind the
+  live edge, `max(...)+1` therefore names a window that is no longer live. This server reads the number
+  as a floor, not an identity: a claim-window reply naming a choices cell older than the live window's
+  own cell is refused, as is a `PON`/`CHI`/`MINKAN` whose `pai_id` is not the live discard. And a
+  resolved offer is published inert - the cell stays in the log where the client walks it, with its
+  `pi` bits cleared - so a seat is never handed a question the engine no longer waits on. Tracked as
+  `docs/31-open-defect-ledger.md` L84; the reasoning and the checks are in
+  `.audit/stale-offer-replay-report.md`.
 
 ### 5.6 Deadlines and auto-answers the server must expect without asking
 

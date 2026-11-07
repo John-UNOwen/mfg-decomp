@@ -8,9 +8,9 @@ assemblies**, and play mode can boot the game from the shipped addressable bundl
 running the editor (license pending).
 
 Everything here is produced by [`scripts/prepare_project.ps1`](../scripts/prepare_project.ps1)
-(idempotent — ran twice with identical results; run 2 deleted nothing) and verified by the artifacts
-under `build/project-merge-analysis/`. Nothing is committed to git; the game install share is read-only
-input, never written.
+(idempotent — a rerun reproduces the layout without overwriting project code edits, §7) and verified
+by the artifacts under `build/project-merge-analysis/`. Nothing is committed to git; the game install
+share is read-only input, never written.
 
 ## 1. Final layout
 
@@ -289,9 +289,25 @@ and is impossible without the original project anyway).
 
 Rerun after any redo: `powershell -ExecutionPolicy Bypass -File scripts\prepare_project.ps1`
 (optionally `-SkipBundles`; add `-SkipBundles` while iterating on code placement to skip the 28k-file
-bundle diff pass). The persisted guid map + kept-file snapshots under `build/project-merge-analysis/`
-make reruns deterministic even though the export folder they were derived from is now deleted; a full
-re-export from AssetRipper would rebuild the map from scratch.
+bundle diff pass — it is also required when the install share is unreachable, in which case all
+install staging (bundles, native plugins, videos) is skipped). The persisted guid map + kept-file
+snapshots under `build/project-merge-analysis/` make reruns deterministic even though the export
+folder they were derived from is now deleted; a full re-export from AssetRipper would rebuild the
+map from scratch.
+
+A rerun does not revert client fixes. Phase 2 compares every placed code file against the pristine
+copy of its `api/recovered` twin — the namespace transform of §1.1 is applied to the twin first, so
+the 909 transformed-but-untouched files still count as pristine and are left alone. Files whose
+content differs (the in-place fixes: SoundManager, CardEntryScene, AccountGameData, the gacha flows,
+…) and files with no twin at all (`Assets/Assembly-CSharp/RebuildJst.cs`, without which the recovered
+code calls `TimeZoneInfo.FindSystemTimeZoneById("Tokyo Standard Time")` and dies on
+`TimeZoneNotFoundException` under the WebGL BCL) are preserved and each one is printed on the console
+and listed under `clientCode.preserved` in `prepare_report.json`. Files the project lacks are still
+copied in, so the layout is reproduced; the export folders phase 3 retires are moved to
+`build/project-merge-analysis/export_discarded/`, not deleted. Only `-ResetClientCode` rebuilds the
+two Assembly-CSharp trees from `api/recovered`: it moves the current trees to
+`build/project-merge-analysis/reset_backup/` first (undoable) and reverts every fix that exists only
+in the project copies — a deliberate reset, not a rerun.
 
 ## 8. Artifacts
 

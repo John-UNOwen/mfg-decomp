@@ -33,8 +33,18 @@
 #   --core-port       core webui port written into lane.env. default: 8083 (config.ini:1)
 #   --gate-port       gate port written into lane.env (WEBFRONT_PORT). default: 8090 (hosting_up.ps1:67)
 #   --bind            WEBFRONT_BIND value in lane.env. default: loopback (hosting_up.ps1:68)
-#   --no-tunnel       do not stage the tunnel unit and leave WEBFRONT_TRUST_PROXY out
-#                     (lane_up.sh CLOUDFLARED=0 shape; hosting_up.ps1 without -Tunnel)
+#   (no tunnel flag)   plain http lane: no mfg-tunnel.service, and WEBFRONT_TRUST_PROXY stays
+#                     out of lane.env. This is the default, the same posture lane_up.sh uses
+#                     with CLOUDFLARED=0 (L46): arming the Secure-cookie/CF-Connecting-IP
+#                     posture with no tunnel behind it lets a client claim any
+#                     CF-Connecting-IP it likes.
+#   --tunnel          stage mfg-tunnel.service and arm WEBFRONT_TRUST_PROXY=cloudflare, but
+#                     only after the cloudflared config is read and names --tunnel-name. The
+#                     preflight runs before anything is staged: a refused tunnel leaves the
+#                     staging directory empty, not half a hosted posture.
+#   --tunnel-config   cloudflared config to check. default: <home>/.cloudflared/config.yml
+#                     (lane_up.sh:99; the same directory mfg-tunnel.service's ReadWritePaths=)
+#   --no-tunnel       explicit plain http (the default; kept for scripts that pass it)
 #
 # Values containing a newline, a '|' or a '&' are refused (they would corrupt the
 # substitution). The staged lane.env holds no secret values; VFG_PRESENTER_SECRET
@@ -59,7 +69,7 @@ CLOUDFLARED_BIN='/usr/bin/cloudflared'
 CORE_PORT=8083
 GATE_PORT=8090
 GATE_BIND='loopback'
-WITH_TUNNEL=1
+WITH_TUNNEL=0                                  # plain http unless --tunnel says otherwise (L46 posture)
 
 usage() {
   sed -n '2,/^set -euo/p' "$SCRIPT_PATH" | sed '$d'
@@ -89,6 +99,8 @@ while [ $# -gt 0 ]; do
     --core-port)       [ $# -ge 2 ] || die "--core-port needs a value"; CORE_PORT=$2; shift 2 ;;
     --gate-port)       [ $# -ge 2 ] || die "--gate-port needs a value"; GATE_PORT=$2; shift 2 ;;
     --bind)            [ $# -ge 2 ] || die "--bind needs a value"; GATE_BIND=$2; shift 2 ;;
+    --tunnel)          WITH_TUNNEL=1; shift ;;
+    --tunnel-config)   [ $# -ge 2 ] || die "--tunnel-config needs a value"; TUNNEL_CONFIG=$2; shift 2 ;;
     --no-tunnel)       WITH_TUNNEL=0; shift ;;
     -h|--help)         usage; exit 0 ;;
     *)                 die "unknown argument: $1" ;;
@@ -102,6 +114,7 @@ CORE_DIR=${CORE_DIR:-"$TARGET_DIR/tmp/RyuNET-core"}
 WEBFRONT_DIR=${WEBFRONT_DIR:-"$TARGET_DIR/webfront"}
 WEBROOT=${WEBROOT:-"$TARGET_HOME/mfgtmp/webroot"}
 SEC_DIR=${SEC_DIR:-"$TARGET_HOME/.mfg-web"}
+TUNNEL_CONFIG=${TUNNEL_CONFIG:-"$TARGET_HOME/.cloudflared/config.yml"}   # lane_up.sh:99
 
 case $CORE_PORT in *[!0-9]*|'') die "--core-port must be a number" ;; esac
 case $GATE_PORT in *[!0-9]*|'') die "--gate-port must be a number" ;; esac
@@ -127,6 +140,21 @@ _check_value dotnet-bin "$DOTNET_BIN"
 _check_value cloudflared-bin "$CLOUDFLARED_BIN"
 
 if [ ! -d "$TARGET_DIR" ]; then say "note: TARGET_DIR does not exist yet ($TARGET_DIR) - staging anyway; it is where the lane will live" ; fi
+
+# ---------------------------- tunnel preflight (the L46 order) ----------------------------
+# The lane_up.sh lesson applied to the systemd path: the hosted posture (a Secure cookie and
+# WEBFRONT_TRUST_PROXY=cloudflare, which makes the gate believe CF-Connecting-IP came from
+# Cloudflare) may only be armed after the cloudflared config is read and names the tunnel the
+# unit will run. It runs before anything is staged, so a refused tunnel leaves no half-hosted
+# lane.env behind for someone to install.
+tunnel_preflight() {
+  [ -f "$TUNNEL_CONFIG" ] || die "--tunnel but there is no cloudflared config at $TUNNEL_CONFIG: refusing to stage mfg-tunnel.service or arm WEBFRONT_TRUST_PROXY with no tunnel behind it (staging a plain http lane is the default; add --tunnel only with a real tunnel)"
+  grep -Eq "^[[:space:]]*tunnels?[[:space:]]*:[[:space:]]*['\"]?${TUNNEL_NAME}(['\"]|[[:space:]]*$)|^[[:space:]]+${TUNNEL_NAME}[[:space:]]*:" "$TUNNEL_CONFIG" \
+    || die "$TUNNEL_CONFIG does not name tunnel \"$TUNNEL_NAME\": refusing to stage the tunnel unit or arm the Secure-cookie posture (point --tunnel-config/--tunnel-name at the real tunnel, or stage without --tunnel)"
+  say "tunnel proven: $TUNNEL_CONFIG names $TUNNEL_NAME - staging mfg-tunnel.service and WEBFRONT_TRUST_PROXY=cloudflare"
+}
+
+if [ $WITH_TUNNEL = 1 ]; then tunnel_preflight; else say 'tunnel: not staged (no --tunnel) - plain http lane, WEBFRONT_TRUST_PROXY left out of lane.env'; fi
 
 # ---------------------------- staging ----------------------------
 mkdir -p -- "$STAGING_DIR"

@@ -31,47 +31,98 @@ $staticScript = Join-Path $root 'scripts\serve_aog.js'
 # holding its port with its pid file kept, so the probe lane must not be started on top of it.
 $stopRefused = @()
 
-function Stop-Recorded($file, $expectName) {
+function Stop-Recorded($file, $expectName, $port = 0) {
     # Same contract as scripts/linux/lane_down.sh:12-22 (the settled L41 rule): the pid record is
     # removed only when the recorded process was stopped or found not running. A live process that
     # is refused keeps its pid file - deleting it strands a live server with no handle, and the next
     # start stacks a second front on its port while readiness is answered by the stale one.
+    # Identity is proved the way hosting_down.ps1 proves it (Test-LaneIdentity:83-85: the recorded
+    # command line must still match the live one) and the way preview_game.ps1 proves a front
+    # (Stop-RecordedPid:167-172: the listener we own is proven by the port it serves). The image name
+    # alone is NEVER enough: the probe relay and the hosted gate are both WebFront.exe, the probe
+    # static front and the hosted core are both node.exe, so a stale or recycled record that matched
+    # only on name would signal the live lane (the 2026-11-07 incident). A front is bound to a port,
+    # so the port is a required proof here; that also breaks the shared-image-name collision - a pid
+    # recycled onto the hosted gate owns 8090, never this relay's port, so it is refused even if the
+    # command line happens to match. A record in the old pid-only shape (no command line) can only be
+    # proved by the port; with no port claimed either, it is refused, not trusted on the name.
     if (-not (Test-Path $file)) { "no pid file $file"; return }
-    $old = (Get-Content $file -Raw).Trim()
+    $lines = @(Get-Content -LiteralPath $file -EA SilentlyContinue | ForEach-Object { "$_".Trim() })
+    $raw = if ($lines.Count -gt 0) { $lines[0] } else { '' }
+    $recordedCmd = if ($lines.Count -gt 1) { ($lines[1..($lines.Count - 1)] -join ' ').Trim() } else { '' }
     $oldNum = 0
-    if ($old -notmatch '^\d+$' -or -not [int]::TryParse($old, [ref]$oldNum)) {
-        $why = "pid file $file does not hold a plain pid ('$old'); not signalled, pid file KEPT"
+    if ($raw -notmatch '^\d+$' -or -not [int]::TryParse($raw, [ref]$oldNum)) {
+        $why = "pid file $file does not hold a plain pid ('$raw'); not signalled, pid file KEPT"
+        $script:stopRefused += $why; $why; return
+    }
+    if ($oldNum -le 4) {
+        $why = "pid file $file holds pid $oldNum; system pids are never signalled, pid file KEPT"
+        $script:stopRefused += $why; $why; return
+    }
+    $parentPid = (Get-CimInstance Win32_Process -Filter "ProcessId=$PID" -EA SilentlyContinue).ParentProcessId
+    if ($oldNum -eq $PID -or ($parentPid -and $oldNum -eq [int]$parentPid)) {
+        $why = "pid file $file holds this script's pid or its parent's ($oldNum); not signalled, pid file KEPT"
         $script:stopRefused += $why; $why; return
     }
     if (-not (Get-Process -Id $oldNum -EA SilentlyContinue)) {
-        "pid $old is not running; stale pid file $file removed"
+        "pid $oldNum is not running; stale pid file $file removed"
         Remove-Item $file -Force -EA SilentlyContinue
         return
     }
     $p = Get-CimInstance Win32_Process -Filter "ProcessId=$oldNum" -EA SilentlyContinue
     if (-not $p) {
-        $why = "pid $old is alive but its process record cannot be read, so it cannot be proved to be $expectName; not signalled, pid file KEPT"
+        $why = "pid $oldNum is alive but its process record cannot be read, so it cannot be proved to be $expectName; not signalled, pid file KEPT"
         $script:stopRefused += $why; $why; return
     }
     if ($p.Name -ne $expectName) {
-        $why = "pid $old is $($p.Name), not $expectName; not signalled, pid file KEPT (deleting it would strand a live process with no handle)"
+        $why = "pid $oldNum is $($p.Name), not $expectName; not signalled, pid file KEPT (deleting it would strand a live process with no handle)"
         $script:stopRefused += $why; $why; return
     }
-    Stop-Process -Id $oldNum -Force
+    # The name only says the image matches, which is shared with the hosted lane; demand the second
+    # proof (hosting_down.ps1:83-85 command line, Stop-RecordedPid:167-172 port) before any signal.
+    $cmdOk = [bool]$recordedCmd -and ("$($p.CommandLine)" -ceq $recordedCmd)
+    $portOk = ($port -gt 0) -and [bool](Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue |
+        Where-Object { $_.OwningProcess -eq $oldNum })
+    $proved = if ($port -gt 0) { $portOk -and (-not $recordedCmd -or $cmdOk) } else { $cmdOk }
+    if (-not $proved) {
+        $script:stopRefused += "pid $oldNum is $expectName but its identity is not proved; not signalled, pid file KEPT"
+        "  port claimed: $(if ($port -gt 0) { $port } else { '<none>' }); owned by pid $oldNum : $portOk"
+        "  recorded cmd: $(if ($recordedCmd) { $recordedCmd } else { '<none - pid-only record, no command line to match>' })"
+        "  live cmd:     $($p.CommandLine)"
+        return
+    }
+    $stopErr = $null
+    try { Stop-Process -Id $oldNum -Force -ErrorAction Stop } catch { $stopErr = $_.Exception.Message }
+    if ($stopErr) {
+        $why = "pid $oldNum ($expectName): could not signal it ($stopErr); not signalled, pid file KEPT"
+        $script:stopRefused += $why; $why; return
+    }
     Remove-Item $file -Force -EA SilentlyContinue
-    "stopped $expectName pid=$old"
+    "stopped $expectName pid=$oldNum" + $(if ($portOk) { " (owns port $port)" } else { " (recorded command line matched)" })
 }
 
 function Stop-ProbeLane {
     $script:stopRefused = @()
-    Stop-Recorded $pidFile 'WebFront.exe'
-    Stop-Recorded $staticPidFile 'node.exe'
+    # Pass the port each record is bound to: a recorded pid that no longer owns its lane port is a
+    # stale or recycled record, and it must not be signalled on the image name it shares with the
+    # hosted gate (8090) or core (8083). Reading the port table is a query, never a request to it.
+    Stop-Recorded $pidFile 'WebFront.exe' $RelayPort
+    Stop-Recorded $staticPidFile 'node.exe' $StaticPort
 }
 
 function Assert-NoRefusedEntry($when) {
     if ($script:stopRefused.Count -eq 0) { return }
     foreach ($why in $script:stopRefused) { "refused: $why" }
     throw "$when - $($script:stopRefused.Count) recorded process(es) were left running with their pid files kept. Stop them yourself (they are not this lane's, or the record cannot be trusted) and run again."
+}
+
+function Write-ProbePid($file, $proc) {
+    # Line 1 is the pid, line 2 the WMI command line at start - exactly hosting_up.ps1:63-67. The old
+    # pid-only record left the image name as the only proof, and the hosted gate/core share WebFront.exe
+    # and node.exe with this lane (the 2026-11-07 fix); the command line gives Stop-Recorded a second
+    # proof that survives pid recycling, since a Windows command line never changes after creation.
+    $rec = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.Id)" -EA SilentlyContinue
+    Set-Content -LiteralPath $file -Value @("$($proc.Id)", [string]$rec.CommandLine) -Encoding utf8
 }
 
 if ($Stop) {
@@ -102,7 +153,7 @@ $env:WEBFRONT_GATE = '0'
 $env:WEBFRONT_AUTH = 'http://127.0.0.1:8083'
 $relay = Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput 'C:\mfgtmp\probe_relay.out.txt' -RedirectStandardError 'C:\mfgtmp\probe_relay.err.txt'
-Set-Content -LiteralPath $pidFile $relay.Id -Encoding utf8
+Write-ProbePid $pidFile $relay
 "probe relay pid=$($relay.Id) port=$RelayPort upstream=8083 root=$Webroot"
 
 # static front for the probe webroot (COOP/COEP + range requests, no gate)
@@ -110,7 +161,7 @@ $env:WEBFRONT_ROOT = $Webroot
 $env:WEBFRONT_PORT = "$StaticPort"
 $static = Start-Process -FilePath 'node' -ArgumentList $staticScript -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput 'C:\mfgtmp\probe_static.out.txt' -RedirectStandardError 'C:\mfgtmp\probe_static.err.txt'
-Set-Content -LiteralPath $staticPidFile $static.Id -Encoding utf8
+Write-ProbePid $staticPidFile $static
 "probe static front pid=$($static.Id) port=$StaticPort root=$Webroot"
 
 $up = $false

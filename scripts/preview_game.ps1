@@ -1,8 +1,9 @@
 # preview_game.ps1 - launch the rebuild game for manual preview on the self-hosted
 # RyuNET server (Asphyxia fork + mfg@asphyxia plugin, repo tmp\RyuNET-core).
 # Static pages come from the node server on 8094; the AOG front is webfront on
-# 8090, which relays a non-browser User-Agent to RyuNET (it refuses Mozilla UAs)
-# and carries the CORS/COOP/COEP headers. No -AUTOSERVE by default: you drive.
+# the preview relay port (default 8096, -FrontPort), which relays a non-browser
+# User-Agent to RyuNET (it refuses Mozilla UAs) and carries the CORS/COOP/COEP
+# headers. No -AUTOSERVE by default: you drive.
 # No capture harness is started; the window stays open until you close it.
 #
 # usage:
@@ -14,9 +15,29 @@
 #                                  # (default is REGULAR: registered player, My Room etc. unlocked;
 #                                  # an account with no registered name gets the original name-setup flow)
 #   preview_game.ps1 -Mock       # offline fallback lane: repo mock on 8085, no hold
-#   preview_game.ps1 -Park       # capture-style frozen FirstCharaSelect (mock 8084, 1 h hold)
-#   preview_game.ps1 -Stop       # close the preview window and kill RyuNET/mock/webfront procs
+#   preview_game.ps1 -Park       # capture-style frozen FirstCharaSelect (mock 8084, 1 h hold);
+#                                  # C:\mfgtmp\step2_park.ps1 starts those mock/front processes and owns them
+#   preview_game.ps1 -Stop       # close the preview window and stop the processes THIS script started
 #   preview_game.ps1 -Reassemble # re-copy + re-patch out\webgl into the served webroot first
+#   preview_game.ps1 -FrontPort N# preview relay port (default 8096). Never 8090: that is the hosted
+#                                  # gate port and the port the cloudflared tunnel ingress forwards to
+#
+# Lane ownership (2026-11-06 checkup item 5). This script used to reclaim "the lane" by process
+# name on every launch (every WebFront.exe, plus every node.exe whose command line merely
+# mentioned AsphyxiaCore.js) and then restarted the front on 8090 with WEBFRONT_GATE=0. Beside a
+# live hosted lane that destroyed the gated production front and put an ungated relay on the port
+# the owner's cloudflared tunnel serves, or left the hosted lane with no front at all. The
+# contract now:
+#   * every process this script starts is recorded in C:\mfgtmp\preview_pids, and -Stop (or a
+#     relaunch) stops only those pids - each one re-proved (name, and the port it must own, or
+#     the exact AsphyxiaCore.js argument) before it is signalled, as scripts/linux/lane_down.sh does;
+#   * a process this script did not start is never signalled: a port held by a foreign listener
+#     is a refusal with a reason, not something to kill;
+#   * a core already answering 8083 is reused, not replaced - killing it drops every live session
+#     and the core's in-memory state with it;
+#   * the preview relay (gate OFF by design) never binds a port a cloudflared ingress points at,
+#     so an ungated relay can never be what the public hostname serves.
+#   * the hosted lane starts and stops with scripts/hosting_up.ps1 and scripts/hosting_down.ps1.
 param(
     [switch]$Reassemble,
     [switch]$Mock,
@@ -24,6 +45,7 @@ param(
     [switch]$Stop,
     [switch]$Guest,
     [string]$DataID = '6AE73807BA1CE8CB',
+    [int]$FrontPort = 8096,
     [string]$EdgeExe = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 )
 $ProgressPreference = 'SilentlyContinue'
@@ -48,17 +70,91 @@ if (Test-Path $secFile) {
 } else { 'note: no presenter secret at ' + $secFile + ' - claimed accounts will not log in on this lane' }
 $page = if ($Park) { 'index_park2.html' } else { 'index_play.html' }
 $url = 'http://127.0.0.1:8094/aog/' + $page
+$corePort = 8083
+$mockPort = 8085
+# Ownership record: one pid file per child this script starts. Only these pids are ever
+# signalled, and each one is re-identified from the live process before the signal.
+$pidDir = 'C:\mfgtmp\preview_pids'
 
-function Stop-Lane {
-    # close the preview window only (never touch personal Edge or harness nodes)
+function Stop-PreviewWindow {
+    # close the preview window only: the dedicated edge-preview profile, never a personal Edge
     Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" |
         Where-Object { $_.CommandLine -like '*edge-preview*' } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue }
-    Get-Process -Name MockServer, WebFront -EA SilentlyContinue | Stop-Process -Force
-    Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
-        Where-Object { $_.CommandLine -match 'AsphyxiaCore\.js' } |
-        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue }
-    Start-Sleep -Seconds 1
+}
+
+function Get-PortOwnerPid($port) {
+    (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue |
+        Select-Object -First 1).OwningProcess
+}
+
+function Get-TunnelIngressPorts {
+    # read-only: the local ports a cloudflared ingress in the owner's config forwards to
+    $cfg = Join-Path $env:USERPROFILE '.cloudflared\config.yml'
+    if (-not (Test-Path -LiteralPath $cfg)) { return @() }
+    @(Select-String -LiteralPath $cfg -Pattern '^\s*service:\s*https?://(?:localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0):(\d+)' -EA SilentlyContinue |
+        ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Select-Object -Unique)
+}
+
+function Assert-FrontPortFree($port) {
+    # The preview relay runs with WEBFRONT_GATE=0. Two things must be true before it binds:
+    # nobody else is already serving the port (this script never kills a foreign listener),
+    # and the port is not one a cloudflared ingress forwards to (an ungated relay must never
+    # be what the public hostname serves - the checkup item 5 incident).
+    $owner = Get-PortOwnerPid $port
+    if ($owner) {
+        $who = Get-CimInstance Win32_Process -Filter "ProcessId=$owner" -EA SilentlyContinue
+        throw ('port {0} is already served by pid {1} ({2}); this preview lane never stops processes ' +
+               'it did not start - free the port or choose another with -FrontPort') -f $port, $owner, $who.Name
+    }
+    foreach ($ing in Get-TunnelIngressPorts) {
+        if ($ing -eq $port) {
+            throw ('port {0} is a cloudflared tunnel ingress port (see %USERPROFILE%\.cloudflared\config.yml): ' +
+                   'the gate-off preview relay must not sit behind the public hostname - use another -FrontPort') -f $port
+        }
+    }
+}
+
+function Stop-RecordedPid($label, $expectName, $port) {
+    # Stop exactly one child this script started. The pid file is the ownership record; the live
+    # process is re-identified before any signal, and a mismatch is a refusal that KEEPS the file
+    # (deleting it would strand a live process with no handle - scripts/linux/lane_down.sh:17-19).
+    $file = Join-Path $pidDir ($label + '.pid')
+    if (-not (Test-Path -LiteralPath $file)) { return }
+    $raw = (Get-Content -LiteralPath $file -Raw -EA SilentlyContinue)
+    $old = if ($raw) { $raw.Trim() } else { '' }
+    if ($old -notmatch '^\d+$') { "$label : pid file $file holds no usable pid ('$old'); left alone"; return }
+    $oldPid = [int]$old
+    if ($oldPid -le 3) { "$label : pid file holds pid $oldPid; system pids are never signalled; file kept"; return }
+    if ($oldPid -eq $PID) { "$label : pid file holds this script (pid $oldPid); left alone"; return }
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId=$oldPid" -EA SilentlyContinue
+    if (-not $p) { "$label : pid $old is not running; stale pid file removed"; Remove-Item -LiteralPath $file -Force -EA SilentlyContinue; return }
+    $ours = ($p.Name -eq $expectName)
+    if ($ours -and $port -gt 0) {
+        # a listener we own is proven by the lane port it serves - the strongest signal available
+        $ours = [bool](Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue |
+            Where-Object { $_.OwningProcess -eq $oldPid })
+    }
+    if ($ours -and $expectName -eq 'node.exe') {
+        # node is the shared interpreter: only an exact AsphyxiaCore.js argument is this lane's core
+        $ours = (@($p.CommandLine -split '\s+') -contains 'AsphyxiaCore.js')
+    }
+    if (-not $ours) {
+        "$label : pid $old is $($p.Name) [$($p.CommandLine)] - not this lane's $expectName" +
+            $(if ($port -gt 0) { " (it does not own port $port)" } else { '' }) + '; NOT signalled; pid file KEPT'
+        return
+    }
+    Stop-Process -Id $oldPid -Force -EA SilentlyContinue
+    "$label : stopped $expectName pid=$old" + $(if ($port -gt 0) { " (port $port)" } else { '' })
+    Remove-Item -LiteralPath $file -Force -EA SilentlyContinue
+}
+
+function Stop-OwnLane {
+    # this lane's own children, and nothing else - no name match, no command-line substring
+    Stop-PreviewWindow
+    Stop-RecordedPid 'front' 'WebFront.exe' $FrontPort
+    Stop-RecordedPid 'mock' 'MockServer.exe' $mockPort
+    Stop-RecordedPid 'core' 'node.exe' 0
 }
 
 function Wait-Port($port, $tries = 80) {
@@ -75,13 +171,17 @@ function Start-Front($port, $upstream, $bind) {
     $env:WEBFRONT_PORT = "$port"
     $env:WEBFRONT_BIND = $bind
     # LAN dev lane: relay mode stays open (no web sessions here); the hosted
-    # gate (WEBFRONT_GATE=1 + presenter secret) is a deployment thing.
+    # gate (WEBFRONT_GATE=1 + presenter secret) is a deployment thing. That is
+    # safe only because Assert-FrontPortFree keeps this relay off every port the
+    # public tunnel ingress forwards to - an open relay must never be what the
+    # hostname serves. It binds loopback and never 8090 (the hosted gate port).
     $env:WEBFRONT_GATE = '0'
-    $env:WEBFRONT_AUTH = 'http://127.0.0.1:8083'
+    $env:WEBFRONT_AUTH = 'http://127.0.0.1:' + $corePort
     $wd = 'C:\mfg\webfront\bin\Release\net8.0'
     $p = Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput ("C:\mfgtmp\webfront$port.out.txt") -RedirectStandardError ("C:\mfgtmp\webfront$port.err.txt")
-    'WEBFRONT port={0} pid={1} upstream={2}' -f $port, $p.Id, $upstream
+    Set-Content -LiteralPath (Join-Path $pidDir 'front.pid') $p.Id -Encoding utf8
+    'WEBFRONT port={0} pid={1} upstream={2} (gate off, loopback, recorded in {3})' -f $port, $p.Id, $upstream, $pidDir
 }
 
 function New-PlayPage($frontUrl) {
@@ -95,15 +195,24 @@ function New-PlayPage($frontUrl) {
     if (-not $Guest) { $pin += '"-REGULAR", ' }
     $pin += '"-DATAID=' + $DataID + '"'
     $html = Get-Content (Join-Path $webroot 'index.html') -Raw
-    $new = $html.Replace(', "-AUTOSERVE"', ', ' + $pin).Replace('"-AUTOSERVE", ', $pin + ', ').Replace('http://127.0.0.1:8090/aog', $frontUrl)
+    $new = $html.Replace(', "-AUTOSERVE"', ', ' + $pin).Replace('"-AUTOSERVE", ', $pin + ', ')
+    # Point the page at THIS lane's front whatever the webroot was assembled with;
+    # a silent no-op here would leave the page talking to the hosted gate on 8090.
+    $new = $new -replace '(-FRONTURL",\s*")[^"]*(")', ('${1}' + $frontUrl + '${2}')
     if ($new -match '-AUTOSERVE') { throw 'play page rewrite failed (AUTOSERVE still present)' }
+    if ($new -notmatch [regex]::Escape('"' + $frontUrl + '"')) {
+        throw ('play page rewrite failed (-FRONTURL=' + $frontUrl + ' not in the page): re-assemble the webroot with assemble_webroot.ps1')
+    }
     Set-Content (Join-Path $webroot 'index_play.html') $new -Encoding UTF8 -NoNewline
     Remove-Item (Join-Path $webroot 'index_play.html.br') -Force -EA SilentlyContinue
 }
 
-# 0. stop lane
-if ($Stop) { Stop-Lane; 'preview stopped (RyuNET/mock/webfront killed; static server 8094 left alone)'; exit 0 }
-Stop-Lane
+# 0. lane ownership: stop this script's own children (recorded pids) and its window.
+#    Nothing is ever reclaimed by process name or command-line substring: the hosted
+#    lane's gate and core match those filters and are not ours to stop.
+if ($Stop) { Stop-OwnLane; 'preview stopped (preview window + processes recorded in ' + $pidDir + '); the hosted lane (8090/8083) and the static server 8094 are left alone'; exit 0 }
+Stop-OwnLane
+if (-not (Test-Path -LiteralPath $pidDir)) { New-Item -ItemType Directory -Path $pidDir | Out-Null }
 
 # 1. webroot freshness
 $data = 'C:\mfg\build\unity-project\out\webgl\Build\webgl.data'
@@ -131,33 +240,51 @@ if ($Park) {
     & 'C:\mfgtmp\step2_park.ps1' | Select-Object -First 6 | ForEach-Object { "$_" }
 } elseif ($Mock) {
     $m85 = 'C:\mfgtmp\mock8085'
-    $env:MOCK_HOLD_CS_WRITE_MS = '0'
-    Start-Process -FilePath (Join-Path $m85 'MockServer.exe') -ArgumentList '8085' -WorkingDirectory $m85 `
-        -WindowStyle Hidden -PassThru `
-        -RedirectStandardOutput (Join-Path $m85 'stdout.txt') -RedirectStandardError (Join-Path $m85 'stderr.txt') | Out-Null
-    Remove-Item Env:MOCK_HOLD_CS_WRITE_MS -EA SilentlyContinue
-    if (-not (Wait-Port 8085 30)) { throw 'mock 8085 did not come up' }
-    New-PlayPage 'http://127.0.0.1:8085/aog'
-    'mock 8085 (no hold) + index_play.html (no AUTOSERVE) ready'
-} else {
-    # RyuNET core (asphyxia fork + mfg plugin), integrated AOG on 8083
-    Start-Process node -ArgumentList 'AsphyxiaCore.js' -WorkingDirectory $ryuDist -WindowStyle Hidden `
-        -RedirectStandardOutput 'C:\mfgtmp\ryunet.out.txt' -RedirectStandardError 'C:\mfgtmp\ryunet.err.txt' | Out-Null
-    if (-not (Wait-Port 8083 120)) {
-        'ryunet stderr tail:'; Get-Content 'C:\mfgtmp\ryunet.err.txt' -Tail 10 -EA SilentlyContinue
-        throw 'RyuNET did not bind 8083'
+    $mockOwner = Get-PortOwnerPid $mockPort
+    if ($mockOwner) {
+        $who = Get-CimInstance Win32_Process -Filter "ProcessId=$mockOwner" -EA SilentlyContinue
+        throw ('port {0} is already served by pid {1} ({2}); this preview lane never stops processes it did not start') -f $mockPort, $mockOwner, $who.Name
     }
-    $smoke = Invoke-WebRequest -Uri 'http://127.0.0.1:8083/' -UserAgent 'curl/8' -TimeoutSec 10 -UseBasicParsing
+    $env:MOCK_HOLD_CS_WRITE_MS = '0'
+    # $mockProc, not $mock: the script parameter [switch]$Mock is a typed variable, and
+    # PowerShell enforces that type on every assignment to $mock (case-insensitive name).
+    $mockProc = Start-Process -FilePath (Join-Path $m85 'MockServer.exe') -ArgumentList "$mockPort" -WorkingDirectory $m85 `
+        -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput (Join-Path $m85 'stdout.txt') -RedirectStandardError (Join-Path $m85 'stderr.txt')
+    Set-Content -LiteralPath (Join-Path $pidDir 'mock.pid') $mockProc.Id -Encoding utf8
+    Remove-Item Env:MOCK_HOLD_CS_WRITE_MS -EA SilentlyContinue
+    if (-not (Wait-Port $mockPort 30)) { throw ('mock ' + $mockPort + ' did not come up') }
+    New-PlayPage ('http://127.0.0.1:' + $mockPort + '/aog')
+    'mock ' + $mockPort + ' (no hold, pid ' + $mockProc.Id + ') + index_play.html (no AUTOSERVE) ready'
+} else {
+    # RyuNET core (asphyxia fork + mfg plugin), integrated AOG on 8083. A core already
+    # answering 8083 is reused, never replaced: it may be the hosted core, and replacing it
+    # signs out every live session and drops the core's in-memory state with it.
+    $coreOwner = Get-PortOwnerPid $corePort
+    if ($coreOwner) {
+        'core already answers ' + $corePort + ' (pid ' + $coreOwner + '): reusing it - this lane did not start it and will not stop it'
+    } else {
+        $core = Start-Process node -ArgumentList 'AsphyxiaCore.js' -WorkingDirectory $ryuDist -WindowStyle Hidden `
+            -RedirectStandardOutput 'C:\mfgtmp\ryunet.out.txt' -RedirectStandardError 'C:\mfgtmp\ryunet.err.txt' -PassThru
+        Set-Content -LiteralPath (Join-Path $pidDir 'core.pid') $core.Id -Encoding utf8
+        if (-not (Wait-Port $corePort 120)) {
+            'ryunet stderr tail:'; Get-Content 'C:\mfgtmp\ryunet.err.txt' -Tail 10 -EA SilentlyContinue
+            throw ('RyuNET did not bind ' + $corePort)
+        }
+    }
+    # whatever answers 8083 has to prove it is a RyuNET core before it becomes the upstream
+    $smoke = Invoke-WebRequest -Uri ('http://127.0.0.1:' + $corePort + '/') -UserAgent 'curl/8' -TimeoutSec 10 -UseBasicParsing
     if ($smoke.Content -notmatch 'RyuNET') { throw 'RyuNET smoke GET / missing VFG banner' }
     'RyuNET up: ' + ($smoke.Content.Trim() -join ' ')
-    Start-Front 8090 'http://127.0.0.1:8083' 'loopback' | Out-Null
-    if (-not (Wait-Port 8090 30)) { throw 'webfront 8090 did not come up' }
-    $relay = Invoke-WebRequest -Uri 'http://127.0.0.1:8090/aog/appli_info' -Method Post -Body 'web_id=1' `
+    Assert-FrontPortFree $FrontPort
+    Start-Front $FrontPort ('http://127.0.0.1:' + $corePort) 'loopback' | Out-Null
+    if (-not (Wait-Port $FrontPort 30)) { throw ('webfront ' + $FrontPort + ' did not come up') }
+    $relay = Invoke-WebRequest -Uri ('http://127.0.0.1:' + $FrontPort + '/aog/appli_info') -Method Post -Body 'web_id=1' `
         -ContentType 'application/x-www-form-urlencoded' -UserAgent 'Mozilla/5.0 preview-probe' -TimeoutSec 20 -UseBasicParsing
     if ($relay.StatusCode -ne 200 -or $relay.Content -notmatch '<root>') { throw 'webfront relay to RyuNET failed' }
-    'relay smoke: browser-UA POST /aog/appli_info -> 200 XML via RyuNET'
-    New-PlayPage 'http://127.0.0.1:8090/aog'
-    'index_play.html ready (no AUTOSERVE, FRONTURL via webfront relay)'
+    'relay smoke: browser-UA POST /aog/appli_info -> 200 XML via RyuNET (front ' + $FrontPort + ')'
+    New-PlayPage ('http://127.0.0.1:' + $FrontPort + '/aog')
+    'index_play.html ready (no AUTOSERVE, FRONTURL via webfront relay on ' + $FrontPort + ')'
     'identity: ' + $DataID + '  boot: ' + $(if ($Guest) { 'guest (trial)' } else { 'regular (registered player)' }) + '  (press Enter in the game window to sign in)'
 }
 
@@ -182,4 +309,7 @@ if ($Park) { 'mode: park (auto-play ON, FirstCharaSelect held ~1 h; interaction 
 elseif ($Mock) { 'mode: mock (offline canned front, no AUTOSERVE); full-protocol features live in RyuNET mode' }
 else { 'mode: RyuNET (self-hosted asphyxia fork; real gacha, records, match engine). No AUTOSERVE: you drive.' }
 'no capture harness is running; the window stays open until you close it.'
-'tidy up later with: preview_game.ps1 -Stop (or the .bat with -Stop)'
+if ($Park) { 'this lane: the park mocks and fronts are started by C:\mfgtmp\step2_park.ps1, which owns them' }
+elseif ($Mock) { 'this lane: mock on ' + $mockPort + ' (pid recorded in ' + $pidDir + '); the hosted lane on 8090/' + $corePort + ' was not touched' }
+else { 'this lane: gate-off relay front on ' + $FrontPort + ' (pid recorded in ' + $pidDir + '); the hosted lane on 8090/' + $corePort + ' was not touched' }
+'tidy up later with: preview_game.ps1 -Stop (or the .bat with -Stop) - it stops only what it started'

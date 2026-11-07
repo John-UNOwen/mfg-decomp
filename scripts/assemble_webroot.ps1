@@ -15,10 +15,12 @@
 #   4. mirror the build into a staging directory next to the target   (was: wipe, then mirror)
 #  5-9. the patch / stamp / sidecar pipeline, unchanged, on the staging copy
 #  10. brotli sidecars, with the exit code checked (it was never checked)
-#  11. swap the staged webroot in: old root aside, staged root in, aside deleted - reversible both
-#      ways, so a failure after the swap cannot leave the served root half-deleted
+#  11. swap the staged webroot in: old root aside, staged root in. The aside is NOT deleted here: the
+#      previous root is the undo handle until something answers for the new one, and a rollback that
+#      failed is reported as failed (an operator who believes "put back" restarts a front on nothing)
 #  12. optional webfront serve, on a probed port the ingress does not name, recording the pid it
-#      started and WHAT it started (a gate-off relay), so the record cannot be read as "the gate"
+#      started and WHAT it started (a gate-off relay), so the record cannot be read as "the gate"; the
+#      front this run started answering the new root is the proof that lets the aside be removed
 param(
     [switch]$Serve,
     # Probe assembly: leave every gate process alone (the owner's gate may be serving another webroot).
@@ -484,6 +486,7 @@ if ($NoSidecar) { 'skipped brotli sidecars (-NoSidecar)' } else {
 # Two renames instead of a wipe: the previous root only leaves the tree once the new one stands in
 # its place, and Rename-Item is refused while a process holds the directory, so a front that
 # somehow survived the checks in step 3 blocks the swap instead of being pulled out from under.
+$publishedAside = $null    # the previous root, set by Publish-StagedWebroot: only step 12's proof removes it
 function Publish-StagedWebroot {
     $leaf = Split-Path -Leaf $targetFull
     $asideLeaf = $leaf + '.old-' + (Get-Date -Format 'yyyyMMddHHmmss') + '-' + $PID
@@ -497,15 +500,37 @@ function Publish-StagedWebroot {
     try {
         Rename-Item -LiteralPath $staged -NewName $leaf -EA Stop
     } catch {
+        # The two paths this message points at are what the operator can still act on, so each one has
+        # to be reported as it turned out. The rename back used to run -EA SilentlyContinue with its
+        # result never looked at, and the message claimed "put back" either way: with a second process
+        # in the leaf name the rollback fails (tmp/review_adversarial/probe_swap_publish_proof.ps1 P4),
+        # and an operator following that message restarts a front on whatever is sitting at $targetFull
+        # while the root is still parked at $aside.
+        $script:keepStaged = $true      # the trap in step 4 must not delete the copy this message names
         $why = $_.Exception.Message
         if ($aside) {
-            Rename-Item -LiteralPath $aside -NewName $leaf -EA SilentlyContinue
-            Fail "cannot move the assembled webroot into place ($why): the previous webroot was put back at $targetFull, the staged copy is at $staged"
+            $backWhy = $null
+            try { Rename-Item -LiteralPath $aside -NewName $leaf -EA Stop } catch { $backWhy = $_.Exception.Message }
+            if (-not $backWhy) {
+                Fail "cannot move the assembled webroot into place ($why): the previous webroot was put back at $targetFull, the staged copy is kept at $staged"
+            }
+            Fail "cannot move the assembled webroot into place ($why): the previous webroot could NOT be put back ($backWhy) - it is still at $aside and $targetFull is not it. Put it back by hand: Rename-Item -LiteralPath '$aside' -NewName '$leaf'. The staged copy is kept at $staged"
         }
-        Fail "cannot move the assembled webroot into place ($why): the target was not there to begin with, the staged copy is at $staged"
+        Fail "cannot move the assembled webroot into place ($why): the target was not there to begin with, the staged copy is kept at $staged"
     }
-    if ($aside) { Remove-Item -LiteralPath $aside -Recurse -Force -EA SilentlyContinue }
-    'webroot swapped in: ' + $targetFull + ' (the previous root was removed only after the new one was in place)'
+    # Ledger L72's rule for this step is "old root aside as .old-, deleted only once the staged root
+    # answers" - and nothing here can answer for the staged root yet. A front answers out of its own
+    # root (Program.cs:908-910 ServeStatic), so the proof is a front replying with this root's
+    # build_stamp.txt; every front on the box was already proved not to serve this root (step 3), and
+    # the ones that did were stopped or refused before staging. The only front that can honestly give
+    # that proof is the one step 12 starts from this very path, so the aside waits for it: an unproven
+    # swap never destroys the undo handle, and no line says otherwise.
+    if ($aside) {
+        $script:publishedAside = $aside
+        'webroot swapped in: ' + $targetFull + ' - the previous root is kept at ' + $aside + ', because nothing has proved the new root answers yet (it is the undo handle: remove it by hand once you have checked the new root, or step 12 removes it once a front answers for it)'
+    } else {
+        'webroot swapped in: ' + $targetFull + ' (there was no previous root to remove)'
+    }
     $script:staged = $null        # published: the trap in step 4 must not clean the target up
 }
 Publish-StagedWebroot
@@ -541,5 +566,35 @@ if ($Serve) {
         'webfront started (pid ' + $started.Id + ', recorded in ' + $GatePidFile + ') ' + $startedWhat
     } catch {
         'webfront started (pid ' + $started.Id + ') but its pid could NOT be recorded in ' + $GatePidFile + ' (' + $_.Exception.Message + ')'
+    }
+    # Step 11's other half, and the only place its rule can be met: the front this run started is its
+    # own child, on the port this run bound, with WEBFRONT_ROOT pointed at the root that was just
+    # swapped in - so it is the one front whose answer counts as proof that the new root serves, asked
+    # for the file every front serves out of its own root (the same probe as step 2/3, no new rule).
+    # Only on that answer is the previous root destroyed; if it never comes, the aside stays where it
+    # is and the run says so instead of quietly deleting the last thing it could have rolled back to.
+    if ($publishedAside) {
+        $disk = Get-DiskStamp
+        $proved = $false
+        $last = 'it never answered on 127.0.0.1:' + $servePort
+        for ($i = 0; $i -lt 40; $i++) {
+            $probe = $null
+            try { $probe = Probe-Front $servePort } catch { $probe = $null }
+            if ($probe) {
+                $last = 'it answers /build_stamp.txt with HTTP ' + $probe.Status + " '" + $probe.Body + "'"
+                if (($probe.Status -eq 200) -and ($probe.Body -ieq $disk)) { $proved = $true; break }
+            }
+            Start-Sleep -Milliseconds 250
+        }
+        if ($proved) {
+            'the front this run started (pid ' + $started.Id + ' on 127.0.0.1:' + $servePort + ') answered /build_stamp.txt with ' + $disk + ': the new root is proved to be serving, so the previous root can go'
+            $rmWhy = $null
+            try { Remove-Item -LiteralPath $publishedAside -Recurse -Force -EA Stop } catch { $rmWhy = $_.Exception.Message }
+            if ($rmWhy) { 'the previous root at ' + $publishedAside + ' could NOT be removed (' + $rmWhy + '): it is still there and nothing else was changed' }
+            else { 'the previous root at ' + $publishedAside + ' was removed' }
+        }
+        else {
+            'the front this run started (pid ' + $started.Id + ') never answered /build_stamp.txt with this root''s stamp (' + $last + '): the new root is UNPROVEN, so the previous root was kept at ' + $publishedAside
+        }
     }
 }

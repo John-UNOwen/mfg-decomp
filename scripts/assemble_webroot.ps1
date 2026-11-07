@@ -17,7 +17,8 @@
 #  10. brotli sidecars, with the exit code checked (it was never checked)
 #  11. swap the staged webroot in: old root aside, staged root in, aside deleted - reversible both
 #      ways, so a failure after the swap cannot leave the served root half-deleted
-#  12. optional webfront serve, on a probed port, recording the pid it started
+#  12. optional webfront serve, on a probed port the ingress does not name, recording the pid it
+#      started and WHAT it started (a gate-off relay), so the record cannot be read as "the gate"
 param(
     [switch]$Serve,
     # Probe assembly: leave every gate process alone (the owner's gate may be serving another webroot).
@@ -37,6 +38,7 @@ param(
     [string]$Bind = 'any',
     # The gate pid record: read by step 2, written by step 12, written by tmp/restart_gate_only.ps1:26.
     # hosting_up.ps1 does not write it, which is why the stop step used to aim at a stale pid.
+    # Line 1 is the pid every reader signals; from line 2 on, what step 12 recorded about it.
     [string]$GatePidFile = 'C:\mfgtmp\gate_pid.txt',
     # The cloudflared config whose ingress ports this script must never disturb: a front owning one of
     # those is what the public hostname serves, and taking it down is an operator decision.
@@ -81,6 +83,32 @@ if (-not $NoSidecar -and -not (Test-Path -LiteralPath $sidecarExe -PathType Leaf
 if ($Serve -and -not (Test-Path -LiteralPath $webfrontExe -PathType Leaf)) {
     Fail "no webfront build at ${webfrontExe} (-Serve): refusing to replace $Webroot"
 }
+# The cloudflared ingress ports, read once here because both ends of the run need the same list:
+# step 2 refuses to STOP a recorded gate owning one, and -Serve must refuse to START a front on one
+# at all (Assert-ServePortNotIngress below) - the stop guard alone never covers the front this run
+# starts itself, which is how a -Serve put an ungated relay behind the public hostname.
+function Get-TunnelIngressPorts {
+    # read-only: the local ports a cloudflared ingress forwards to
+    if (-not (Test-Path -LiteralPath $TunnelConfig)) { return @() }
+    @(Select-String -LiteralPath $TunnelConfig -Pattern '^\s*service:\s*https?://(?:localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0):(\d+)' -EA SilentlyContinue |
+        ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Select-Object -Unique)
+}
+$ingressPorts = Get-TunnelIngressPorts
+if ($ingressPorts.Count -gt 0) { 'tunnel ingress ports this script will never disturb: ' + ($ingressPorts -join ', ') }
+
+function Assert-ServePortNotIngress([string]$then) {
+    # What step 12 is about to start is WEBFRONT_GATE=0 - an ungated relay, on -Bind (default 'any') -
+    # so on a port the ingress forwards to, the public hostname would answer from that relay. The stop
+    # guard in step 2 only protects a front that is ALREADY sitting there; preview_game.ps1:134-150
+    # Assert-FrontPortFree is the shipped refusal for the front a run is about to start, and -Serve
+    # asks the same question. The config is re-read on purpose: it can be edited while an assembly runs.
+    foreach ($ip in Get-TunnelIngressPorts) {
+        if ($ip -eq $servePort) {
+            Fail "-Serve would start a gate-off front (WEBFRONT_GATE=0) on ${servePort}, which the cloudflared ingress in $TunnelConfig forwards to: the public hostname would be served by an ungated relay. $then Set WEBFRONT_PORT to a port $TunnelConfig does not name, or edit that config."
+        }
+    }
+}
+
 # -Serve prerequisites, checked here too: an assembly that is asked to serve on a port somebody
 # else already holds must fail before the webroot moves, not after (the lane_up.sh:356-363 posture).
 $servePort = 8090      # WEBFRONT_PORT unset -> WebFront's own default (Program.cs:27)
@@ -89,9 +117,15 @@ if ($Serve) {
     if (Get-NetTCPConnection -LocalPort $servePort -State Listen -EA SilentlyContinue) {
         Fail "something already answers 127.0.0.1:$servePort - refusing to start a webfront on it, so nothing is replaced. Stop that front first, or set WEBFRONT_PORT to a free port before -Serve."
     }
+    # Free is not enough: a free INGRESS port is exactly where a gate-off relay must not be put, and
+    # it is free most of the time only because the hosted gate behind it is down.
+    Assert-ServePortNotIngress 'Nothing is replaced.'
     if (Test-Path -LiteralPath $GatePidFile) {
-        $rawRec = (Get-Content -LiteralPath $GatePidFile -Raw -EA SilentlyContinue)
-        $recPid = if ($rawRec) { $rawRec.Trim() } else { '' }
+        # Line 1 is the pid; from line 2 on, what step 12 recorded about it (hosting_up.ps1:63-67 is
+        # the shape). Trimming the whole file is not a pid, and a reader that tries it finds "no
+        # usable pid" and lets -Serve clobber the record of a front that is still serving.
+        $recLines = @(Get-Content -LiteralPath $GatePidFile -EA SilentlyContinue | ForEach-Object { "$_".Trim() })
+        $recPid = if ($recLines.Count -gt 0) { $recLines[0] } else { '' }
         if ($recPid -match '^\d+$' -and (Get-Process -Id ([int]$recPid) -EA SilentlyContinue)) {
             Fail "-Serve would overwrite the gate record $GatePidFile while pid $recPid is live: stop that gate first, or assemble without -Serve."
         }
@@ -139,12 +173,8 @@ $targetFull = $webrootFull
 # serving THIS root, and never when it owns a port the cloudflared ingress forwards to: that front is
 # what the public hostname serves, and pulling it down is an operator decision, never a side effect of
 # assembling a webroot. A gate that is live but serves a different root is left exactly as it is.
-function Get-TunnelIngressPorts {
-    # read-only: the local ports a cloudflared ingress forwards to
-    if (-not (Test-Path -LiteralPath $TunnelConfig)) { return @() }
-    @(Select-String -LiteralPath $TunnelConfig -Pattern '^\s*service:\s*https?://(?:localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0):(\d+)' -EA SilentlyContinue |
-        ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Select-Object -Unique)
-}
+# Get-TunnelIngressPorts / $ingressPorts live in step 1, where the -Serve prerequisites read the same
+# list before binding; this step is its other user.
 
 function Get-FrontListener {
     $ownPids = @(Get-NetTCPConnection -State Listen -EA Stop | Select-Object -ExpandProperty OwningProcess -Unique)
@@ -206,8 +236,6 @@ function Find-ServingFront($listeners) {
     return $null
 }
 
-$ingressPorts = Get-TunnelIngressPorts
-if ($ingressPorts.Count -gt 0) { 'tunnel ingress ports this script will never disturb: ' + ($ingressPorts -join ', ') }
 $fronts = @()
 try { $fronts = @(Get-FrontListener) } catch {
     Fail "cannot list the listening ports to check who serves $targetFull ($($_.Exception.Message)): refusing to replace a webroot that may be served."
@@ -219,8 +247,11 @@ if ($serving) { "this webroot is being served right now by pid $($serving.Pid) (
 function Stop-RecordedGate {
     if ($NoGateStop) { 'gate stop skipped (-NoGateStop): no process was touched'; return }
     if (-not (Test-Path -LiteralPath $GatePidFile)) { return }
-    $raw = (Get-Content -LiteralPath $GatePidFile -Raw -EA SilentlyContinue)
-    $rec = if ($raw) { $raw.Trim() } else { '' }
+    # Line 1 is the pid to signal; from line 2 on, what step 12 recorded about it. The whole file
+    # trimmed is not a pid: a reader that tried it called such a record "no usable pid" and left a
+    # live, serving gate running while the swap went ahead under it.
+    $recLines = @(Get-Content -LiteralPath $GatePidFile -EA SilentlyContinue | ForEach-Object { "$_".Trim() })
+    $rec = if ($recLines.Count -gt 0) { $recLines[0] } else { '' }
     if ($rec -notmatch '^\d+$') { "gate record $GatePidFile holds no usable pid ('$rec'): nothing signalled, record kept"; return }
     $gp = [int]$rec
     if ($gp -le 3) { "gate record holds pid ${gp}: system pids are never signalled, record kept"; return }
@@ -471,6 +502,10 @@ $Webroot = $targetFull
 if ($Serve) {
     # The port and the gate record were probed in step 1, before anything was replaced; $servePort
     # is the port that was probed, so the front binds exactly what was checked.
+    # Asked again on the line that binds: an assembly runs for minutes and $TunnelConfig is an operator
+    # file, so an ingress can name this port in the meantime. Refusing here leaves the new webroot
+    # published but unserved - which is what "never behind the public hostname" costs.
+    Assert-ServePortNotIngress 'The new webroot is published but no front was started, so nothing is serving it.'
     $env:WEBFRONT_ROOT = $Webroot
     $env:WEBFRONT_UPSTREAM = $Upstream
     $env:WEBFRONT_PORT = "$servePort"
@@ -483,11 +518,14 @@ if ($Serve) {
         -WindowStyle Hidden -PassThru
     # Record the front this script started in the file step 2 reads: an unrecorded gate is exactly
     # why the stop step used to aim at a stale pid while the serving gate kept running (ledger L47,
-    # the Windows half that was never applied).
+    # the Windows half that was never applied). Pid first, then what it is (hosting_up.ps1:63-67 is
+    # the shape): what starts here is a gate-off relay, and a record that says only a number lets
+    # every later reader call that relay "the gate".
+    $startedWhat = 'started by assemble_webroot.ps1: gate-off relay (WEBFRONT_GATE=0) bind=' + $Bind + ' port=' + $servePort + ' upstream=' + $Upstream
     try {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $GatePidFile) | Out-Null
-        $started.Id | Set-Content -LiteralPath $GatePidFile -Encoding utf8
-        'webfront started (pid ' + $started.Id + ', recorded in ' + $GatePidFile + ') bind=' + $Bind + ' port=' + $servePort + ' WEBFRONT_UPSTREAM=' + $Upstream
+        Set-Content -LiteralPath $GatePidFile -Value @("$($started.Id)", $startedWhat) -Encoding utf8
+        'webfront started (pid ' + $started.Id + ', recorded in ' + $GatePidFile + ') ' + $startedWhat
     } catch {
         'webfront started (pid ' + $started.Id + ') but its pid could NOT be recorded in ' + $GatePidFile + ' (' + $_.Exception.Message + ')'
     }

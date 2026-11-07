@@ -37,7 +37,10 @@ param(
     [string]$Bind = 'any',
     # The gate pid record: read by step 2, written by step 12, written by tmp/restart_gate_only.ps1:26.
     # hosting_up.ps1 does not write it, which is why the stop step used to aim at a stale pid.
-    [string]$GatePidFile = 'C:\mfgtmp\gate_pid.txt'
+    [string]$GatePidFile = 'C:\mfgtmp\gate_pid.txt',
+    # The cloudflared config whose ingress ports this script must never disturb: a front owning one of
+    # those is what the public hostname serves, and taking it down is an operator decision.
+    [string]$TunnelConfig = (Join-Path $env:USERPROFILE '.cloudflared\config.yml')
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -123,57 +126,26 @@ if ($buildFull -and $webrootFull.StartsWith($buildFull + '\', [System.StringComp
 }
 $targetFull = $webrootFull
 
-# ---------------------------- 2. stop the gate this lane recorded ----------------------------
-# A pid file is an ownership record, not a fact, and on this box nothing in scripts/ writes it
-# (hosting_up.ps1:84 starts the gate without recording anything): the record held pid 18744, which
-# is not running, while the gate serving C:\mfgtmp\webroot was pid 10236. So the record is now
-# re-identified before it is trusted: never a name kill, never a port-owner kill (README.md:152,
-# scripts/linux/lane_down.sh:5-9), a stale record is cleared, a live pid that is not the gate is a
-# refusal that KEEPS the record, and a successful stop clears it.
-function Stop-RecordedGate {
-    if ($NoGateStop) { 'gate stop skipped (-NoGateStop): no process was touched'; return }
-    if (-not (Test-Path -LiteralPath $GatePidFile)) { return }
-    $raw = (Get-Content -LiteralPath $GatePidFile -Raw -EA SilentlyContinue)
-    $rec = if ($raw) { $raw.Trim() } else { '' }
-    if ($rec -notmatch '^\d+$') { "gate record $GatePidFile holds no usable pid ('$rec'): nothing signalled, record kept"; return }
-    $gp = [int]$rec
-    if ($gp -le 3) { "gate record holds pid ${gp}: system pids are never signalled, record kept"; return }
-    if ($gp -eq $PID) { "gate record holds this script's own pid ${gp}: nothing signalled, record kept"; return }
-    $gpProc = Get-CimInstance Win32_Process -Filter "ProcessId=$gp" -EA SilentlyContinue
-    if (-not $gpProc) { "gate pid $gp is not running: stale record $GatePidFile removed"; Remove-Item -LiteralPath $GatePidFile -Force -EA SilentlyContinue; return }
-    if ($gpProc.Name -ne 'WebFront.exe') {
-        Fail "the gate record $GatePidFile holds pid $gp, which is $($gpProc.Name), not WebFront.exe: refusing to replace $Webroot while a live process this kit cannot identify is recorded as its gate. Fix or remove the record first."
-    }
-    # Identity proven: stop this one pid, gently first, then force, both bounded (the TERM-then-KILL
-    # ladder of assemble_webroot.sh:321-332).
-    Stop-Process -Id $gp -EA SilentlyContinue
-    $gone = $false
-    for ($i = 0; $i -lt 20; $i++) {
-        if (-not (Get-Process -Id $gp -EA SilentlyContinue)) { $gone = $true; break }
-        Start-Sleep -Milliseconds 250
-    }
-    if (-not $gone) {
-        Stop-Process -Id $gp -Force -EA SilentlyContinue
-        for ($i = 0; $i -lt 20; $i++) {
-            if (-not (Get-Process -Id $gp -EA SilentlyContinue)) { $gone = $true; break }
-            Start-Sleep -Milliseconds 250
-        }
-    }
-    if (-not $gone) { Fail "gate pid $gp survived Stop-Process: refusing to replace $Webroot under a serving gate" }
-    "stopped recorded gate pid ${gp}: record $GatePidFile cleared"
-    Remove-Item -LiteralPath $GatePidFile -Force -EA SilentlyContinue
+# ---------------------------- 2. who serves this root, and is this run allowed to stop it ------------
+# Two facts were conflated here, and separating them is what the 2026-11-07 lane outages came down to:
+#   (a) a pid record named "the gate" - an ownership claim written by whoever restarted the gate last
+#       (tmp/restart_gate_only.ps1 writes it, step 12 writes it), which says nothing about whether
+#       THIS run owns that process;
+#   (b) which front actually serves the webroot about to be replaced - provable with no record at all,
+#       because a front answers /build_stamp.txt out of its own root (Program.cs:908-910 ServeStatic)
+#       and this script writes that file on every run (measured on the live gate: GET
+#       http://127.0.0.1:8090/build_stamp.txt -> 200, byte-identical to the file on disk).
+# So the probe comes first. The recorded gate is stopped only when the probe says it is the front
+# serving THIS root, and never when it owns a port the cloudflared ingress forwards to: that front is
+# what the public hostname serves, and pulling it down is an operator decision, never a side effect of
+# assembling a webroot. A gate that is live but serves a different root is left exactly as it is.
+function Get-TunnelIngressPorts {
+    # read-only: the local ports a cloudflared ingress forwards to
+    if (-not (Test-Path -LiteralPath $TunnelConfig)) { return @() }
+    @(Select-String -LiteralPath $TunnelConfig -Pattern '^\s*service:\s*https?://(?:localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0):(\d+)' -EA SilentlyContinue |
+        ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Select-Object -Unique)
 }
-Stop-RecordedGate
 
-# ---------------------------- 3. refuse to replace a webroot a live front is serving ----------------
-# Step 2 can only stop a gate somebody recorded. This is the check that does not need a record: the
-# front answers /build_stamp.txt out of its own root (Program.cs:908-910 ServeStatic; measured on the
-# live gate: GET http://127.0.0.1:8090/build_stamp.txt -> 200 F5FACEA75F49, byte-identical to
-# C:\mfgtmp\webroot\build_stamp.txt) and this script writes that file on every run (step 8), so what
-# a front answers tells you which root it serves. Read-only: it never signals anything, so it also
-# runs for -NoGateStop probe assembly. The probe is a raw HTTP/1.0 request: Invoke-WebRequest gives
-# back no response object for a 404 (measured), and a 404 is exactly the evidence that the front
-# serves some other root.
 function Get-FrontListener {
     $ownPids = @(Get-NetTCPConnection -State Listen -EA Stop | Select-Object -ExpandProperty OwningProcess -Unique)
     foreach ($op in $ownPids) {
@@ -189,6 +161,8 @@ function Get-FrontListener {
 }
 
 # Probe-Webroot <- <pid>:<port>. Returns $null (no answer) or @{ Status = <int>; Body = <string> }.
+# A raw HTTP/1.0 request, because Invoke-WebRequest gives back no response object for a 404 (measured),
+# and a 404 is exactly the evidence that the front serves some other root.
 function Probe-Front([int]$port) {
     $c = New-Object System.Net.Sockets.TcpClient
     try {
@@ -213,6 +187,93 @@ function Probe-Front([int]$port) {
     return @{ Status = $status; Body = $body.Trim() }
 }
 
+function Get-DiskStamp {
+    $f = Join-Path $targetFull 'build_stamp.txt'
+    if (Test-Path -LiteralPath $f -PathType Leaf) { return (Get-Content -LiteralPath $f -Raw).Trim() }
+    return ''
+}
+
+# The front answering with this webroot's own stamp, or $null. Matching stamps is the only positive
+# proof available that a given process serves the root this script is about to replace.
+function Find-ServingFront($listeners) {
+    $diskStamp = Get-DiskStamp
+    if (-not $diskStamp) { return $null }
+    foreach ($l in $listeners) {
+        $probe = $null
+        try { $probe = Probe-Front $l.Port } catch { $probe = $null }
+        if ($probe -and ($probe.Body -ieq $diskStamp)) { return $l }
+    }
+    return $null
+}
+
+$ingressPorts = Get-TunnelIngressPorts
+if ($ingressPorts.Count -gt 0) { 'tunnel ingress ports this script will never disturb: ' + ($ingressPorts -join ', ') }
+$fronts = @()
+try { $fronts = @(Get-FrontListener) } catch {
+    Fail "cannot list the listening ports to check who serves $targetFull ($($_.Exception.Message)): refusing to replace a webroot that may be served."
+}
+$serving = $null
+if ((Test-Path -LiteralPath $targetFull) -and $fronts.Count -gt 0) { $serving = Find-ServingFront $fronts }
+if ($serving) { "this webroot is being served right now by pid $($serving.Pid) ($($serving.Name)) on 127.0.0.1:$($serving.Port)" }
+
+function Stop-RecordedGate {
+    if ($NoGateStop) { 'gate stop skipped (-NoGateStop): no process was touched'; return }
+    if (-not (Test-Path -LiteralPath $GatePidFile)) { return }
+    $raw = (Get-Content -LiteralPath $GatePidFile -Raw -EA SilentlyContinue)
+    $rec = if ($raw) { $raw.Trim() } else { '' }
+    if ($rec -notmatch '^\d+$') { "gate record $GatePidFile holds no usable pid ('$rec'): nothing signalled, record kept"; return }
+    $gp = [int]$rec
+    if ($gp -le 3) { "gate record holds pid ${gp}: system pids are never signalled, record kept"; return }
+    if ($gp -eq $PID) { "gate record holds this script's own pid ${gp}: nothing signalled, record kept"; return }
+    $gpProc = Get-CimInstance Win32_Process -Filter "ProcessId=$gp" -EA SilentlyContinue
+    if (-not $gpProc) { "gate pid $gp is not running: stale record $GatePidFile removed"; Remove-Item -LiteralPath $GatePidFile -Force -EA SilentlyContinue; return }
+    if ($gpProc.Name -ne 'WebFront.exe') {
+        Fail "the gate record $GatePidFile holds pid $gp, which is $($gpProc.Name), not WebFront.exe: refusing to replace $Webroot while a live process this kit cannot identify is recorded as its gate. Fix or remove the record first."
+    }
+    # A front owning a tunnel ingress port is what the public hostname serves. Not this script's to
+    # stop, whatever the pid record claims: on 2026-11-07 an assemble run on a preview lane stopped
+    # the hosted gate through exactly such a record and took the public site down.
+    $gpPorts = @(Get-NetTCPConnection -State Listen -OwningProcess $gp -EA SilentlyContinue | Select-Object -ExpandProperty LocalPort -Unique)
+    foreach ($ip in $ingressPorts) {
+        if ($gpPorts -contains $ip) {
+            Fail "the recorded gate pid $gp owns 127.0.0.1:$ip, which the cloudflared ingress in $TunnelConfig forwards to: that is the hosted front behind the public hostname. Stop the hosted lane first (scripts/hosting_down.ps1) if this root really is meant to be replaced."
+        }
+    }
+    # The probe decides who is safe to stop, not the record: a live gate serving a different root is
+    # left alone, and a different pid serving THIS root is not ours to stop either.
+    if (-not $serving) {
+        "the recorded gate pid $gp is live but does not serve ${targetFull}: left running, record kept"
+        return
+    }
+    if ($serving.Pid -ne $gp) {
+        Fail "pid $gp is the recorded gate, but the front serving $targetFull is pid $($serving.Pid) ($($serving.Name)) on 127.0.0.1:$($serving.Port): this script will not stop a process that is not the one serving the root. Stop that front yourself, or point -Webroot at another root."
+    }
+    # Identity proven twice over - recorded, and proved by probe to serve this root: stop this one
+    # pid, gently first, then force, both bounded (the TERM-then-KILL
+    # ladder of assemble_webroot.sh:321-332).
+    Stop-Process -Id $gp -EA SilentlyContinue
+    $gone = $false
+    for ($i = 0; $i -lt 20; $i++) {
+        if (-not (Get-Process -Id $gp -EA SilentlyContinue)) { $gone = $true; break }
+        Start-Sleep -Milliseconds 250
+    }
+    if (-not $gone) {
+        Stop-Process -Id $gp -Force -EA SilentlyContinue
+        for ($i = 0; $i -lt 20; $i++) {
+            if (-not (Get-Process -Id $gp -EA SilentlyContinue)) { $gone = $true; break }
+            Start-Sleep -Milliseconds 250
+        }
+    }
+    if (-not $gone) { Fail "gate pid $gp survived Stop-Process: refusing to replace $Webroot under a serving gate" }
+    "stopped recorded gate pid ${gp}: record $GatePidFile cleared"
+    Remove-Item -LiteralPath $GatePidFile -Force -EA SilentlyContinue
+}
+Stop-RecordedGate
+
+# ---------------------------- 3. refuse to replace a webroot a live front is serving ----------------
+# The last net, and the one that does not depend on a pid record at all: re-probe after the stop step
+# and refuse if anything still answers this root (Get-FrontListener / Probe-Front live in step 2).
+# Read-only - it never signals anything, so it also runs for -NoGateStop probe assembly.
 function Assert-WebrootNotServed {
     if (-not (Test-Path -LiteralPath $targetFull)) { return }   # nothing can be served out of a root that is not there
     $listeners = @()

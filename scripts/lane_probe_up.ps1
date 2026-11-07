@@ -8,6 +8,11 @@
 #   lane_probe_up.ps1 -Webroot X       use another webroot
 #   lane_probe_up.ps1 -Stop            stop only the processes this script started
 #   lane_probe_up.ps1 -Status          show what is up
+# Pid records (C:\mfgtmp\probe_lane_pid.txt, probe_static_pid.txt) follow the lane_down.sh rule
+# settled in ledger L41: a record is removed only when the process it names was stopped or found
+# not running. A live process that is refused keeps its pid file, and a start that had to refuse
+# one is aborted instead of stacking a second front on the port the stale one is holding.
+# -Stop exits 1 when an entry was refused for the same reason.
 param(
     [switch]$Stop,
     [switch]$Status,
@@ -22,23 +27,58 @@ $pidFile = 'C:\mfgtmp\probe_lane_pid.txt'
 $staticPidFile = 'C:\mfgtmp\probe_static_pid.txt'
 $staticScript = Join-Path $root 'scripts\serve_aog.js'
 
+# Reasons Stop-Recorded refused to signal an entry. Non-empty means a live process is still
+# holding its port with its pid file kept, so the probe lane must not be started on top of it.
+$stopRefused = @()
+
 function Stop-Recorded($file, $expectName) {
+    # Same contract as scripts/linux/lane_down.sh:12-22 (the settled L41 rule): the pid record is
+    # removed only when the recorded process was stopped or found not running. A live process that
+    # is refused keeps its pid file - deleting it strands a live server with no handle, and the next
+    # start stacks a second front on its port while readiness is answered by the stale one.
     if (-not (Test-Path $file)) { "no pid file $file"; return }
     $old = (Get-Content $file -Raw).Trim()
-    if ($old -match '^\d+$') {
-        $p = Get-CimInstance Win32_Process -Filter "ProcessId=$old" -EA SilentlyContinue
-        if ($p -and $p.Name -eq $expectName) { Stop-Process -Id ([int]$old) -Force; "stopped $expectName pid=$old" }
-        elseif ($p) { "pid $old is $($p.Name), not $expectName; left alone" }
+    $oldNum = 0
+    if ($old -notmatch '^\d+$' -or -not [int]::TryParse($old, [ref]$oldNum)) {
+        $why = "pid file $file does not hold a plain pid ('$old'); not signalled, pid file KEPT"
+        $script:stopRefused += $why; $why; return
     }
+    if (-not (Get-Process -Id $oldNum -EA SilentlyContinue)) {
+        "pid $old is not running; stale pid file $file removed"
+        Remove-Item $file -Force -EA SilentlyContinue
+        return
+    }
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId=$oldNum" -EA SilentlyContinue
+    if (-not $p) {
+        $why = "pid $old is alive but its process record cannot be read, so it cannot be proved to be $expectName; not signalled, pid file KEPT"
+        $script:stopRefused += $why; $why; return
+    }
+    if ($p.Name -ne $expectName) {
+        $why = "pid $old is $($p.Name), not $expectName; not signalled, pid file KEPT (deleting it would strand a live process with no handle)"
+        $script:stopRefused += $why; $why; return
+    }
+    Stop-Process -Id $oldNum -Force
     Remove-Item $file -Force -EA SilentlyContinue
+    "stopped $expectName pid=$old"
 }
 
 function Stop-ProbeLane {
+    $script:stopRefused = @()
     Stop-Recorded $pidFile 'WebFront.exe'
     Stop-Recorded $staticPidFile 'node.exe'
 }
 
-if ($Stop) { Stop-ProbeLane; exit 0 }
+function Assert-NoRefusedEntry($when) {
+    if ($script:stopRefused.Count -eq 0) { return }
+    foreach ($why in $script:stopRefused) { "refused: $why" }
+    throw "$when - $($script:stopRefused.Count) recorded process(es) were left running with their pid files kept. Stop them yourself (they are not this lane's, or the record cannot be trusted) and run again."
+}
+
+if ($Stop) {
+    Stop-ProbeLane
+    if ($script:stopRefused.Count -gt 0) { "probe lane stop: INCOMPLETE - pid file kept"; exit 1 }
+    exit 0
+}
 if ($Status) {
     foreach ($port in 8090, $RelayPort, $StaticPort) {
         $c = Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | Select-Object -First 1
@@ -48,6 +88,7 @@ if ($Status) {
 }
 
 Stop-ProbeLane
+Assert-NoRefusedEntry 'probe lane start refused'
 if (-not (Test-Path (Join-Path $Webroot 'index.html'))) { throw "no index.html in $Webroot - assemble the probe webroot first" }
 if (-not (Test-Path $staticScript)) { throw "missing static front script $staticScript" }
 
@@ -74,12 +115,26 @@ Set-Content -LiteralPath $staticPidFile $static.Id -Encoding utf8
 
 $up = $false
 for ($i = 0; $i -lt 60; $i++) {
-    $relayUp = Get-NetTCPConnection -LocalPort $RelayPort -State Listen -ErrorAction SilentlyContinue
-    $staticUp = Get-NetTCPConnection -LocalPort $StaticPort -State Listen -ErrorAction SilentlyContinue
+    # Readiness means THIS run's front is answering on the port, not just "something is listening":
+    # a relay left over from an earlier run holds the port and would otherwise be reported as up.
+    $relayUp = Get-NetTCPConnection -LocalPort $RelayPort -State Listen -ErrorAction SilentlyContinue |
+        Where-Object { $_.OwningProcess -eq $relay.Id }
+    $staticUp = Get-NetTCPConnection -LocalPort $StaticPort -State Listen -ErrorAction SilentlyContinue |
+        Where-Object { $_.OwningProcess -eq $static.Id }
     if ($relayUp -and $staticUp) { $up = $true; break }
     Start-Sleep -Milliseconds 500
 }
-if (-not $up) { throw "probe lane ports did not come up ($RelayPort / $StaticPort)" }
+if (-not $up) {
+    foreach ($e in [pscustomobject]@{ Port = $RelayPort; Mine = $relay.Id }, [pscustomobject]@{ Port = $StaticPort; Mine = $static.Id }) {
+        $c = Get-NetTCPConnection -LocalPort $e.Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $c) { "port $($e.Port): no listener (this run started pid $($e.Mine))" }
+        elseif ($c.OwningProcess -ne $e.Mine) {
+            $h = Get-CimInstance Win32_Process -Filter "ProcessId=$($c.OwningProcess)" -EA SilentlyContinue
+            "port $($e.Port): held by pid $($c.OwningProcess) ($($h.Name)), not this run's pid $($e.Mine) - a stale front owns it"
+        } else { "port $($e.Port): this run's pid $($e.Mine) is not listening yet" }
+    }
+    throw "probe lane ports did not come up ($RelayPort / $StaticPort)"
+}
 
 # The front the player talks to must be the relay, not the owner's gate.
 $html = Get-Content (Join-Path $Webroot 'index.html') -Raw

@@ -113,17 +113,34 @@ printf 'lane_smoke: target %s (curl only, read-only)\n' "$BASE"
 # ---------------------------- 1. COOP / COEP headers ----------------------------
 # The gate emits both headers on every single response (webfront/Program.cs:973) -
 # they are what Unity's SharedArrayBuffer build needs (Program.cs:21-22 comment).
+# The status is part of the assertion: headers on a 302 that bounces an anonymous visitor
+# to /login say nothing about the answer that carries the page, and headers on a 404 or a
+# 500 say nothing either. Only the 200 answer is a pass (the same rule index_no_store
+# learned in L48); the bounce is a SKIP that points at the checks that can reach the page.
 GET "$BASE/"
 coop='' coep=''
 has_hdr '^[Cc]ross-origin-opener-policy:[[:space:]]*same-origin' && coop=same-origin
 has_hdr '^[Cc]ross-origin-embedder-policy:[[:space:]]*require-corp' && coep=require-corp
-if [ "$GET_CODE" = ERR ]; then
-  fail coop_coep_headers "cannot reach $BASE/"
-elif [ -n "$coop" ] && [ -n "$coep" ]; then
-  pass coop_coep_headers "$(status_of "$GET_CODE") Cross-Origin-Opener-Policy: same-origin; Cross-Origin-Embedder-Policy: require-corp"
-else
-  fail coop_coep_headers "$(status_of "$GET_CODE") missing $( [ -z "$coop" ] && printf 'COOP; '; [ -z "$coep" ] && printf 'COEP;' ) headers seen: $(hdr Cross-Origin-Opener-Policy) / $(hdr Cross-Origin-Embedder-Policy)"
-fi
+coop_seen=$( [ -n "$coop" ] && printf 'same-origin' || printf 'missing' )
+coep_seen=$( [ -n "$coep" ] && printf 'require-corp' || printf 'missing' )
+case $GET_CODE in
+  ERR)
+    fail coop_coep_headers "cannot reach $BASE/"
+    ;;
+  200)
+    if [ -n "$coop" ] && [ -n "$coep" ]; then
+      pass coop_coep_headers "HTTP 200 Cross-Origin-Opener-Policy: same-origin; Cross-Origin-Embedder-Policy: require-corp"
+    else
+      fail coop_coep_headers "$(status_of "$GET_CODE") missing $( [ -z "$coop" ] && printf 'COOP; '; [ -z "$coep" ] && printf 'COEP;' ) headers seen: $(hdr Cross-Origin-Opener-Policy) / $(hdr Cross-Origin-Embedder-Policy)"
+    fi
+    ;;
+  301|302|303|307|308)
+    skip coop_coep_headers "$(status_of "$GET_CODE") Location: $(loc_hdr) (COOP: $coop_seen, COEP: $coep_seen on the redirect): the gate bounced this visitor to the identity page, so no answer carrying the page was seen. Run the suite against the assembled relay (assemble_webroot.sh --serve) or sign in first (SMOKE_USER/SMOKE_PASS)"
+    ;;
+  *)
+    fail coop_coep_headers "$(status_of "$GET_CODE") COOP: $coop_seen, COEP: $coep_seen - the header pair only proves anything on the 200 answer that serves the page"
+    ;;
+esac
 
 # ---------------------------- 2. brotli sidecar rule ----------------------------
 # Base name + Accept-Encoding: br -> served with Content-Encoding: br

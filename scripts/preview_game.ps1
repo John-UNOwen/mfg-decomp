@@ -29,8 +29,9 @@
 # the owner's cloudflared tunnel serves, or left the hosted lane with no front at all. The
 # contract now:
 #   * every process this script starts is recorded in C:\mfgtmp\preview_pids, and -Stop (or a
-#     relaunch) stops only those pids - each one re-proved (name, and the port it must own, or
-#     the exact AsphyxiaCore.js argument) before it is signalled, as scripts/linux/lane_down.sh does;
+#     relaunch) stops only those pids - each one re-proved (name plus the port it must own, the exact
+#     AsphyxiaCore.js argument, or the command line recorded at launch for the browser window) before it
+#     is signalled, as scripts/linux/lane_down.sh does;
 #   * a process this script did not start is never signalled: a port held by a foreign listener
 #     is a refusal with a reason, not something to kill;
 #   * a core already answering 8083 is reused, not replaced - killing it drops every live session
@@ -77,10 +78,44 @@ $mockPort = 8085
 $pidDir = 'C:\mfgtmp\preview_pids'
 
 function Stop-PreviewWindow {
-    # close the preview window only: the dedicated edge-preview profile, never a personal Edge
-    Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" |
-        Where-Object { $_.CommandLine -like '*edge-preview*' } |
-        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue }
+    # Close ONLY the preview window this script started, by the pid it recorded for it. This used to
+    # enumerate every msedge.exe on the box and force-kill any whose command line merely CONTAINED the
+    # profile path ('edge-preview'): a browser is dozens of processes sharing one binary name and a
+    # substring of a command line is not an identity - the exact fault hosting_down.ps1 replaced for
+    # the lane processes (checkup 2026-11-06 item 14). The Edge launched at :295 is now recorded (pid +
+    # WMI command line, the hosting_up.ps1:63-67 shape) and this stops exactly that pid, re-proving
+    # before the signal, with hosting_down.ps1's Test-LaneIdentity rule, that it is still the process
+    # the record named: image name msedge.exe AND the command line Windows saw at launch (which never
+    # changes after creation) must both match. Anything else is a refusal that KEEPS the record
+    # (deleting it would strand a live window with no handle); a window with no record is reported,
+    # never swept by pattern.
+    if (-not $pidDir) { 'edge : $pidDir is unset - this script always records the window under it, so there is no record to act on; nothing closed'; return }
+    $file = Join-Path $pidDir 'edge.pid'
+    if (-not (Test-Path -LiteralPath $file)) { 'edge : no record (' + $file + '); no preview window was recorded by this script, so nothing is closed (it never closes browser windows by pattern)'; return }
+    $lines = @(Get-Content -LiteralPath $file -EA SilentlyContinue | ForEach-Object { "$_".Trim() })
+    $rawPid = if ($lines.Count -gt 0) { $lines[0] } else { '' }
+    $recordedCmd = if ($lines.Count -gt 1) { ($lines[1..($lines.Count - 1)] -join ' ').Trim() } else { '' }
+    if ($rawPid -notmatch '^\d+$') { "edge : REFUSED - record $file holds no plain pid ('$rawPid'); not signalled, record KEPT"; return }
+    $edgePid = [int]$rawPid
+    if ($edgePid -le 3) { "edge : REFUSED - record holds pid $edgePid; system pids are never signalled, record KEPT"; return }
+    if ($edgePid -eq $PID) { "edge : REFUSED - record holds this script's pid ($edgePid); record KEPT"; return }
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId=$edgePid" -EA SilentlyContinue
+    if (-not $p) { "edge : pid $edgePid is not running; stale record removed"; Remove-Item -LiteralPath $file -Force -EA SilentlyContinue; return }
+    if ($p.Name -ne 'msedge.exe') {
+        "edge : pid $edgePid is $($p.Name) [$($p.CommandLine)] - not msedge.exe; NOT signalled, record KEPT"
+        return
+    }
+    if ($recordedCmd -and ("$($p.CommandLine)" -cne $recordedCmd)) {
+        "edge : pid $edgePid is msedge.exe but the live command line is not the one recorded when this window started - a recycled pid is not this window's process; NOT signalled, record KEPT"
+        "       recorded: $recordedCmd"
+        "       live:     $($p.CommandLine)"
+        return
+    }
+    $stopErr = $null
+    try { Stop-Process -Id $edgePid -Force -ErrorAction Stop } catch { $stopErr = $_.Exception.Message }
+    if ($stopErr) { "edge : REFUSED - could not signal pid $edgePid ($stopErr); record KEPT"; return }
+    "edge : stopped msedge.exe pid=$edgePid (the preview window this script recorded); record removed"
+    Remove-Item -LiteralPath $file -Force -EA SilentlyContinue
 }
 
 function Get-PortOwnerPid($port) {
@@ -298,6 +333,11 @@ $edge = Start-Process -FilePath $EdgeExe -PassThru -ArgumentList @(
     '--window-size=1600,976', '--window-position=80,40',
     '--app=' + $url
 )
+# Record the window we just started the same way front/mock/core are recorded (pid + the command line
+# WMI sees at launch), so -Stop and a relaunch can close exactly this pid after re-proving it - never
+# by sweeping msedge by pattern. Written before the wait so a later failure never leaves it unowned.
+$edgeRec = Get-CimInstance Win32_Process -Filter "ProcessId=$($edge.Id)" -EA SilentlyContinue
+Set-Content -LiteralPath (Join-Path $pidDir 'edge.pid') -Value @("$($edge.Id)", [string]$edgeRec.CommandLine) -Encoding utf8
 Start-Sleep -Seconds 3
 if (-not (Get-Process -Id $edge.Id -EA SilentlyContinue)) {
     $any = Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like '*edge-preview*' }

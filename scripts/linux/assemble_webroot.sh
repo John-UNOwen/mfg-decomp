@@ -5,7 +5,7 @@
 # PowerShell script does, stamps the build asset URLs, and (optionally) runs the brotli
 # sidecar tool. Step order and stdout messages match the PowerShell original.
 #
-#   1. require the build tree to exist                         (ps1 :25)
+#   1. validate the build, the sidecar, the serve target and WEBROOT itself   (ps1 :25, extended)
 #   2. stop only the gate pid this lane recorded               (ps1 :29-36)
 #   3. wipe the webroot, mirror the build tree into it         (ps1 :37-38)
 #   4. bake config.arguments merge function into index.html    (ps1 :39-60)
@@ -26,7 +26,10 @@
 #   BUILD_DIR       Build tree to mirror.        default: ~/mfg/out/webgl
 #                   (Unity WebGL output: index.html, Build/, StreamingAssets/, TemplateData/)
 #   WEBROOT         Assembled webroot.           default: ~/mfgtmp/webroot
-#                   Wiped (rm -rf) and recreated from BUILD_DIR on every run.
+#                   Wiped (rm -rf) and recreated from BUILD_DIR on every run. Refused
+#                   before the wipe when it is the operator home, the repo root, the lane
+#                   pid dir, the lane log dir, or a path that contains (or is contained by)
+#                   BUILD_DIR - the rm -rf has no undo and the old guard only refused '' and /.
 #   UPSTREAM        Identity origin URL.         default: http://127.0.0.1:8080
 #                   Only used by --serve (WEBFRONT_UPSTREAM).
 #   FRONT_URL       URL baked into the player args as the -FRONTURL value.
@@ -37,6 +40,15 @@
 #   BIND            'any' (all interfaces, guest VMs can load the page) or 'loopback'.
 #                                                  default: any
 #                   Only used by --serve (WEBFRONT_BIND).
+#   GATE_PORT       Port --serve puts the gate on (WEBFRONT_PORT).
+#                                                  default: 8090 (lane_up.sh:95)
+#                   Probed before anything is started: an already answering port is refused
+#                   rather than stacked on (the lane_up.sh:356-363 posture).
+#   LOG_DIR         Where --serve writes webfront.out.txt / webfront.err.txt.
+#                                                  default: ~/mfgtmp/lane_logs
+#                   The same directory lane_up.sh:102 uses. The old fixed
+#                   ${TMPDIR:-/tmp}/webfront.*.txt put the lane's log - with its request
+#                   lines - in a world-writable directory with a predictable name.
 #   PID_DIR         Lane pid directory - the one lane_up.sh:88 and lane_down.sh:50 use.
 #                                                  default: ~/mfgtmp/lane_pids
 #   GATE_PID_FILE   File holding the pid of the gate this lane owns.
@@ -93,7 +105,9 @@ WEBROOT=${WEBROOT:-"$HOME/mfgtmp/webroot"}
 UPSTREAM=${UPSTREAM:-'http://127.0.0.1:8080'}
 FRONT_URL=${FRONT_URL:-'http://127.0.0.1:8090/aog'}
 BIND=${BIND:-'any'}
+GATE_PORT=${GATE_PORT:-8090}                      # same default as lane_up.sh:95
 PID_DIR=${PID_DIR:-"$HOME/mfgtmp/lane_pids"}           # same default as lane_up.sh:88
+LOG_DIR=${LOG_DIR:-"$HOME/mfgtmp/lane_logs"}           # same default as lane_up.sh:102
 GATE_PID_FILE=${GATE_PID_FILE:-"$PID_DIR/gate.pid"}   # the file lane_up.sh:427 writes
 GATE_PROCESS=${GATE_PROCESS:-'WebFront'}
 NO_GATE_STOP=${NO_GATE_STOP:-0}
@@ -188,10 +202,62 @@ hash_upper() { _hash_stdin < "$1" | tr '[:lower:]' '[:upper:]'; }
 
 _norm_name() { printf '%s' "$1" | tr 'A-Z' 'a-z' | sed 's/\.exe$//; s/\.dll$//'; }
 
-# ---------------------------- 1. build tree ----------------------------
-# ps1 :25  if (-not (Test-Path $Build)) { throw "no webgl build at $Build" }
+# ---------------------------- 1. validate before destroying ----------------------------
+# ps1 :25 checked one thing (the build directory exists) and this port stopped there, so
+# every failure below was discovered after step 3 had already wiped a working webroot: no
+# index.html in the build (was: died after the wipe), a missing sidecar or dotnet (was: died
+# after the wipe), a WEBROOT that is not a webroot at all (was: wiped, with no undo). The
+# checks are all here now, in front of the gate stop and the wipe.
 if [ ! -d "$BUILD_DIR" ]; then die "no webgl build at $BUILD_DIR"; fi
+if [ ! -f "$BUILD_DIR/index.html" ]; then
+  die "no index.html in $BUILD_DIR: refusing to wipe $WEBROOT for a build that cannot be assembled"
+fi
+_have_artifact=0
+for _a in webgl.loader.js webgl.framework.js webgl.wasm webgl.data; do
+  [ -f "$BUILD_DIR/Build/$_a" ] && _have_artifact=1
+done
+if [ $_have_artifact = 0 ]; then
+  die "no webgl.loader.js / framework.js / wasm / data under $BUILD_DIR/Build: refusing to wipe $WEBROOT"
+fi
+if [ "$NO_BROTLI" != 1 ]; then
+  if [ ! -f "$SIDECAR_DLL" ]; then
+    die "no sidecar tool at $SIDECAR_DLL: refusing to wipe $WEBROOT for an assembly that cannot finish (pass --no-brotli to skip the sidecars)"
+  fi
+  if ! command -v dotnet >/dev/null 2>&1; then
+    die "dotnet runtime not on PATH (needed for $SIDECAR_DLL): refusing to wipe $WEBROOT"
+  fi
+fi
+if [ "$SERVE" = 1 ]; then
+  if [ ! -f "$WEBFRONT_DLL" ]; then die "no webfront build at $WEBFRONT_DLL (--serve): refusing to wipe $WEBROOT"; fi
+  if ! command -v dotnet >/dev/null 2>&1; then
+    die "dotnet runtime not on PATH (needed for $WEBFRONT_DLL, --serve): refusing to wipe $WEBROOT"
+  fi
+fi
+
+# WEBROOT itself. The old guard was 'case $WEBROOT in ""|"/")', which accepts $HOME, the
+# repo root, the pid dir and any directory holding the build. Paths are normalised first so
+# a trailing slash or a ../ spelling cannot slip past the comparison.
 case $WEBROOT in ''|'/') die "refusing to wipe WEBROOT=$WEBROOT" ;; esac
+_abs() { readlink -f "$1" 2>/dev/null || printf '%s' "$1"; }
+_webroot_norm=$(_abs "$WEBROOT")
+_build_norm=$(_abs "$BUILD_DIR")
+_refuse_if_same() {  # _refuse_if_same <what the path is> <path>
+  _n=$(_abs "$2")
+  if [ -n "$_n" ] && [ "$_webroot_norm" = "$_n" ]; then
+    die "refusing to wipe WEBROOT=$WEBROOT: it is the $1 ($_n), not a webroot"
+  fi
+  return 0
+}
+_refuse_if_same "operator home" "$HOME"
+_refuse_if_same "repo root (this script lives under it)" "$REPO_ROOT"
+_refuse_if_same "lane pid dir" "$PID_DIR"
+_refuse_if_same "lane log dir" "$LOG_DIR"
+case "$_build_norm" in
+  "$_webroot_norm"/*) die "refusing to wipe WEBROOT=$WEBROOT: the build tree ($_build_norm) is inside it, so the wipe would delete the build" ;;
+esac
+case "$_webroot_norm" in
+  "$_build_norm"/*) die "refusing to assemble WEBROOT=$WEBROOT inside the build tree ($_build_norm): the mirror would copy the build into itself" ;;
+esac
 
 # ---------------------------- 2. stop the recorded gate ----------------------------
 # ps1 :26-36. The PowerShell version read the pid out of gate_pid.txt and stopped that
@@ -201,6 +267,7 @@ case $WEBROOT in ''|'/') die "refusing to wipe WEBROOT=$WEBROOT" ;; esac
 # if the pid does not match the gate, nothing is signalled. If the file is absent,
 # nothing happens at all.
 pid_alive() { [ -e "/proc/$1" ] || kill -0 "$1" 2>/dev/null; }   # lane_down.sh:112 rule
+port_in_use() { (exec 3<>"/dev/tcp/$1/$2") 2>/dev/null; }        # lane_up.sh:134 rule: probe the port, never a name
 
 stop_recorded_gate() {
   if [ "$NO_GATE_STOP" = 1 ]; then
@@ -343,9 +410,13 @@ fi
 # run, because step 6 ran first). Same algorithm:
 #   sha256(file bytes) -> UPPER-CASE hex, concatenated with no separator
 #   -> sha256 of those ASCII bytes -> UPPER-CASE hex -> first 12 characters.
-stamp_files="$WEBROOT/Build/webgl.loader.js $WEBROOT/Build/webgl.framework.js $WEBROOT/Build/webgl.wasm $WEBROOT/Build/webgl.data"
+# An array, not a space-joined string: a WEBROOT containing a space split into pieces that
+# matched no file, so every hash was skipped, the stamp became the hash of the empty string
+# (E3B0C44298FC...) and every build - including a different one - stamped identically.
+stamp_files=("$WEBROOT/Build/webgl.loader.js" "$WEBROOT/Build/webgl.framework.js" \
+             "$WEBROOT/Build/webgl.wasm" "$WEBROOT/Build/webgl.data")
 joined=''
-for f in $stamp_files; do
+for f in "${stamp_files[@]}"; do
   if [ -f "$f" ]; then joined="$joined$(hash_upper "$f")"; fi   # ps1 :96 Where-Object Test-Path
 done
 STAMP=$(printf '%s' "$joined" | _hash_stdin | tr '[:lower:]' '[:upper:]' | cut -c1-12)
@@ -400,15 +471,21 @@ else
 fi
 
 # ---------------------------- 10. optional serve ----------------------------
-# ps1 :136-147. Off by default; nothing is started unless SERVE=1 / --serve.
+# ps1 :136-147. Off by default; nothing is started unless SERVE=1 / --serve. The assembly
+# (dotnet, WEBFRONT_DLL) was already checked in step 1; what is checked here is the port and
+# the pid record, because starting a gate is the one action in this script that can collide
+# with a gate another lane owns.
 # WEBFRONT_GATE=0 is relay mode, as in the PowerShell dev serve. The pid this script
 # starts is recorded in GATE_PID_FILE - the same single gate pid file lane_up.sh writes
 # and lane_down.sh stops - so the next assemble run can stop it. It is never recorded
 # over a live pid: step 2 already stopped the recorded gate (or --no-gate-stop was asked
 # for, in which case the record belongs to somebody else and is left alone).
 if [ "$SERVE" = 1 ]; then
-  if [ ! -f "$WEBFRONT_DLL" ]; then die "no webfront build at $WEBFRONT_DLL"; fi
-  if ! command -v dotnet >/dev/null 2>&1; then die "dotnet runtime not on PATH (needed for $WEBFRONT_DLL)"; fi
+  # Probe before starting (lane_up.sh:356-363 posture): a gate that cannot bind its port
+  # fails inside its own log, after this script already reported nothing wrong.
+  if port_in_use 127.0.0.1 "$GATE_PORT"; then
+    die "something already answers 127.0.0.1:$GATE_PORT (the gate port) - refusing to start a gate on it. Stop that front first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service) or set GATE_PORT"
+  fi
   if [ -f "$GATE_PID_FILE" ]; then
     _live=$(sed -n '1p' "$GATE_PID_FILE" 2>/dev/null | tr -d '\r\t' | sed 's/^ *//; s/ *$//')
     case $_live in
@@ -420,14 +497,15 @@ if [ "$SERVE" = 1 ]; then
   fi
   WEBFRONT_ROOT=$WEBROOT
   WEBFRONT_UPSTREAM=$UPSTREAM
+  WEBFRONT_PORT=$GATE_PORT
   WEBFRONT_BIND=$BIND
   WEBFRONT_GATE=0
-  export WEBFRONT_ROOT WEBFRONT_UPSTREAM WEBFRONT_BIND WEBFRONT_GATE
-  _logdir=${TMPDIR:-/tmp}
+  export WEBFRONT_ROOT WEBFRONT_UPSTREAM WEBFRONT_PORT WEBFRONT_BIND WEBFRONT_GATE
+  mkdir -p -- "$LOG_DIR"
   ( cd "${WEBFRONT_DLL%/*}" && exec dotnet "${WEBFRONT_DLL##*/}" ) \
-    >"$_logdir/webfront.out.txt" 2>"$_logdir/webfront.err.txt" &
+    >"$LOG_DIR/webfront.out.txt" 2>"$LOG_DIR/webfront.err.txt" &
   servePid=$!
   mkdir -p -- "$PID_DIR"
   echo "$servePid" > "$GATE_PID_FILE"
-  printf 'webfront started (pid %s, recorded in %s) bind=%s WEBFRONT_UPSTREAM=%s\n' "$servePid" "$GATE_PID_FILE" "$BIND" "$UPSTREAM"
+  printf 'webfront started (pid %s, recorded in %s, logs in %s) bind=%s port=%s WEBFRONT_UPSTREAM=%s\n' "$servePid" "$GATE_PID_FILE" "$LOG_DIR" "$BIND" "$GATE_PORT" "$UPSTREAM"
 fi

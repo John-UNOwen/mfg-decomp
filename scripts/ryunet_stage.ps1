@@ -85,6 +85,19 @@ function Test-Bootable([string]$Dir) {
   return (Test-Path (Join-Path $Dir 'AsphyxiaCore.js')) -and (Test-Path (Join-Path $Dir 'config.ini'))
 }
 
+function Get-RepoRootStrays([string]$Repo) {
+  # Engine files lying loose at the versioned-home root. -Action mirror only replaces the
+  # mfg@asphyxia\ subtree and -Action status discovers copies only via a sibling handlers/aog.ts,
+  # so a hand copy of a single engine file at the root is invisible to both - and untracked means
+  # the next `git add -A` commits an old engine at the wrong path (this actually happened: a
+  # pre-guard taikyoku.ts sat there, SHA 517EE04E906A). Any untracked *.ts at the root is a
+  # stray; the repo's legitimate root files are tracked, so ls-files --others never lists them.
+  if (-not (Test-Path (Join-Path $Repo '.git'))) { return @() }
+  $others = git -C $Repo ls-files --others --exclude-standard
+  if ($LASTEXITCODE -ne 0) { throw "git ls-files failed in $Repo" }
+  return @($others | Where-Object { ($_ -notmatch '/') -and ($_ -match '\.ts$') })
+}
+
 function Resolve-LaneDir([string]$Name) {
   $dir = if ([System.IO.Path]::IsPathRooted($Name)) { $Name } else { Join-Path $CoreRoot $Name }
   # A retired lane's name is free, and -Action status tells you to re-stage it. Resolving it has to
@@ -186,9 +199,17 @@ function Action-Status {
     Write-Host ("  {0,-11} bootable={1,-5} {2}{3}{4}" -f $state, $bootable, $plug, $flag, $detail)
   }
   Write-Host ""
+  $repoRoot = Split-Path $MirrorPlugin -Parent
+  $strays = Get-RepoRootStrays $repoRoot
   Write-Host ("bootable diverged copies: {0}" -f $bad)
+  if ($strays.Count -gt 0) {
+    Write-Host ("stray engine copies at {0} root: {1}" -f $repoRoot, ($strays -join ', '))
+    Write-Host '  untracked there, so the next git add -A commits an old engine: move them out'
+    Write-Host '  with a note, or let -Action mirror delete them.'
+  }
   if ($bad -gt 0) { Write-Host 'fix: pwsh scripts\ryunet_stage.ps1 -Action lane   (re-stage) or -Action retire -Lane <name>'; exit 1 }
-  Write-Host 'no divergent copy can boot a server.'
+  if ($strays.Count -gt 0) { exit 1 }
+  Write-Host 'no divergent copy can boot a server; no stray engine at the versioned-home root.'
 }
 
 function Action-Lane {
@@ -220,6 +241,13 @@ function Action-Mirror {
   if (Test-Path $MirrorPlugin) { Remove-Item $MirrorPlugin -Recurse -Force }
   New-Item -ItemType Directory -Force -Path (Split-Path $MirrorPlugin -Parent) | Out-Null
   Copy-Item $CanonicalPlugin -Destination (Split-Path $MirrorPlugin -Parent) -Recurse -Force
+  # The mirror owns the whole staging clone, not just the mfg@asphyxia\ subtree: an old engine
+  # copy lying at the root is healed here too, so it cannot survive to the next git add -A.
+  $repoRoot = Split-Path $MirrorPlugin -Parent
+  foreach ($stray in Get-RepoRootStrays $repoRoot) {
+    Remove-Item -LiteralPath (Join-Path $repoRoot $stray) -Force
+    Write-Host "  removed stale root copy: $stray"
+  }
   $diff = Get-TreeDiff $before (Get-TreeHashes $MirrorPlugin)
   Write-Host "mirror refreshed FROM the canonical tree (one direction only):"
   Write-Host "  $MirrorPlugin"

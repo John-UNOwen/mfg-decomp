@@ -39,7 +39,11 @@
 #                   taken. 0 = do not probe it.
 #   GATE_PORT       gate port (WEBFRONT_PORT).   default: 8090 (hosting_up.ps1:67,80-84)
 #   GATE_BIND       WEBFRONT_BIND: 'loopback' or 'any'. default: loopback
-#                   (hosting_up.ps1:68; accepted values in Program.cs:343-344)
+#                   (hosting_up.ps1:68; accepted values in Program.cs:343-344). Anything
+#                   else is refused: Program.cs reads a value it does not recognise as
+#                   loopback, so an unvalidated GATE_BIND looks like a reachable lane and is
+#                   not one. The gate is then occupied/probed on the addresses this value
+#                   actually listens on (loopback only, or loopback plus CORE_HOST).
 #   CLOUDFLARED     0 = skip the tunnel entirely. default: 0
 #                   hosting_up.ps1 arms this posture only with the explicit -Tunnel
 #                   switch (:52, :71) and the verified VPS lane runs with CLOUDFLARED=0,
@@ -122,6 +126,27 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# WEBFRONT_BIND is a two-value switch on the front side as well: webfront/Program.cs:343-344
+# treats anything that is not 'any' as loopback. An unvalidated GATE_BIND (a typo, 'true',
+# 'lan') was exported as-is, so the operator believed the lane was reachable while the gate
+# bound loopback. Refused here, and the addresses the gate can be reached on are derived
+# from the validated value rather than guessed from CORE_HOST.
+case $GATE_BIND in
+  loopback|any) : ;;
+  *) die "GATE_BIND must be 'loopback' or 'any' (webfront/Program.cs:343-344 reads anything else as loopback)" ;;
+esac
+
+# Where the gate answers once it is up. The gate always starts on this box, so CORE_HOST -
+# where the CORE lives - is not automatically where the GATE listens: a loopback-bound gate
+# answers on 127.0.0.1 only, and probing CORE_HOST for it reports a healthy gate as dead.
+# 'any' listens everywhere, loopback included, so both are probed.
+gate_probe_hosts='127.0.0.1'
+gate_probe_desc='127.0.0.1'
+if [ "$GATE_BIND" = any ] && [ "$CORE_HOST" != '127.0.0.1' ]; then
+  gate_probe_hosts="127.0.0.1 $CORE_HOST"
+  gate_probe_desc="127.0.0.1 or $CORE_HOST"
+fi
 
 # ---------------------------- helpers ----------------------------
 
@@ -218,6 +243,22 @@ wait_up() {
   local _host=$1 _port=$2 _tries=$3 _i=1
   while [ $_i -le $_tries ]; do
     port_in_use "$_host" "$_port" && return 0
+    sleep "$POLL_STEP"
+    _i=$((_i+1))
+  done
+  return 1
+}
+
+# The same rules for the gate, over the addresses its WEBFRONT_BIND actually listens on.
+gate_port_in_use() {   # is the gate port already taken on any address the gate would use?
+  for _h in $gate_probe_hosts; do port_in_use "$_h" "$1" && return 0; done
+  return 1
+}
+
+wait_gate_up() {       # bounded poll over those addresses, same cadence as wait_up
+  local _i=1
+  while [ $_i -le "$GATE_UP_TRIES" ]; do
+    for _h in $gate_probe_hosts; do port_in_use "$_h" "$GATE_PORT" && return 0; done
     sleep "$POLL_STEP"
     _i=$((_i+1))
   done
@@ -359,8 +400,8 @@ else
     port_in_use "$CORE_HOST" "$CORE_HTTP_PORT" && \
       die "something already answers $CORE_HOST:$CORE_HTTP_PORT (the plugin native listener port, config.ini mfg_http_port)"
   fi
-  port_in_use "$CORE_HOST" "$GATE_PORT" && \
-    die "something already answers $CORE_HOST:$GATE_PORT (the gate port) - refusing to start the gate on it"
+  gate_port_in_use "$GATE_PORT" && \
+    die "something already answers $gate_probe_desc:$GATE_PORT (the gate port, probed where WEBFRONT_BIND=$GATE_BIND actually listens) - refusing to start the gate on it"
 fi
 
 # ---------------------------- 6. config.ini (hosting_up.ps1:39-45) ----------------------------
@@ -416,7 +457,7 @@ if [ $DRY_RUN = 1 ]; then
     "  core (cwd $coreDist, like hosting_up.ps1:53 -WorkingDirectory <ryuDist>):" \
     "    nohup bash -c 'cd \"\$1\" && exec node AsphyxiaCore.js' _ '$coreDist' >'$coreOut' 2>'$coreErr' &" \
     "    echo \$! > '$PID_DIR/core.pid'" \
-    "  wait: probe $CORE_HOST:$CORE_PORT (and $CORE_HOST:$CORE_HTTP_PORT for the plugin listener), $CORE_UP_TRIES tries, sleep $POLL_STEP" \
+    "  wait: probe the core at $CORE_HOST:$CORE_PORT (and $CORE_HOST:$CORE_HTTP_PORT for the plugin listener), $CORE_UP_TRIES tries, sleep $POLL_STEP" \
     '' \
     '  environment exported for the GATE child (hosting_up.ps1:63-75):' \
     "    WEBFRONT_ROOT='$WEBROOT'" \
@@ -434,7 +475,7 @@ if [ $DRY_RUN = 1 ]; then
     "  gate (cwd $gateWd, like hosting_up.ps1:76-77):" \
     "    nohup bash -c 'cd \"\$1\" && exec dotnet WebFront.dll' _ '$gateWd' >'$gateOut' 2>'$gateErr' &" \
     "    echo \$! > '$PID_DIR/gate.pid'" \
-    "  wait: probe $CORE_HOST:$GATE_PORT, $GATE_UP_TRIES tries, sleep $POLL_STEP"
+    "  wait: probe the gate at $gate_probe_desc:$GATE_PORT (WEBFRONT_BIND=$GATE_BIND), $GATE_UP_TRIES tries, sleep $POLL_STEP"
   printf '%s\n' '' 'lane_up --dry-run: done (no secrets printed)'
   exit 0
 fi
@@ -502,15 +543,15 @@ nohup bash -c 'cd "$1" && exec dotnet WebFront.dll' _ "$gateWd" >"$gateOut" 2>"$
 gatePid=$!
 echo "$gatePid" > "$PID_DIR/gate.pid"
 
-if ! wait_up "$CORE_HOST" "$GATE_PORT" "$GATE_UP_TRIES"; then
+if ! wait_gate_up; then
   tail -n 6 "$gateErr" >&2 2>/dev/null || true         # hosting_up.ps1:84 prints the gate error tail
   cleanup_child gate "$gatePid"
   stop_tunnel_on_lane_failure
   say "the core is still up (pid $(cat "$PID_DIR/core.pid" 2>/dev/null || echo '?')); run lane_down.sh to stop it"
-  die "webfront did not bind $CORE_HOST:$GATE_PORT (see $gateErr)"
+  die "webfront did not answer on $gate_probe_desc:$GATE_PORT (WEBFRONT_BIND=$GATE_BIND, see $gateErr)"
 fi
 tail -n 2 "$gateOut" 2>/dev/null || true               # hosting_up.ps1:85 echoes the gate banner
-say "gate up (pid $gatePid, cwd $gateWd, WEBFRONT_GATE=1, bind $GATE_BIND)"
+say "gate up (pid $gatePid, cwd $gateWd, WEBFRONT_GATE=1, bind $GATE_BIND, answering $gate_probe_desc:$GATE_PORT)"
 
 say "lane up: core pid $corePid, gate pid $gatePid$([ "$CLOUDFLARED" != 0 ] && printf ', tunnel pid %s (proven)' "$tunnelPid"); pids in $PID_DIR"
 if [ "$CLOUDFLARED" = 0 ]; then

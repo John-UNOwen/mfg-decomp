@@ -18,9 +18,18 @@
 #   scripts/linux/transfer_build.sh [--dry-run] [-h|--help]
 #
 #   SSH_TARGET          ssh target, e.g. deploy@vps.example.com. Required for real runs.
-#   REMOTE_DIR          destination tree on the target. Required. Refuses: an empty
-#                       value, '/', or an exact system directory (/bin /boot /dev /etc
-#                       /lib /proc /root /sbin /sys /usr /var).
+#   REMOTE_DIR          destination tree on the target. Required, absolute, and guarded on its
+#                       NORMALISED value (// collapsed, ./ and ../ resolved by string rules,
+#                       trailing slashes gone) - the old guard decided on the raw string and
+#                       stripped exactly one trailing slash, so '//', '/usr//', '/bin///' and
+#                       '/bin/../boot' all passed it and the build tars went into /, /usr, /bin
+#                       and /boot. Refused, before anything is staged or extracted: an empty value,
+#                       anything relative or ~-prefixed, '/' and anything that normalises to it, a
+#                       system directory (/bin /boot /dev /etc /lib /proc /root /sbin /sys /usr
+#                       /var) with or without trailing slashes, anything inside one of them,
+#                       anything that contains one of them, and a value holding a single quote (the
+#                       path is wrapped in single quotes in every remote command). Each refusal
+#                       echoes the value it compared and extracts nothing.
 #   LOCAL_BUILD_DIR     Unity WebGL output tree.  default: ~/mfg/out/webgl
 #                       (same default as assemble_webroot.sh:26; contains index.html,
 #                        Build/, StreamingAssets/, TemplateData/)
@@ -80,12 +89,61 @@ done
 # ---------------------------- validation ----------------------------
 [ -d "$LOCAL_BUILD_DIR" ] || die "no build tree at LOCAL_BUILD_DIR=$LOCAL_BUILD_DIR"
 [ -n "$REMOTE_DIR" ] || die "REMOTE_DIR is required"
-case $REMOTE_DIR in /) die "REMOTE_DIR must not be '/'" ;; esac
-REMOTE_DIR=${REMOTE_DIR%/}
+
+# The guard decides on the value the remote will actually act on, and that is not the string typed.
+# The block this replaces (transfer_build.sh:83-88 before the fix) tested '/' on the raw value,
+# stripped exactly ONE trailing slash, then matched an exact list - so '//' survived as '/', '/usr//'
+# and '/bin///' matched no list item, and '/bin/../boot' never equalled '/boot'. Each reached the
+# extraction at the end of this file ('tar $TAR_FLAG -xf - -C "$REMOTE_DIR"') and untarred the build -
+# 5.47 GB, index.html, Build/, StreamingAssets/ - into /, /usr, /bin, /boot. So: normalise, then
+# decide. readlink is not available for this job: the path lives on the far side of ssh, and resolving
+# it here would resolve the wrong tree - the normalisation below is lexical, and the value it prints is
+# the value every remote command in this script then uses, so nothing is compared that is not used.
+_norm_remote_dir() {                 # '//' -> '/', './' and '../' resolved, trailing '/' removed
+  _np=$1
+  case $_np in /*) ;; *) return 1 ;; esac
+  _np=${_np#/}
+  _out=''
+  while [ -n "$_np" ]; do
+    _c=${_np%%/*}
+    if [ "$_c" = "$_np" ]; then _np=''; else _np=${_np#*/}; fi
+    case $_c in
+      ''|.) continue ;;
+      ..)   _out=${_out%/*} ;;       # '..' at the root stays at the root, as realpath -m resolves it
+      *)    _out=$_out/$_c ;;
+    esac
+  done
+  printf '%s' "${_out:-/}"
+}
 case $REMOTE_DIR in
-  /bin|/boot|/dev|/etc|/lib|/proc|/root|/sbin|/sys|/usr|/var)
-    die "REMOTE_DIR=$REMOTE_DIR is a system directory - refused" ;;
+  /*) ;;
+  *) die "REMOTE_DIR=$REMOTE_DIR is not an absolute path - refused, nothing extracted (a relative value resolves against the ssh login cwd, which this script cannot see, and a leading ~ is never expanded inside the single-quoted remote commands, so it would make a directory literally named '~')" ;;
 esac
+case $REMOTE_DIR in
+  *\'*) die "REMOTE_DIR=$REMOTE_DIR contains a single quote - refused, nothing extracted (every remote command wraps this path in single quotes, so a quote inside the value ends that quoting early: this guard would compare one string while the remote shell acted on another)" ;;
+esac
+REMOTE_DIR_RAW=$REMOTE_DIR
+REMOTE_DIR=$(_norm_remote_dir "$REMOTE_DIR") || die "REMOTE_DIR=$REMOTE_DIR_RAW could not be normalised - refused, nothing extracted"
+if [ "$REMOTE_DIR" != "$REMOTE_DIR_RAW" ]; then
+  say "REMOTE_DIR=$REMOTE_DIR_RAW normalised to $REMOTE_DIR - the guard and every remote command use the normalised value"
+fi
+case $REMOTE_DIR in
+  /) die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to '/' - refused, nothing extracted (that is the filesystem root: the build tars would be untarred across it)" ;;
+esac
+# Equality is not containment. Untarring into a directory writes through that whole tree, so a target
+# that holds a system directory is as fatal as one that is a system directory, and a target inside one
+# puts the build files among /usr's, /var's or /bin's own - which is why all three directions are
+# compared here against the normalised value, not against what was typed.
+for _sys in bin boot dev etc lib proc root sbin sys usr var; do
+  _sys=/$_sys
+  case $REMOTE_DIR in
+    "$_sys")   die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to $_sys - refused, nothing extracted ($_sys is a system directory)" ;;
+    "$_sys"/*) die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to $REMOTE_DIR, inside the system directory $_sys - refused, nothing extracted" ;;
+  esac
+  case $_sys in
+    "$REMOTE_DIR"/*) die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to $REMOTE_DIR, which contains the system directory $_sys - refused, nothing extracted" ;;
+  esac
+done
 case $COMPRESS in
   gzip) TAR_FLAG='-z' SUFFIX='.tar.gz' ;;
   none) TAR_FLAG=''   SUFFIX='.tar'   ;;

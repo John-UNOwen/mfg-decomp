@@ -458,8 +458,12 @@ lane_env="$STAGING_DIR/lane.env"
   if [ $WITH_TUNNEL = 1 ]; then
     printf '%s\n' \
       'WEBFRONT_TRUST_PROXY=cloudflare' \
-      '# export WEB_SECURE_COOKIE=1 here too when the tunnel really terminates https' \
-      '# (hosting_up.ps1:52; express-session silently drops a Secure cookie on plain http)'
+      '# Behind this tunnel the gate already marks its lobby cookie Secure on its own (Program.cs:788' \
+      '# reads the proxy protocol). WEB_SECURE_COOKIE is a different knob: the CORE webui reads it' \
+      '# (dist/webui/index.js:101) and it stamps Secure on connect.sid always - put it in core.env,' \
+      '# never here (lane.env is shared and the gate ignores it). Note the trap: Secure-always makes' \
+      '# http clients refuse to send connect.sid back over plain http, so the loopback smoke breaks' \
+      '# the moment it is set - point BASE_URL at the public https URL instead (lane_smoke.sh:56).'
   fi
   printf '%s\n' \
     '# VFG_PRESENTER_SECRET goes in '"$SEC_DIR"'/core.env (chmod 600, owner '"$LANE_USER"'), not here.' \

@@ -183,10 +183,9 @@ skirt-vs-thigh collider dynamics (affects the skirt, not the legs themselves).
   tarball; no decompiled original C# exists anywhere; BepInEx `plugins/` holds only S1Freeze
   (timer freeze, from this repo) — nothing patches animation.
 - Therefore curve-level facts about the ORIGINAL's clips/controller (per-state Write Defaults,
-  any AvatarMasks the dump dropped, the original `Animator.m_Avatar` link) need tooling:
-  UnityPy / AssetStudio-MF / AssetGrip over `aa/StandaloneWindows64/*.bundle` + `catalog.json`,
-  exporting the same named assets, then diff vs the reconstruction's text dumps; ilspycmd over
-  `Managed/Assembly-CSharp.dll` vs `Assets/Assembly-CSharp` to catch dropped members.
+  any AvatarMasks the dump dropped, the original `Animator.m_Avatar` link) needed tooling:
+  (done after this section was first written, directly over the bundles + DLL with UnityPy 1.25.4 +
+  ilspycmd 8.2 — see section E for the extracted ground truth).
 
 ### C. What this inventory means for the symptom (mechanism classes, all evidenced)
 
@@ -205,3 +204,180 @@ wind int) selects transition conditions in the controller (parameter exists and 
 seat); if a side-seat condition routes through a different state or exit-time than the front
 seat, the "reset" pose enters periodically only there. Whether the original controller's
 conditions/exit-times survived the dump is again a (B)-tooling question.
+
+### E. Original game ground truth (extracted from the shipped build)
+
+Extracted 2026-11-08 directly from `\\Myappsandbox\c\Games\MFG\game\MFGClient_Data` with
+UnityPy 1.25.4 (Python 3.14), a hand-written parser for `aa/catalog.json`'s
+`m_KeyDataString`/`m_BucketDataString`/`m_EntryDataString`/`m_ExtraDataString` blobs
+(91,779 keys, 68,550 location entries, 28,292 bundle locators, all offsets round-tripped) and
+for the Unity `AnimatorController` `m_Controller` ControllerConstant blob (layout per
+AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controller.rs`), plus
+`ilspycmd 8.2` over `Managed\Assembly-CSharp.dll` (1,317 files) and `Managed\Springbone.Runtime.dll`
+(34 files). Scratch artifacts (JSON dumps, parsers) under `C:\mfgtmp\`. Share untouched.
+
+#### E.1 AvatarMask census: zero, everywhere it could exist
+
+- `catalog.json` `m_resourceTypes` table lists 26 classes loadable as addressable resources
+  (Texture2D, Material, `RuntimeAnimatorController`, AnimationClip, `AnimatorOverrideController`,
+  Avatar, GameObject, Timeline, …). **`UnityEngine.AvatarMask` is not among them.**
+- Object census (`obj.type`, no filtering) over `globalgamemanagers`, `globalgamemanagers.assets`,
+  `resources.assets`: 0 AvatarMask.
+- Type-table census over all 124 scene files (`level0`–`level61` + `sharedassets0`–`sharedassets61.assets`):
+  0 AvatarMask (level18/sharedassets18 printed in full in `C:\mfgtmp\scene18.json`, `census2.json`).
+- ~350 bundles opened one-by-one, 0 AvatarMask: all 68 dependency bundles of
+  `Standing3D/Motion/Chara01/Game.controller` (incl. the controller's own bundle
+  `00cfdf051286211456a5f38389143582.bundle`), all 122 dependencies of
+  `Standing3D/Costume01_001_Model.prefab` (main `5005fb018f625f3651ca4ac49779b9fc.bundle`,
+  model/avatar `d7359c0b36888bc21890a4b155995999.bundle`), the 17 deps of `Hiyori_01.fbx`,
+  `76e3ef84d70fa9f0d7a6095afed93290.bundle` (Standing3D.prefab), clip bundles
+  `c19fb16c…` / `da622f43…` / `6f3989de…`, the override controllers `15395bd0…` (SwimWear) and
+  `db837788…` (Humanoid), `e36943ca…` (CharaMotion01_Story + 104 ObservableStateMachineTriggers),
+  and the full dependency sets of CharaMotion02/09/21 `Game.controller`.
+- In the controller blob itself, each `AnimatorControllerLayer` constant carries the *resolved*
+  mask: `bodyMask` is the all-ones full-body triple (`[0xFFFFFFFF,0xFFFFFFFF,0x0007FFFF]`) on
+  both layers and the per-transform skeletonMask array has **0 entries**, for all four sampled
+  characters (Chara01/02/09/21). The original Face Layer is an override layer with NO mask.
+- Not every one of the 28,292 bundles was opened; the sets above are exactly where a mask used
+  at a seat could be serialized (catalog type table excludes addressable masks; scene tables
+  exclude scene-embedded masks).
+
+#### E.2 Write Defaults: serialized per state inside the blob, value TRUE on every state
+
+- `AnimatorController` serializes as `m_Name` + `m_ControllerSize` + an opaque ControllerConstant
+  blob + `m_TOS` (name→offset table) + `m_AnimationClips` + `m_StateMachineBehaviourVectorDescription`
+  + `m_StateMachineBehaviours` + `m_MultiThreadedStateMachine`. State flags are NOT a named
+  TypeTree field; they are 4 packed bools (`ikOnFeet`, `writeDefaultValues`, `loop`, `mirror`) in
+  each `StateConstant` inside the blob (AssetStudio name: `m_WriteDefaultValues`, bit after
+  `m_IKOnFeet`). The dump tooling's "Write Defaults not serialized" is a tool limitation, not a
+  Unity fact — the values ARE there.
+- Parse verified by cross-check: 103/103 state `fullPathID` and 2,856/2,856 transition IDs
+  resolve through the same file's `m_TOS` (`C:\mfgtmp\CharaMotion01_Game.parsed.json`).
+- **CharaMotion01_Game (bundle `00cfdf05…`): all 103 states, base + Face layer, `writeDefaultValues = true`.**
+  `CharaMotion02_Game` 103/103 true, `CharaMotion09_Game` 104/104 true, `CharaMotion21_Game`
+  119/119 true. Combos (wdx, ikOnFeet, loop) for Chara01: 62 (T,T,T), 28 (T,T,F), 3 (T,F,F),
+  10 (T,F,T) — states with `ikOnFeet` OFF exist (13), WDX OFF: none.
+- Idle states specifically: `Base Layer.Wait0` / `Base Layer.Wait1` / `Face Layer.Wait0` /
+  `Face Layer.Wait1` all loop=true, ikOnFeet=true, wdx=true. Layers: layer 0 base state machine,
+  `ikPass = true`, serialized defaultWeight read 0.0; layer 1 "Face Layer", blend mode Override(0),
+  defaultWeight 1.0, `ikPass = false`. Both layers weight 1 by default ⇒ the Face override layer
+  fully replaces base animation on its (unmasked) bones while active.
+- 36 parameters: 33 triggers (Wait0/Wait1/Away1-7/Emotion1-7/EyeContact/Reach0/Reach1/ResultPlus0/1/
+  ResultMinus0/1/ResultCritical0/1/Think/Yose/Shy/Anger/Surprise…), `IsReach` bool, `LookDirection`
+  int (value index 0), `AwaySpeed` float. `m_MultiThreadedStateMachine = true`.
+- `Animator` component on the original CharaModel: `m_WriteDefaultValuesOnDisable = false`
+  (both Animator components in `5005fb01…`/`d7359c0b…`), cullingMode 0 (AlwaysAnimate) on the
+  controller-bearing root Animator, 1 (CullUpdateTransforms) on the avatar-bearing inner one.
+
+#### E.3 The original seated idle clip vs the reconstruction
+
+- Table controller address `Standing3D/Motion/Chara01/Game.controller` → bundle file
+  `00cfdf051286211456a5f38389143582.bundle`, `m_Name = CharaMotion01_Game`, 103 clip PPtrs,
+  88 MonoBehaviours + 1 MonoScript (all `UniRx.Triggers.ObservableStateMachineTrigger`;
+  `m_StateMachineBehaviourVectorDescription` maps 88 states to behaviours). Costume variants:
+  `Game_SwimWear/_Toho/_RaceQueen.overrideController` + `Humanoid_Game.overrideController`
+  (AnimatorOverrideControllers, bundles `15395bd0…`/`db837788…`); `ModelManager.MotionPathResolver`
+  selects them per costume (`ModelManager.cs:206-351` in the ilspy dump).
+- Default seated idle asset: `Assets/MFG/Characters/Character1/3D/Animations/Motion/Default/HiyoriWait.anim`
+  (internal id), catalog address `Assets/MFG/Characters/Character1/3D/Animations/HiyoriWait.anim`
+  → bundle `c19fb16c562398c57a94ea378bd322f5.bundle` (24,658 B). In a player build the clip's
+  readable curve lists are empty; the data is `m_MuscleClip` (`ClipMuscleConstant`, 37,192 B) +
+  `m_ClipBindingConstant` with **503 `GenericBinding`s** keyed by 32-bit path hashes: attr 1 ×192
+  (position, incl. root), attr 2 ×192 (rotation, incl. root), attr 3 ×119 (scale). The path hash
+  is `crc32(path)`; all 192 hashes decode against the reconstruction's bone names (`C:\mfgtmp\hiyoriwait_decoded.json`).
+- Decoded leg-chain bindings (attrs): `Hips` (1,2,3); L/R `Thigh` (1,2,3); `ThighTwist` (1,2);
+  `HipWeight`+`_end`; `Shin` (1,2,3); `ShinTwist` (1,2); `Knee`+`_end` (Knee 1,2,3); `Foot`
+  (1,2,3); `Toe` (1,2,3); `Toe_end` (1,2,3). Full chain position+rotation(+scale on the main
+  bones) — the claim "the whole leg chain is animated" holds for the ORIGINAL asset. Plus Hips
+  translation (root: `m_HasGenericRootTransform = true`) and 165 non-leg bones (hair/skirt/breast/
+  necktie/arms/twists). SampleRate 60; `m_LoopTime = true`; `m_StartTime = 0`, `m_StopTime = 2.0`
+  (also on the Swim and Toho variants).
+- Count cross-check: reconstruction `…\Motion\Default\HiyoriWait.anim` has 191 position +
+  191 euler-rotation + 119 scale curves; the original binds 192 + 192 + 119 including root. Same set.
+- Costume variants of the seated idle exist and differ: `3D/Animations/Swim/HiyoriWait.anim`
+  (`da622f43…`, 312 bindings: legs rotation+scale but NO leg position curves, Hips 1,2,3) and
+  `3D/Animations/Motion/Toho/HiyoriWait_newjoint_toho.anim` (`6f3989de…`, 141 bindings, zero leg
+  bindings at all). The reconstruction ships only the Default variant.
+
+#### E.4 The original's leg/IK mechanism: none — clip + UniRx triggers + UTJ springbone (not on legs)
+
+- Full-assembly keyword sweep over the 1,317 ilspy files of `Managed\Assembly-CSharp.dll`:
+  **zero** occurrences of TwoBoneIK, CCDIK, IKSolver, OnAnimatorIK (except dead `IKTest.cs`,
+  same unreferenced file as the reconstruction), SetIKPosition, SetLayerWeight,
+  SetLayerAffectsTiming, SetLookAtPosition, SetBoneIKOverride, LookAtConstraint, AimConstraint,
+  PositionConstraint, RotationConstraint, ParentConstraint, HumanBodyBones, AvatarMask, Muscle.
+  `Humanoid` appears once (`ModelManager.cs`, the `Humanoid_*` override-controller address),
+  `LookAt` once (`MatchingCharaCamera.cs`, a camera transform LookAt).
+- Everything the game writes to the seated Animator: `SetInteger("LookDirection")` +
+  `SetTrigger` (`ModelManager.PlayMotionMahjong`, `ModelManager.cs:137-145`),
+  `SetFloat` ×2 (`ModelManager.cs` AwaySpeed), `CrossFadeInFixedTime` (`PlayCrossFadeInFixedTimeInMahjong`
+  `:157-164` + `CharacterModelController.cs`), `animator.Update(0)` flush (×4 in ModelManager) —
+  identical to section A. No per-seat weight/mask/IK calls; seat differentiation is only the
+  `LookDirection` int parameter consumed by controller transition conditions.
+- Seated model prefab `CharaModel.prefab` (address `Standing3D/Costume01_001_Model.prefab`,
+  bundle `5005fb018f625f3651ca4ac49779b9fc.bundle`, root GO `CharaModel`, 310 GameObjects):
+  1 Animator (m_Avatar = 0, m_Controller = PPtr external FileID 10 — assigned for real at
+  runtime by `ModelManager.Init` → `animator.runtimeAnimatorController = controller`,
+  `ModelManager.cs:121`), `ModelManager`, `UTJ.SpringManager`, and spring components.
+- Spring bones are a **separate assembly**: `Managed\Springbone.Runtime.dll` (UTJ package —
+  `UTJ.SpringBone/SpringManager/SpringBonePivot/SpringCapsuleCollider/SpringSphereCollider/
+  SpringPanelCollider/WindVolume/ForceVolume/HighLeg`); this is why they never appear in the
+  Assembly-CSharp decompile. Instances on the seated prefab (read from `5005fb01…`):
+  `SpringManager` on root `Chara` with `automaticUpdates=1, isPaused=0, simulationFrameRate=60,
+  dynamicRatio=0.5, gravity=(0,-10,0), enableAngleLimits/enableCollision/enableLengthLimits=1,
+  collideWithGround=0`, array of 78 SpringBones; **SpringBone ×78 all on hair/skirt/breast/
+  necktie bones** (Yokogami/Maegami/Momi/HairFly/Pony/Ushirogami/Ahoge/Skirt_*/Breast_*/BrestTie/
+  NeckTie_*) — zero on Thigh/Shin/Foot/Spine; 49 SpringBonePivots; 3 SpringCapsuleColliders
+  (`Spine2CapsuleCollider`, `Thigh_LCapsuleCollider`, `Thigh_RCapsuleCollider`, r=0.09,
+  h≈0.197) — colliders that stop skirt/hair from penetrating the seated thighs, they do not
+  drive the legs. `UTJ.SpringManager.LateUpdate → UpdateDynamics` runs on its own every frame
+  because `automaticUpdates=1`; Assembly-CSharp only ever calls
+  `RefleshInitialPositionAndRotation` (`StandingCharaManager.cs:253-257`, standing characters).
+  Nothing anywhere calls `UpdateBoneIsAnimatedStates`/`dynamicRatio`/`isPaused` for seat characters.
+- So the original's leg motion at the seat is: (1) keyframed leg curves in the 2 s idle clip,
+  (2) state machine transitions/crossfades with WriteDefaults ON on all states, (3) UniRx
+  `ObservableStateMachineTrigger` state hooks — and nothing else. Same shape as the
+  reconstruction, now proven from the original side.
+
+#### E.5 The original avatar: Generic, empty m_Human — reconstruction claim confirmed
+
+- `Hiyori_01Avatar` in `d7359c0b36888bc21890a4b155995999.bundle` (sub-asset of the
+  `…/Character1/3D/C001/Fbxs/Hiyori_01.fbx` bundle group): `m_AvatarSize = 28276`,
+  `m_HumanDescription.m_Human = []` (empty), skeleton TOS 249 nodes with `Reference/Hips/…`
+  paths, `m_GlobalScale = 1.0`, `m_HasExtraRoot = true`; muscle fields (ArmTwist/LegTwist 0.5,
+  Leg/ArmStretch 0.05) are the unmodified import defaults on an unused humanoid block. Generic.
+  The model Animator in the same bundle references this avatar by pathID; the root Animator's
+  m_Avatar stays 0 (avatar reached via child Animator in the prefab hierarchy).
+
+#### E.6 MahjongPlay scene wiring: seats are transform anchors, characters instantiated at runtime
+
+- Build scene list (from `globalgamemanagers` → `BuildSettings`): index 18 =
+  `Assets/MFG/Scenes/MahjongPlay/MahjongPlay.unity` → `level18` (23,802,940 B) +
+  `sharedassets18.assets` (50 AnimatorControllers, 138 AnimationClips, **0 Avatar, 0 AvatarMask**).
+- `level18` census (`C:\mfgtmp\scene18.json`): seat anchors `PlayerZi`, `PlayerKami`,
+  `PlayerToi`, `PlayerShimo` (+ `Players`), `Character/3DChara`, `MyChara`, `OtherCharacters*`,
+  `PlayerAccessoryParent*`, `CharaSpotLight{Zi,Kami,Toi,Shimo,All}`, `CharaReactionManager`.
+  1,228 Animator components in the scene — **every one has `m_Avatar = 0`** (UI/tile/prop
+  controllers, several `m_Controller = 0`); no seat has a baked Animator/Avatar/IK component.
+  Characters appear as `CharaModel.prefab` instances with the controller assigned by
+  `ModelManager.Init`; seat identity only feeds `LookDirection`.
+- `StreamingAssets\Characters\Chara1..Chara21\` are `.webm` movie folders only
+  (Appearance/GachaSelect/News videos) — no bundles, no 3D content there.
+
+#### E.7 Could not verify / open questions from this pass
+
+- Blend-tree `clipID` values did not round-trip through `m_TOS` in my blob parser, so
+  "Wait0's motion is HiyoriWait" was not re-derived from the original controller bytes
+  (state name and clip address match the reconstruction's mapping, which was catalog-verified).
+- The CharaModel Animator's serialized `m_Controller` PPtr (FileID 10, external CAB) was not
+  resolved to a bundle name; the closure contains `CharaMotion01_Story` (`e36943ca…`) but the
+  Game controller lives in `00cfdf05…` outside that closure. Runtime assignment
+  (`ModelManager.cs:121`) is the effective wiring either way.
+- 3 MonoBehaviours in `5005fb01…` have their MonoScript reference in another file; class names
+  unresolved.
+- Original editor-side clip import metadata (loop-time flags in .meta) does not exist in a
+  player build; the serialized `ClipMuscleConstant` flags (loop=true, 2.0 s) were used instead.
+- ~350 of 28,292 bundles were opened (sets enumerated in E.1); a mask packed in some unrelated
+  bundle outside all sampled dependency closures would not have been seen, but nothing in the
+  catalog type table, scene tables, or any controller's resolved layer mask indicates one exists.
+

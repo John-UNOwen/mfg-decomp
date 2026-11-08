@@ -177,16 +177,24 @@ else
 fi
 
 # ---------------------------- 5. index.html is not cached ----------------------------
-# The 200 answer is what must carry no-store (Program.cs:1070 + CachePolicyOf :1094-1096).
-# Status first: every gate answer defaults to Cache-Control: no-store (Program.cs:982),
-# and gate mode answers an arbitrary .html name with 404 + no-store (Program.cs:902-907),
-# so a header-only check passes on a webroot with no index.html at all.
+# The 200 answer is what must carry no-store. Status first: every gate answer defaults to
+# Cache-Control: no-store, so a header-only check passes on a webroot with no index.html at
+# all, and it passes just as well on a bounce.
+# Gate mode answers this request with neither a 200 nor a 404. '/' and '/index.html' both
+# route to the session page handler (Program.cs:857-859), so an anonymous visitor gets a 302
+# to the identity page. The arbitrary-.html 404 (Program.cs:902-907) is a branch *after*
+# that one and index.html never reaches it: the ledger row L48 premise ("the gate 404s
+# /index.html with no-store") is wrong, and this is the check that shows it. The policy on a
+# gated lane is proved by gate_index_no_store_session below, on the 200 a signed-in visitor
+# actually gets.
 GET "$BASE/index.html"
 cc=$(hdr Cache-Control)
 if [ "$GET_CODE" = 200 ] && printf '%s' "$cc" | grep -q 'no-store'; then
   pass index_no_store "GET /index.html -> HTTP 200 Cache-Control: $cc ($(wc -c < "$BODY") body bytes)"
+elif [ "$GET_CODE" = 302 ] && [ -n "$(loc_hdr)" ]; then
+  skip index_no_store "GET /index.html -> HTTP 302 Location: $(loc_hdr) (gate mode routes '/' and '/index.html' to the session page - Program.cs:857-859 - so no answer carrying the page was seen): nothing to prove here. gate_index_no_store_session below covers the 200$( [ -n "${SMOKE_USER:-}" ] || printf '; set SMOKE_USER/SMOKE_PASS to reach it' )"
 elif [ "$GET_CODE" = 404 ] && ! body_has '<html'; then
-  skip index_no_store "GET /index.html -> HTTP 404 body: $(body_snip) (gate mode refuses arbitrary .html names - Program.cs:902-907): nothing was served, so there is no cache policy to prove. Run this suite against the assembled relay (assemble_webroot.sh --serve) for the 200 answer, or read play_page_autoserve / play_page_splice for the gate's own play page)"
+  skip index_no_store "GET /index.html -> HTTP 404 body: $(body_snip): nothing was served, so there is no cache policy to prove (a webroot with no index.html answers this way). Run this suite against the assembled relay (assemble_webroot.sh --serve) for the 200 answer"
 else
   fail index_no_store "GET /index.html -> HTTP ${GET_CODE:-?} Cache-Control: ${cc:-<none>} body: $(body_snip) (want 200 + no-store)"
 fi
@@ -303,6 +311,17 @@ if [ -n "${SMOKE_USER:-}" ] && [ -n "${SMOKE_PASS:-}" ]; then
     pass play_page_splice "GET / (session) -> HTTP 200 with $(grep -o '"-DATAID=[^"]*"' "$BODY" | head -n 1) spliced in place of -AUTOSERVE and $front rewritten to '$SMOKE_FRONT_URL' (Program.cs:1375-1384)"
   else
     fail play_page_splice "GET / (session) -> HTTP ${GET_CODE:-?} front element: ${front:-<none>} (want value '$SMOKE_FRONT_URL'); -DATAID spliced: $(body_has '"-DATAID=' && printf yes || printf no); -AUTOSERVE leftover: $(body_has '"-AUTOSERVE"' && printf yes || printf no)"
+  fi
+
+  # The play page /index.html is the same answer, by another name: a signed-in visitor gets
+  # the 200 here that the anonymous section only bounced. no-store on it is what keeps a
+  # visitor's spliced card from sitting in a shared browser's cache.
+  GET "$BASE/index.html" -b "$JAR" -c "$JAR"
+  cc=$(hdr Cache-Control)
+  if [ "$GET_CODE" = 200 ] && printf '%s' "$cc" | grep -q 'no-store'; then
+    pass gate_index_no_store_session "GET /index.html (session) -> HTTP 200 Cache-Control: $cc ($(wc -c < "$BODY") body bytes): the gate's own play-page answer is not cacheable"
+  else
+    fail gate_index_no_store_session "GET /index.html (session) -> HTTP ${GET_CODE:-?} Cache-Control: ${cc:-<none>} (want 200 + no-store: this is the answer that carries the spliced card)"
   fi
 
   POST "$BASE/logout" '' -b "$JAR" -c "$JAR" -H 'User-Agent: Mozilla/5.0 lane-smoke'

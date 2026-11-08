@@ -59,6 +59,15 @@
 # honest: every unit is rewritten from its template with THIS run's values, the run says so, and a
 # unit this run does not stage (last --tunnel run's mfg-tunnel.service after a plain run) is removed
 # from the directory instead of being left there installable and unnamed.
+#
+# Before anything is staged the run proves on this box every path those units start from - the three
+# ExecStart binaries, <core-dir>/dist/AsphyxiaCore.js, <webfront-dir>/bin/Release/net8.0/WebFront.dll,
+# <webroot>/index.html and <sec-dir>/presenter.secret (plus <cloudflared-bin> only when --tunnel, and
+# <sec-dir>/access.code stays optional and is only noted) - because nothing in this kit ships the core,
+# the gate assembly or the webroot, and the sudo list it prints ends in `systemctl enable --now`. A
+# host missing any of them is refused with every missing path named and NOTHING staged: an enabled
+# unit whose ExecStart is not there does not fail quietly, and a missing presenter.secret or a mistyped
+# WEBFRONT_ROOT is quieter still (webfront/Program.cs:57, :341).
 
 set -euo pipefail
 export LC_ALL=C
@@ -187,7 +196,72 @@ _check_value node-bin "$NODE_BIN"
 _check_value dotnet-bin "$DOTNET_BIN"
 _check_value cloudflared-bin "$CLOUDFLARED_BIN"
 
-if [ ! -d "$TARGET_DIR" ]; then say "note: TARGET_DIR does not exist yet ($TARGET_DIR) - staging anyway; it is where the lane will live" ; fi
+if [ ! -d "$TARGET_DIR" ]; then say "note: TARGET_DIR does not exist yet ($TARGET_DIR) - the host checks below still have to find the core and the gate where this run points at them (--core-dir/--webfront-dir), or nothing is staged" ; fi
+
+# ---------------------------- is the lane actually on this box? ----------------------------
+# The sudo list printed below ends in `systemctl enable --now`, so every path the staged units start
+# from is a claim about this machine. Nothing in this kit ships those paths: the core lives under
+# tmp/* and the gate assembly under webfront/bin/, both gitignored; the webroot is what
+# assemble_webroot.sh writes; the secret files are the operator's. What this replaces asked for none
+# of them - on a half-populated host it substituted an ExecStart pointing at a file systemd cannot
+# exec, said 'staged mfg-lane.service', said 'done', and printed the enable command anyway
+# (2026-11-08 fixture: RC=0 and 'sudo systemctl enable --now mfg-lane.service mfg-gate.service' with
+# no <core>/dist/AsphyxiaCore.js on the box). Two of the misses are quieter than a failed start,
+# which is worse: webfront/Program.cs:57 reads an absent WEBFRONT_PRESENTER_SECRET_FILE as an empty
+# secret (the gate prints 'listening' and no card ever presents), and Program.cs:341
+# Directory.CreateDirectory(Root) creates a mistyped WEBFRONT_ROOT empty instead of failing, so an
+# enabled lane answers 404 for every asset (Program.cs:1359-1362 is the same missing index at
+# request time). The pid-file path already refuses this shape - lane_up.sh:322-324 dies on the same
+# presenter.secret and :364-366 on the same two ExecStart targets - so the systemd path was the only
+# one that enabled what it had never seen.
+# So: look at every path this run stages a unit for, collect all the misses and refuse once with each
+# one named (a reviewer fixing a half-built box sees the whole list, not one per re-run). Nothing is
+# written and no sudo list is printed on that path. A binary only the staged-away tunnel unit would
+# use is not asked for: --tunnel away, cloudflared is irrelevant to what is being installed.
+_host_misses=''
+_host_file() {   # _host_file <what stages it> <path> <how the path gets to exist / the flag that points elsewhere>
+  if [ ! -f "$2" ]; then
+    _host_misses="$_host_misses
+    - $1: no such file: $2 ($3)"
+  fi
+}
+_host_bin() {    # systemd execs this path itself, so it must be an executable regular file
+  if [ ! -f "$2" ]; then
+    _host_misses="$_host_misses
+    - $1: no such file: $2 ($3)"
+  elif [ ! -x "$2" ]; then
+    _host_misses="$_host_misses
+    - $1: $2 is not executable, and systemd execs this path literally ($3)"
+  fi
+}
+_host_bin 'mfg-lane.service ExecStart=@NODE_BIN@' "$NODE_BIN" \
+  'Ubuntu 24.04 apt node is 18.x and the lane needs >=22.5, so the node that box has is usually not /usr/bin/node - pass --node-bin (lane_up.sh:372-377 asks the same question)'
+_host_bin 'mfg-gate.service ExecStart=@DOTNET_BIN@' "$DOTNET_BIN" \
+  'the gate runs as "dotnet WebFront.dll" and needs a .NET 8 runtime on PATH-or-here - pass --dotnet-bin'
+if [ $WITH_TUNNEL = 1 ]; then
+  _host_bin 'mfg-tunnel.service ExecStart=@CLOUDFLARED_BIN@' "$CLOUDFLARED_BIN" \
+    'cloudflared must be installed and the tunnel already registered in its account - pass --cloudflared-bin, or stage a plain http lane (no --tunnel)'
+fi
+_host_file 'mfg-lane.service ExecStart target (WorkingDirectory=@CORE_DIR@/dist)' "$CORE_DIR/dist/AsphyxiaCore.js" \
+  'the kit ships no core (tmp/* is gitignored): build it on this box, copy a built one in, or pass --core-dir; without it the unit dies at the exec step right after enable --now'
+_host_file 'mfg-gate.service ExecStart target (WorkingDirectory=@WEBFRONT_DIR@/bin/Release/net8.0)' "$WEBFRONT_DIR/bin/Release/net8.0/WebFront.dll" \
+  'webfront/bin/ is gitignored: build the net8.0 assembly on this box (assemble_webroot.sh runs the same directory) or pass --webfront-dir'
+_host_file 'WEBFRONT_ROOT the gate serves (lane.env)' "$WEBROOT/index.html" \
+  'assemble_webroot.sh writes it (README step 2) - check --webroot: a mistyped root is created empty by Program.cs:341 and served as 404s, never reported'
+_host_file 'lane.env WEBFRONT_PRESENTER_SECRET_FILE, and the file the core.env recipe below cats' "$SEC_DIR/presenter.secret" \
+  "random bytes, mode 600, owned by User=$LANE_USER (hosting_deploy.md); lane_up.sh:322-324 requires the same file for the pid-file path"
+if [ -n "$_host_misses" ]; then
+  die "this host cannot start the units this run would stage - refusing to stage, nothing was written, no sudo commands printed:${_host_misses}"
+fi
+say "host proven for every path these units start from: $NODE_BIN + $CORE_DIR/dist/AsphyxiaCore.js (lane), $DOTNET_BIN + $WEBFRONT_DIR/bin/Release/net8.0/WebFront.dll (gate), $WEBROOT/index.html (WEBFRONT_ROOT), $SEC_DIR/presenter.secret (WEBFRONT_PRESENTER_SECRET_FILE)$([ $WITH_TUNNEL = 1 ] && printf ', %s (tunnel)' "$CLOUDFLARED_BIN")"
+# What that does NOT prove: that User=$LANE_USER can read them. This run can only ask from the
+# caller's side, and on the README step 6 command the secrets live in the service user's home at mode
+# 600 where the caller cannot read them by design - so that question is answered by ownership, which
+# is exactly why the core.env recipe below creates the file as the unit user, and never by a check here.
+say "note: this proves those paths exist here, and are executable where systemd execs them; whether User=$LANE_USER can read them is an ownership question, answered by the core.env recipe below creating that file as the unit user"
+if [ ! -f "$SEC_DIR/access.code" ]; then
+  say "note: no $SEC_DIR/access.code - lane.env still names it as WEBFRONT_ACCESS_CODE_FILE and webfront/Program.cs:67-74 reads an absent file as no access-code lobby; optional (README 'What the box must have'), so not a reason to refuse this install"
+fi
 
 # ---------------------------- tunnel preflight (the L46 order) ----------------------------
 # The lane_up.sh lesson applied to the systemd path: the hosted posture (a Secure cookie and

@@ -18,7 +18,7 @@ Already verified earlier: `assemble_webroot.sh` (the bash port of
 | `lane_up.sh` | Starts core + gate + cloudflared without systemd: port-probes first (refuses occupied ports, never reclaims by process name), exports exactly the env the two programs read, reads `~/.mfg-web` secrets at mode 600 without printing them, copies `config.ini` before rewriting `mfg_http_bind=127.0.0.1` (only while the core is not listening), records pid files, polls bounded (0.5 s steps) and fails loudly with the error-log tail. `--dry-run` prints every command + the full environment with secrets redacted. Replaces `hosting_up.ps1`. |
 | `lane_down.sh` | Stops exactly the pids `lane_up.sh` recorded in `PID_DIR`, verifying each pid's `/proc/<pid>/cmdline` before signalling. Never kills by name/pattern/port, never pid 1 or itself, reports every refusal and why. Replaces `hosting_down.ps1`. |
 | `mfg-lane.service`, `mfg-gate.service`, `mfg-tunnel.service` | systemd unit **templates** (`@PLACEHOLDER@` tokens) with `WorkingDirectory`, `EnvironmentFile`, `Restart`, `TimeoutStopSec`, `NoNewPrivileges`, `ProtectSystem=strict` and `ReadWritePaths` lines, each annotated where its path requirement comes from. |
-| `install_systemd.sh` | Substitutes real paths/user into the unit templates, stages the results plus a non-secret `lane.env` into a staging directory, and prints the exact `sudo` commands a human runs. It never invokes sudo itself. |
+| `install_systemd.sh` | Substitutes real paths/user into the unit templates, stages the results plus a non-secret `lane.env` into a staging directory, and prints the exact `sudo` commands a human runs. It never invokes sudo itself. Before staging anything it proves on this box every path those units start from (the `ExecStart` binaries, `<core-dir>/dist/AsphyxiaCore.js`, `<webfront-dir>/bin/Release/net8.0/WebFront.dll`, `<webroot>/index.html`, `<sec-dir>/presenter.secret`) and refuses with every missing one named - the printed list ends in `systemctl enable --now`, and a half-populated host cannot start the units it would enable. |
 | `lane_smoke.sh` | Read-only curl acceptance suite against a base URL: COOP/COEP headers, brotli sidecar rule, immutable-vs-TTL caching, `index.html` no-store, FoxNET login page, `/static` assets, anonymous session rejection, `/aog` reaching the core handler, play page `-AUTOSERVE`, and an optional login/logout section (`SMOKE_USER`/`SMOKE_PASS`). Prints PASS/FAIL/SKIP with evidence and a summary count; non-zero exit on any FAIL. |
 | `transfer_build.sh` | Ships the WebGL build over ssh in chunked tars (no rsync), one chunk per top-level directory, resumable only in the "skip complete chunks by sha256" sense, with a manifest and a hard refusal to delete anything remote. `--dry-run` shows the plan + manifest. |
 | `verify_transfer.sh` | Compares the manifest against the remote tree: missing / extra / size-or-hash mismatched files plus file and byte totals, so a 5.47 GB transfer is confirmed, not assumed. |
@@ -38,7 +38,14 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
 6. Optional permanent form: `install_systemd.sh /path/to/repo --user <svcuser>`,
    review the staging directory, run the printed `sudo` commands yourself, then
    `systemctl status mfg-lane.service`. From then on use `systemctl start/stop` -
-   do not run `lane_up.sh`/`lane_down.sh` for the same services. The units run as
+   do not run `lane_up.sh`/`lane_down.sh` for the same services. Run it **after** steps 1-2
+   and after the secrets exist: before staging a single file the installer proves on this box
+   each path the units start from - the `ExecStart` binaries, `<core-dir>/dist/AsphyxiaCore.js`,
+   `<webfront-dir>/bin/Release/net8.0/WebFront.dll`, `<webroot>/index.html` and
+   `<sec-dir>/presenter.secret` - and a host missing any of them is refused with every missing
+   path named and nothing staged, because the list it prints ends in `systemctl enable --now`.
+   A green run says which paths it proved, so the webroot in that line is the one to compare
+   with what step 2 actually assembled. The units run as
    `<svcuser>`, and every staged path (webroot, `--sec-dir` and its `core.env`, the tunnel
    unit's `ReadWritePaths`) resolves under that user's home: with no `--home` the installer
    reads the home from `getent passwd <svcuser>`, and a user this box cannot resolve is
@@ -52,17 +59,25 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
 ## What the box must have
 
 - **node >= 22.5** - `tmp/RyuNET-core/package.json` `"engines": { "node": ">=22.5" }`.
+  Under systemd the unit execs an absolute path (default `/usr/bin/node`, `--node-bin` for
+  nvm/tarball installs), and `install_systemd.sh` refuses to stage if that path is not an
+  executable file: Ubuntu 24.04's apt node is 18.x, so the node a lane box actually runs is
+  usually not `/usr/bin/node`.
 - **.NET 8 runtime** (`dotnet` on PATH) - `webfront/webfront.csproj` targets `net8.0`;
   the gate runs as `dotnet WebFront.dll` (the `WebFront.exe` apphost from
-  `hosting_up.ps1:77` is Windows-only).
+  `hosting_up.ps1:77` is Windows-only). The unit execs an absolute path too (default
+  `/usr/bin/dotnet`, `--dotnet-bin`).
 - **cloudflared** with the named tunnel already installed in the account
   (`cloudflared tunnel run <name>` reads `~/.cloudflared/config.yml`). Skip via
-  `CLOUDFLARED=0`.
+  `CLOUDFLARED=0`. Under systemd the unit execs `/usr/bin/cloudflared` unless `--cloudflared-bin`
+  says otherwise, and that path is only checked on a run that stages the tunnel unit (`--tunnel`).
 - GNU-ish coreutils for the transfer scripts: `tar`, GNU `find` (`-printf`,
   `-print0`), `xargs -0`, `sha256sum`, `awk`. `zstd` only if `COMPRESS=zstd`.
 - Secrets under `~/.mfg-web` at mode **600**: `presenter.secret` (required;
-  `hosting_up.ps1:19-21`), `access.code` (optional, access-code lobby,
-  `hosting_up.ps1:73-74`). For the systemd path also `~/.mfg-web/core.env`
+  `hosting_up.ps1:19-21` - both `lane_up.sh:322-324` and `install_systemd.sh` refuse to start or
+  stage without it, and the gate would otherwise read an absent `WEBFRONT_PRESENTER_SECRET_FILE`
+  as no secret at all, `Program.cs:57`), `access.code` (optional, access-code lobby,
+  `hosting_up.ps1:73-74`; the systemd installer notes it and carries on). For the systemd path also `~/.mfg-web/core.env`
   (mode 600, carries `VFG_PRESENTER_SECRET=` for the core unit) - under the
   *service user's* home and owned by them: the units `EnvironmentFile=` it as that user,
   and a caller-owned 600 file is skipped with no error.

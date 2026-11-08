@@ -121,7 +121,16 @@ function Stop-PreviewWindow {
         "edge : pid $edgePid is $($p.Name) [$($p.CommandLine)] - not msedge.exe; NOT signalled, record KEPT"
         return
     }
-    if ($recordedCmd -and ("$($p.CommandLine)" -cne $recordedCmd)) {
+    if (-not $recordedCmd) {
+        # A record with no second line is the shape this script wrote before the 2026-11-07 fix, and it
+        # proves nothing about who holds the pid now: msedge.exe is the image of every browser window on
+        # this box, so the name alone is not an identity - the rule Stop-RecordedPid:229-231 and
+        # lane_probe_up.ps1:86-93 already apply to their own records.
+        "edge : pid $edgePid is msedge.exe but the record carries no command line, so nothing in it proves this pid is still the window that was recorded; NOT signalled, record KEPT"
+        "       live: $($p.CommandLine)"
+        return
+    }
+    if ("$($p.CommandLine)" -cne $recordedCmd) {
         "edge : pid $edgePid is msedge.exe but the live command line is not the one recorded when this window started - a recycled pid is not this window's process; NOT signalled, record KEPT"
         "       recorded: $recordedCmd"
         "       live:     $($p.CommandLine)"
@@ -130,6 +139,12 @@ function Stop-PreviewWindow {
     $stopErr = $null
     try { Stop-Process -Id $edgePid -Force -ErrorAction Stop } catch { $stopErr = $_.Exception.Message }
     if ($stopErr) { "edge : REFUSED - could not signal pid $edgePid ($stopErr); record KEPT"; return }
+    $edgeGone = $false
+    foreach ($try in 1..8) {
+        if (-not (Get-Process -Id $edgePid -EA SilentlyContinue)) { $edgeGone = $true; break }
+        Start-Sleep -Milliseconds 250
+    }
+    if (-not $edgeGone) { "edge : pid $edgePid survived Stop-Process -Force; record KEPT - the window is still open and this is the only handle to it"; return }
     "edge : stopped msedge.exe pid=$edgePid (the preview window this script recorded); record removed"
     Remove-Item -LiteralPath $file -Force -EA SilentlyContinue
 }
@@ -247,7 +262,23 @@ function Stop-RecordedPid($label, $expectName, $port) {
         "       port claimed: $portClaim" + $(if ($null -ne $portOwned) { "; owned by pid $oldPid : $portOwned" } else { '' })
         return
     }
-    Stop-Process -Id $oldPid -Force -EA SilentlyContinue
+    # A swallowed stop is a false claim: this used to be Stop-Process -EA SilentlyContinue followed by
+    # "stopped" and Remove-Item unconditionally, so a refused signal printed success and then deleted the
+    # only handle to a live process - the outcome every refusal branch above exists to avoid. Report what
+    # the signal did, and if it did not, keep the record (the shape hosting_down.ps1:132-143 and
+    # s2_run.ps1:75-82 already use).
+    $stopErr = $null
+    try { Stop-Process -Id $oldPid -Force -ErrorAction Stop } catch { $stopErr = $_.Exception.Message }
+    $gone = $false
+    foreach ($try in 1..8) {
+        if (-not (Get-Process -Id $oldPid -EA SilentlyContinue)) { $gone = $true; break }
+        Start-Sleep -Milliseconds 250
+    }
+    if (-not $gone) {
+        $why = if ($stopErr) { "could not be signalled ($stopErr)" } else { 'survived Stop-Process -Force' }
+        "$label : pid $oldPid ($expectName) $why; pid file KEPT - it is still running and this is the only handle to it"
+        return
+    }
     "$label : stopped $expectName pid=$oldPid" + $(if ($port -gt 0) { " (port $port)" } else { '' })
     Remove-Item -LiteralPath $file -Force -EA SilentlyContinue
 }

@@ -43,7 +43,11 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
    unit's `ReadWritePaths`) resolves under that user's home: with no `--home` the installer
    reads the home from `getent passwd <svcuser>`, and a user this box cannot resolve is
    refused with both candidate homes printed. Its printed `core.env` recipe runs
-   `sudo -u <svcuser>` - the service must own what it reads at mode 600.
+   `sudo -u <svcuser>` - the service must own what it reads at mode 600. Re-running into the
+   same staging directory is the normal dev loop: every unit is rewritten from its template
+   with that run's paths and user, and the run says so; a unit that run does not stage - an
+   earlier `--tunnel` run's `mfg-tunnel.service` after a plain run - is removed from the
+   staging directory rather than left there installable and unnamed.
 
 ## What the box must have
 

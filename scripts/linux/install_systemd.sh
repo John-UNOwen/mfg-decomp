@@ -54,6 +54,11 @@
 # Values containing a newline, a '|' or a '&' are refused (they would corrupt the
 # substitution). The staged lane.env holds no secret values; VFG_PRESENTER_SECRET
 # belongs in <sec-dir>/core.env at mode 600 (see mfg-lane.service).
+#
+# Re-running into a staging directory that already holds units is the normal development case and is
+# honest: every unit is rewritten from its template with THIS run's values, the run says so, and a
+# unit this run does not stage (last --tunnel run's mfg-tunnel.service after a plain run) is removed
+# from the directory instead of being left there installable and unnamed.
 
 set -euo pipefail
 export LC_ALL=C
@@ -229,29 +234,78 @@ litreplace() {
   ' "$1" > "$4"
 }
 
+# Every staged unit is written from the template, every run. What this replaces keyed the copy on the
+# destination: '[ -f "$_dst" ] || cp -- "$_src" "$_dst"', and that test sat inside the per-token loop,
+# so a re-run into a --staging directory that already held units skipped the copy and ran every
+# litreplace against the previous run's output - where each @TOKEN@ had already been replaced, so all
+# eleven substitutions were no-ops. The leftover-marker guard below could not catch it either: a
+# completed first run leaves no '@...@' anywhere in the file, grep found nothing, and the script said
+# 'staged mfg-lane.service' about bytes it had not written this run. The damage is not cosmetic:
+# stage lane A, then re-stage lane B into the same directory (the README's dev loop re-runs this
+# script after every move), and B's install kept A's WorkingDirectory=, A's EnvironmentFile= and A's
+# ReadWritePaths= - under ProtectSystem=strict that core writes core.db, savedata and uploads into
+# lane A's tree while looking like its own healthy start. lane.env was rewritten fresh by '>', so
+# units and lane.env silently disagreed: --webroot changed lane.env's WEBFRONT_ROOT while the gate
+# unit's ReadWritePaths= still named the old root, which is not writable under ProtectSystem=strict.
+# So: copy the template to a temporary, substitute every token into that temporary, check the
+# temporary, move it onto the destination. A staged unit is this run's bytes or this run failed.
 substitute_unit() {  # substitute_unit <template file> <staged file>
   _src=$1 _dst=$2
+  _tmp="${_dst}.sub.tmp"
+  _rtmp="$_tmp.lit"
+  _unit_replaced=0
+  [ ! -d "$_dst" ] || die "$_dst is a directory, not a staged unit: refusing to stage into it"
+  if [ -e "$_dst" ]; then _unit_replaced=1; fi
+  rm -f -- "$_tmp" "$_rtmp"
+  cp -- "$_src" "$_tmp" || die "cannot write a working copy of the template $_src: refusing to stage $_dst"
   for _tok in USER:LANE_USER CORE_DIR:CORE_DIR WEBFRONT_DIR:WEBFRONT_DIR WEBROOT:WEBROOT \
               SEC_DIR:SEC_DIR HOME:TARGET_HOME ENV_FILE:ENV_FILE TUNNEL_NAME:TUNNEL_NAME \
               NODE_BIN:NODE_BIN DOTNET_BIN:DOTNET_BIN CLOUDFLARED_BIN:CLOUDFLARED_BIN; do
     _ph=@${_tok%%:*}@
     eval _val=\$${_tok#*:}
-    [ -f "$_dst" ] || cp -- "$_src" "$_dst"
-    _tmp="$_dst.lit.tmp"
-    litreplace "$_dst" "$_ph" "$_val" "$_tmp"
-    cat "$_tmp" > "$_dst"
-    rm -f -- "$_tmp"
+    if ! litreplace "$_tmp" "$_ph" "$_val" "$_rtmp"; then
+      rm -f -- "$_tmp" "$_rtmp"
+      die "substitution of $_ph failed while building $_dst from $_src: $_dst was not changed"
+    fi
+    cat "$_rtmp" > "$_tmp"
+    rm -f -- "$_rtmp"
   done
-  # nothing may survive unsubstituted
-  if grep -n '@[A-Z_]*@' "$_dst"; then die "placeholder left in $_dst"; fi
+  # nothing may survive unsubstituted - and this now checks the bytes about to be staged, so a
+  # template that gained a placeholder this script does not substitute is a refusal, not a unit that
+  # quietly keeps the previous run's content and loses the new field.
+  if _left=$(grep -o '@[A-Z_]*@' "$_tmp" | sort -u | tr '\n' ' '); then
+    rm -f -- "$_tmp"
+    die "template $_src leaves placeholder(s) this script does not substitute: ${_left}in $_dst - refusing to stage it (an unsubstituted token is not a path systemd can start)"
+  fi
+  if ! mv -f -- "$_tmp" "$_dst"; then
+    rm -f -- "$_tmp" "$_rtmp"
+    die "cannot replace $_dst with the freshly substituted copy of $_src: nothing was staged for this run"
+  fi
+  rm -f -- "$_rtmp"
 }
 
 units='mfg-lane.service mfg-gate.service'
 [ $WITH_TUNNEL = 1 ] && units="$units mfg-tunnel.service"
+# A staging directory that outlives one run is still this script's to keep honest, and that includes
+# the units from earlier runs. The block this replaced never touched them: run 1 with --tunnel, run 2
+# without, and last run's mfg-tunnel.service stayed in the directory next to a lane.env that no longer
+# arms WEBFRONT_TRUST_PROXY - an installable hosted unit that no sudo command printed below names.
+# So any unit this script can stage but this run does not is removed, and the removal is said.
+for _stale in mfg-lane.service mfg-gate.service mfg-tunnel.service; do
+  case " $units " in *" $_stale "*) continue ;; esac
+  if [ -e "$STAGING_DIR/$_stale" ]; then
+    rm -f -- "$STAGING_DIR/$_stale"
+    say "removed the stale $_stale an earlier run staged in $STAGING_DIR (this run stages: $units) - an installable unit no sudo command below names is not left for the reviewer to mistake for this run's"
+  fi
+done
 for _u in $units; do
   [ -f "$SCRIPT_DIR/$_u" ] || die "template unit missing: $SCRIPT_DIR/$_u"
   substitute_unit "$SCRIPT_DIR/$_u" "$STAGING_DIR/$_u"
-  say "staged $_u"
+  if [ "$_unit_replaced" = 1 ]; then
+    say "staged $_u (re-staged from $SCRIPT_DIR/$_u over the copy already in $STAGING_DIR, every token from this run: User=$LANE_USER CORE_DIR=$CORE_DIR WEBFRONT_DIR=$WEBFRONT_DIR WEBROOT=$WEBROOT SEC_DIR=$SEC_DIR)"
+  else
+    say "staged $_u"
+  fi
 done
 
 # lane.env - non-secret shared environment (mirrors lane_up.sh exports, sections 8-9)

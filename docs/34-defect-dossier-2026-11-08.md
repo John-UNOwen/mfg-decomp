@@ -118,6 +118,47 @@ or logs. The next discriminator needs the client: wrap the `:321` call (or log i
 `StandingCharaManager.Load` before/after each await) so the swallowed failure names itself —
 a rebuild, worth doing before any candidate fix ships.
 
+### Instrumented repro run — the failure has now named itself (2026-11-08 PM)
+
+The instrumented player (unity-project `d971797201`, `RevealDiag` step logs + a catch around the
+reveal) built 12:24 `Succeeded` with `exceptions=FullWithStacktrace`, webroot stamp
+`5FF94995CF82`. Profiles re-injected (backup `wr_profiles_backup_20261108_122929.json`), one
+four-account batch at 12:30. Verdicts: p1/p2/p4 `MahjongPlay entered with 4 standing chara loads:
+[Costume01_001 Costume05_001 Costume08_001 Costume11_001]`; **p3 `1 standing chara loads:
+[Costume01_001]`** — the same 1/4 non-host death as the morning run, now with the chain steps
+logged. **Zero `RevealDiag ... FAILED` lines in all four logs: nothing threw.**
+
+p3's Matching instance (seats fired at the 2 s gates, seat 0 first):
+
+- seat 0 (`Costume01_001`): `semaphore acquired` 166 s → every `CharaModel.Load` step (MotionLoad,
+  Load3D, Load2D, Load3DStory, RT.Create, CameraRewire, Yield1/2) completed → `Loaded ItemID` →
+  `semaphore released` 168 s.
+- seat 1 (`Costume05_001`): `semaphore wait` 168 s — parked while seat 0 still held the semaphore —
+  and **never `acquired`**.
+- seat 2 (`Costume08_001`) 171 s and seat 3 (`Costume11_001`) 184 s: same, parked behind seat 1.
+- `LoadScene-->MahjongPlay` 197 s (the room exits on schedule — flags were set at `:299`). The three
+  parked `Load`s never resumed for the rest of the client's life (12+ min; later acquires in the log
+  at 316 s belong to the Continue scene's fresh `StandingCharaManager`, a different instance).
+
+Control group: the three healthy clients ran 12/12 `semaphore wait`→`acquired` handoffs in the same
+second — **no waiter ever queued**. Reveals fire 2 s apart and loads take 1–3 s, so contention exists
+only when a load crosses the next seat's 2 s gate. That crossing is the whole per-client
+nondeterminism (owner: "sometimes two, sometimes different ones"; morning run: two clients failed,
+this run: one).
+
+Named failure: `_loadSemaphore` (`StandingCharaManager.cs:197`) is `System.Threading.SemaphoreSlim(1,1)`
+and `Load` awaits `WaitAsync()` (`:256`). The uncontended fast path resumes fine on WebGL. A
+**contended waiter — registered before the holder's `finally { Release(); }` (`:281-284`) completes —
+is never resumed**: the release runs and logs, the waiter never wakes, every later load on that
+scene-manager instance parks behind it, and the `Forget()` call site (`MatchingFlow.cs:300`) leaks
+the task. Not a swallowed throw (no FAILED line), not an Addressables await hanging mid-load (all
+step logs to the release complete), not a catalog miss — **semaphore handoff death inside
+`SemaphoreSlim.WaitAsync`**.
+Fix candidates for the next round: a PlayerLoop-native await handoff instead of SemaphoreSlim
+(UniTaskSemaphore or an in-house `UniTaskCompletionSource` queue), or dropping the serialization for
+the reveal path (reveals are already gated 2 s apart); a bounded timeout fallback per the
+ResidentFlow boot-hook trap family (`ResidentFlow.cs:219`) is belt-and-braces, not the cause.
+
 ## Defect 2 — seated characters: leg motion swivels then teleports back (facts inventory, no fix)
 
 Owner observation: at the side seats (left/right), a character whose idle includes leg motion

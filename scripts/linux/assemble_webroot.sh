@@ -6,7 +6,7 @@
 # sidecar tool. Step order and stdout messages match the PowerShell original.
 #
 #   1. validate the build, the sidecar, the serve target and WEBROOT itself   (ps1 :25, extended)
-#   2. stop only the gate pid this lane recorded               (ps1 :29-36)
+#   2. stop the recorded gate only once the probe proves it serves this root (ps1 :261-315)
 #   3. refuse a root a front is serving, stage the build beside it (ps1 :318-380)
 #   4. bake config.arguments merge function into index.html    (ps1 :39-60)
 #   5. canvas 960x600 -> 1280x720 plus letterbox-fill CSS      (ps1 :61-75)
@@ -76,6 +76,9 @@
 #                   the root either: step 3 asks every front on the box what it answers
 #                   /build_stamp.txt with and refuses on that answer, record or none (the
 #                   systemd units write no pid file, so the record alone never covered them).
+#                   And a record is no licence to STOP anything either: the stop step answers
+#                   the same question first, and signals the recorded pid only when that pid
+#                   is proved to be the front serving the root this run replaces (ps1 :287-295).
 #   GATE_PROCESS    Process name the recorded pid must match before any signal.
 #                                                  default: WebFront
 #                   Matches comm, argv[0] basename or argv[1] basename (dotnet
@@ -431,7 +434,39 @@ assert_root_not_served() {
   done <<<"$_an_rows"
 }
 
+# _find_serving_front <root> -> "pid<TAB>port" of the front answering <root>'s build_stamp.txt with its
+# own stamp, or nothing with rc 1 (no front serves it: the swap can go on); rc 2 = the box cannot be
+# asked, which the caller must treat as a refusal. This is the same question assert_root_not_served
+# asks, split out so the stop step can ask it the OTHER way - not "may I replace this root" but "is the
+# recorded gate the one serving it" - and answer with a signal or with leaving it alone. A pid record
+# says who was last restarted; only the stamp answer says what a live process actually serves
+# (ps1 :287-295, ledger L72).
+_find_serving_front() {
+  _fs_root=$1
+  [ -e "$_fs_root" ] || return 1
+  if ! _fs_rows=$(_listener_rows); then
+    printf 'cannot list the listening sockets to ask who serves %s (no ss and no readable /proc/net/tcp)\n' "$_fs_root" >&2
+    return 2
+  fi
+  [ -n "$_fs_rows" ] || return 1                       # nothing listening on loopback to ask
+  _fs_disk=$(_disk_stamp "$_fs_root")
+  while IFS=$'\t' read -r _fs_port _fs_pid; do
+    case $_fs_port in ''|*[!0-9]*) continue ;; esac
+    _fs_asked=0; _fs_st=''; _fs_body=''
+    if _fs_pf=$(_probe_front "$_fs_port"); then
+      _fs_asked=1
+      { read -r _fs_st; read -r _fs_body; } <<<"$_fs_pf" || true
+    fi
+    if [ $_fs_asked = 1 ] && [ "$_fs_st" = 200 ] && [ -n "$_fs_disk" ] && [ "$_fs_body" = "$_fs_disk" ]; then
+      printf '%s\t%s\n' "$_fs_pid" "$_fs_port"
+      return 0
+    fi
+  done <<<"$_fs_rows"
+  return 1
+}
+
 stop_recorded_gate() {
+  _sr_target=$1                              # the root this run is about to replace (step 9b)
   if [ "$NO_GATE_STOP" = 1 ]; then
     printf 'gate stop skipped (NO_GATE_STOP=1)\n'
     return 0
@@ -480,6 +515,36 @@ stop_recorded_gate() {
     printf 'gate pid %s names the gate program but its working directory is %s, not %s: not signalled (not the gate this lane started)\n' "$pid" "${pid_cwd:-<unreadable>}" "$gate_bin_dir"
     return 1
   fi
+  # The probe, not the record, decides who is safe to stop (ps1 :287-295). Name and cwd prove what
+  # this pid is; they do not prove what it serves. On 2026-11-07 an assemble of a staging root
+  # stopped the live hosted gate through the shared $PID_DIR/gate.pid - that gate served a
+  # different root - and took the public hostname down. So ask, before any signal, the same
+  # question step 3 asks: is a front answering /build_stamp.txt with the stamp of the root this
+  # run replaces, and is it this pid? A live gate that is not it is left running with its record:
+  # the root this run replaces is not the root it answers from.
+  _sr_rc=0; _sr_srv=$(_find_serving_front "$_sr_target") || _sr_rc=$?
+  if [ $_sr_rc = 2 ]; then
+    printf 'cannot list the listening sockets to ask whether the recorded gate pid %s serves %s: refusing to replace a webroot that may be served\n' "$pid" "$_sr_target"
+    return 1
+  fi
+  if [ $_sr_rc != 0 ]; then
+    if [ ! -e "$_sr_target" ]; then
+      printf 'the recorded gate pid %s is live, but %s is not there, so no front can be serving it: gate left running, record %s kept\n' "$pid" "$_sr_target" "$GATE_PID_FILE"
+    elif [ -z "$(_disk_stamp "$_sr_target")" ]; then
+      printf 'the recorded gate pid %s is live, but %s carries no build_stamp.txt to match a front answer against: gate left running, record %s kept (step 3 still asks the root itself)\n' "$pid" "$_sr_target" "$GATE_PID_FILE"
+    else
+      printf 'the recorded gate pid %s is live but does not serve %s: no front on this box answers /build_stamp.txt with %s (the stamp in %s/build_stamp.txt): gate left running, record %s kept\n' "$pid" "$_sr_target" "$(_disk_stamp "$_sr_target")" "$_sr_target" "$GATE_PID_FILE"
+    fi
+    return 0
+  fi
+  _sr_pid=${_sr_srv%%$'\t'*}
+  _sr_port=${_sr_srv#*$'\t'}
+  if [ "$_sr_pid" != "$pid" ]; then
+    printf 'pid %s is the recorded gate, but the front serving %s on 127.0.0.1:%s is pid %s: this script will not stop a process that is not the one serving the root. Stop that front first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service), or point WEBROOT at another root\n' "$pid" "$_sr_target" "$_sr_port" "${_sr_pid:-an owner not visible to us}"
+    return 1
+  fi
+  # Identity proved twice over - recorded (name+cwd) and proved by its own stamp answer to serve the
+  # root this run replaces: this is the one pid this step may signal.
   kill -TERM "$pid" 2>/dev/null || true      # let the gate close its listener before Force
   _st=1
   while [ $_st -le 10 ]; do pid_alive "$pid" || break; sleep 0.5; _st=$((_st+1)); done
@@ -492,11 +557,11 @@ stop_recorded_gate() {
     printf 'gate pid %s survived SIGTERM and SIGKILL; refusing to wipe %s under a serving gate\n' "$pid" "$WEBROOT"
     return 1
   fi
-  printf 'stopped gate pid=%s (%s); pid file %s cleared\n' "$pid" "${got_exe:-$got_comm}" "$GATE_PID_FILE"
+  printf 'stopped gate pid=%s (%s), the front serving %s (stamp %s); pid file %s cleared\n' "$pid" "${got_exe:-$got_comm}" "$_sr_target" "$(_disk_stamp "$_sr_target")" "$GATE_PID_FILE"
   rm -f -- "$GATE_PID_FILE"
   return 0
 }
-if ! stop_recorded_gate; then
+if ! stop_recorded_gate "$_webroot_norm"; then
   die "the recorded gate ($GATE_PID_FILE) is live and was not signalled: refusing to wipe $WEBROOT under a serving gate. Stop that gate first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service) and run again, or pass --no-gate-stop for a probe assembly."
 fi
 

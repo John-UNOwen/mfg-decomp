@@ -107,6 +107,18 @@ body_has() { grep -F -q -- "$1" "$BODY" 2>/dev/null; }
 body_snip() { head -c 160 "$BODY" 2>/dev/null | tr '\n\r' '  ' | tr -s ' '; }
 loc_hdr() { sed -n 's/^[Ll]ocation:[[:space:]]*//p' "$HDR" 2>/dev/null | tr -d '\r' | head -n 1; }
 status_of() { printf 'HTTP %s' "$1"; }
+urlencode() {
+  _s=$1; _out=''; _i=0; _c=''
+  while [ $_i -lt ${#_s} ]; do
+    _c=${_s:$_i:1}
+    case $_c in
+      [a-zA-Z0-9._~-]) _out="$_out$_c" ;;
+      *) _out="$_out$(printf '%%%02X' "'$_c")" ;;
+    esac
+    _i=$((_i+1))
+  done
+  printf '%s' "$_out"
+}
 
 printf 'lane_smoke: target %s (curl only, read-only)\n' "$BASE"
 
@@ -176,6 +188,22 @@ else
   fail entry_file_ttl "GET /$ENTRY_FILE -> HTTP ${GET_CODE:-?} Cache-Control: ${cc:-<none>} (want 200 + max-age=3600, no immutable - Program.cs:1097)"
 fi
 
+# ---------------------------- 4b. which front door does this lane have ----------------------------
+# Two postures are legitimate and they answer differently. With WEBFRONT_ACCESS_CODE(_FILE)
+# set, the gate parks an anonymous visitor at /welcome and keeps /login and /signup to
+# itself until the code is entered; without it, the visitor goes straight to the identity
+# page. Which posture a lane runs is a property of the lane, so record what was seen rather
+# than asserting one of them - and record it before the checks that branch on it.
+GET "$BASE/"
+loc=$(loc_hdr)
+LOBBY=0
+LOBBY_OK=1
+case "$loc" in
+  /welcome*) LOBBY=1; pass lobby_front_door "GET / -> HTTP $GET_CODE Location: $loc (access-code lobby on: /login and /signup stay hidden until /welcome is unlocked)" ;;
+  /login*)   pass lobby_front_door "GET / -> HTTP $GET_CODE Location: $loc (no lobby: the gate sends an anonymous visitor to the identity page)" ;;
+  *) fail lobby_front_door "GET / -> HTTP $GET_CODE Location: ${loc:-<none>} (want a 302 to /welcome or /login; anything else means the front door is not the gate's)" ;;
+esac
+
 # ---------------------------- 5. index.html is not cached ----------------------------
 # The 200 answer is what must carry no-store. Status first: every gate answer defaults to
 # Cache-Control: no-store, so a header-only check passes on a webroot with no index.html at
@@ -200,15 +228,25 @@ else
 fi
 
 # ---------------------------- 6. login page ----------------------------
-# /login is relayed to the core webui (Program.cs:1157-1158, :900); the core renders
-# build-env/assets/views/login.pug, whose title carries the FoxNET marker.
+# Without a lobby, /login is relayed to the core webui (Program.cs:1157-1158, :900), which
+# renders build-env/assets/views/login.pug - its title carries the FoxNET marker.
+# With a lobby and no unlock cookie the gate answers this name itself (Program.cs:761-763,
+# :814-821): the visitor gets the access-code page and the core's form is never shown. Both
+# are correct; they are different answers, so assert the one this posture owes and prove the
+# other shape behind the cookie in login_page_behind_lobby.
 GET "$BASE/login"
 ct=$(hdr Content-Type)
 title=$(grep -o '<title>[^<]*</title>' "$BODY" 2>/dev/null | head -n 1 || true)   # || true: pipefail must not abort on a no-match grep
-if [ "$GET_CODE" = 200 ] && printf '%s' "$ct" | grep -qi 'text/html' && body_has "$LOGIN_MARKER"; then
+if [ "$LOBBY" = 1 ]; then
+  if [ "$GET_CODE" = 200 ] && printf '%s' "$ct" | grep -qi 'text/html' && body_has 'access code'; then
+    pass login_page "GET /login -> HTTP 200 $title: the gate answers with the access-code page and never reaches the core's form (lobby on, no unlock cookie yet)"
+  else
+    fail login_page "GET /login -> HTTP ${GET_CODE:-?} Content-Type: ${ct:-<none>} ${title:+title: $title} (lobby on and no unlock cookie: want the gate's 200 access-code page, not the core's form and not a redirect)"
+  fi
+elif [ "$GET_CODE" = 200 ] && printf '%s' "$ct" | grep -qi 'text/html' && body_has "$LOGIN_MARKER"; then
   pass login_page "GET /login -> HTTP 200 '$title' contains '$LOGIN_MARKER' (Content-Type: $ct)"
 else
-  fail login_page "GET /login -> HTTP ${GET_CODE:-?} Content-Type: ${ct:-<none>} marker '$LOGIN_MARKER' $(body_has "$LOGIN_MARKER" && printf found || printf 'not found') ${title:+title: $title} (lobby mode replaces /login with the access-code page - Program.cs:814-821)"
+  fail login_page "GET /login -> HTTP ${GET_CODE:-?} Content-Type: ${ct:-<none>} marker '$LOGIN_MARKER' $(body_has "$LOGIN_MARKER" && printf found || printf 'not found') ${title:+title: $title}"
 fi
 
 # ---------------------------- 7/8. core webui static assets ----------------------------
@@ -268,28 +306,55 @@ loc=$(loc_hdr)
 front=$(grep -o '"-FRONTURL",[[:space:]]*"[^"]*"' "$BODY" 2>/dev/null | head -n 1 || true)   # || true for pipefail (see login_page)
 if [ "$GET_CODE" = 200 ] && body_has '"-AUTOSERVE"'; then
   pass play_page_autoserve "GET / -> HTTP 200 with standalone \"-AUTOSERVE\" element; front element seen: ${front:-<none>}"
-elif [ "$GET_CODE" = 302 ] && printf '%s' "$loc" | grep -q '/login'; then
-  skip play_page_autoserve "GET / -> HTTP 302 Location: $loc (gate mode: play page only exists behind a session; splice rewrite checked by play_page_splice)"
+elif [ "$GET_CODE" = 302 ] && printf '%s' "$loc" | grep -qE '/login|/welcome'; then
+  skip play_page_autoserve "GET / -> HTTP 302 Location: $loc (gate mode: play page only exists behind a session$( [ "$LOBBY" = 1 ] && printf ', and this lane parks visitors at /welcome first' ); splice rewrite checked by play_page_splice)"
 else
-  fail play_page_autoserve "GET / -> HTTP ${GET_CODE:-?} Location: ${loc:-<none>} body starts: $(body_snip) (want 200 with \"-AUTOSERVE\" or the gate's 302 to /login)"
+  fail play_page_autoserve "GET / -> HTTP ${GET_CODE:-?} Location: ${loc:-<none>} body starts: $(body_snip) (want 200 with \"-AUTOSERVE\" or the gate's 302 to its front door)"
 fi
 
 # ---------------------------- 12-16. optional authenticated section ----------------------------
-if [ -n "${SMOKE_USER:-}" ] && [ -n "${SMOKE_PASS:-}" ]; then
-  urlencode() {
-    _s=$1; _out=''; _i=0; _c=''
-    while [ $_i -lt ${#_s} ]; do
-      _c=${_s:$_i:1}
-      case $_c in
-        [a-zA-Z0-9._~-]) _out="$_out$_c" ;;
-        *) _out="$_out$(printf '%%%02X' "'$_c")" ;;
-      esac
-      _i=$((_i+1))
-    done
-    printf '%s' "$_out"
-  }
+# With the lobby up, /login is not answered at all until the code is entered, so a session
+# starts at /welcome. One attempt: the wrong-code lockout is real (429 with Retry-After,
+# graded), so a failure here is reported, never retried in a loop.
+if [ "$LOBBY" = 1 ]; then
+  lobby_code=${SMOKE_ACCESS_CODE:-}
+  if [ -z "$lobby_code" ] && [ -n "${SMOKE_ACCESS_CODE_FILE:-}" ] && [ -r "${SMOKE_ACCESS_CODE_FILE:-}" ]; then
+    lobby_code=$(head -n 1 "$SMOKE_ACCESS_CODE_FILE" | tr -d '\r\n')
+  fi
+  if [ -z "$lobby_code" ]; then
+    LOBBY_OK=0
+  elif [ -z "${SMOKE_USER:-}" ] || [ -z "${SMOKE_PASS:-}" ]; then
+    # Nothing to unlock for: the authenticated section is already going to skip.
+    :
+  else
+    POST "$BASE/welcome" "code=$(urlencode "$lobby_code")&next=%2F" -c "$JAR" -b "$JAR" -H 'User-Agent: Mozilla/5.0 lane-smoke'
+    lset=$(hdr Set-Cookie)
+    if [ "$POST_CODE" = 302 ] && printf '%s' "$lset" | grep -q 'mfg_lobby='; then
+      pass lobby_unlock "POST /welcome (access code from $( if [ -n "${SMOKE_ACCESS_CODE:-}" ]; then printf 'SMOKE_ACCESS_CODE'; else printf '%s' "${SMOKE_ACCESS_CODE_FILE:-the code file}"; fi )) -> HTTP 302 Set-Cookie: $(printf '%s' "$lset" | cut -c1-46)… Location: $(loc_hdr)"
+    else
+      LOBBY_OK=0
+      fail lobby_unlock "POST /welcome -> HTTP ${POST_CODE:-?} Set-Cookie: ${lset:-<none>} body: $(body_snip) (want 302 + an mfg_lobby cookie. A 429 means the wrong-code lockout is running: stop, fix the code, do not retry in a loop)"
+    fi
+  fi
+fi
+
+# The unlock only counts if the form it was hiding is now reachable: with the lobby cookie
+# in the jar, /login must stop being the gate's page and become the core's login form.
+if [ "${LOBBY:-0}" = 1 ] && [ "${LOBBY_OK:-1}" = 1 ]; then
+  GET "$BASE/login" -b "$JAR" -c "$JAR"
+  lb_title=$(grep -o '<title>[^<]*</title>' "$BODY" 2>/dev/null | head -n 1 || true)
+  if [ "$GET_CODE" = 200 ] && body_has "$LOGIN_MARKER"; then
+    pass login_page_behind_lobby "GET /login (with the mfg_lobby cookie) -> HTTP 200 '$lb_title' contains '$LOGIN_MARKER': the gate stopped answering the access-code page and the core's form is reached"
+  else
+    fail login_page_behind_lobby "GET /login (with the mfg_lobby cookie) -> HTTP ${GET_CODE:-?} marker '$LOGIN_MARKER' $(body_has "$LOGIN_MARKER" && printf found || printf 'not found') ${lb_title:+title: $lb_title} (the unlock cookie was accepted but /login still is not the core's form)"
+  fi
+fi
+
+if [ -n "${SMOKE_USER:-}" ] && [ -n "${SMOKE_PASS:-}" ] && [ "${LOBBY_OK:-1}" = 1 ]; then
+  # -b, not just -c: in lobby mode /login is refused until the mfg_lobby cookie rides along,
+  # and a jar that is only written never gets read - which looked like a login failure.
   POST "$BASE/login" "username=$(urlencode "$SMOKE_USER")&password=$(urlencode "$SMOKE_PASS")" \
-       -c "$JAR" -H 'User-Agent: Mozilla/5.0 lane-smoke'
+       -b "$JAR" -c "$JAR" -H 'User-Agent: Mozilla/5.0 lane-smoke'
   sc=$(hdr Set-Cookie)
   if [ "$POST_CODE" != ERR ] && [ "$POST_CODE" -lt 400 ] && printf '%s' "$sc" | grep -qi 'connect\.sid'; then
     pass auth_login "POST /login (form username/password, core webui auth - dist/webui/routes/auth.js:83) -> HTTP $POST_CODE Set-Cookie: $sc"
@@ -338,7 +403,11 @@ if [ -n "${SMOKE_USER:-}" ] && [ -n "${SMOKE_PASS:-}" ]; then
     *) fail auth_session_gone "GET /account after logout -> HTTP $GET_CODE Location: ${loc:-<none>} (want 302/401/403; the session is still alive)" ;;
   esac
 else
-  printf 'SKIP auth_section | set SMOKE_USER and SMOKE_PASS to run login / account page / play page splice / logout / session-gone\n'
+  if [ "${LOBBY_OK:-1}" != 1 ]; then
+    printf 'SKIP auth_section | the lane parks visitors at /welcome and no access code was available (set SMOKE_ACCESS_CODE or SMOKE_ACCESS_CODE_FILE): /login is never answered, so login / account page / play page splice / logout / session-gone stay unchecked\n'
+  else
+    printf 'SKIP auth_section | set SMOKE_USER and SMOKE_PASS to run login / account page / play page splice / logout / session-gone\n'
+  fi
   SKIP_N=$((SKIP_N+1))
 fi
 

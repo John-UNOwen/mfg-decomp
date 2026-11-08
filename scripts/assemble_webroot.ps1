@@ -484,16 +484,27 @@ if ($NoSidecar) { 'skipped brotli sidecars (-NoSidecar)' } else {
 
 # ---------------------------- 11. swap the staged webroot into place ----------------------------
 # Two renames instead of a wipe: the previous root only leaves the tree once the new one stands in
-# its place, and Rename-Item is refused while a process holds the directory, so a front that
-# somehow survived the checks in step 3 blocks the swap instead of being pulled out from under.
+# its place, and that is all the renames do - they are NOT a net. "Rename-Item is refused while a
+# process holds the directory" is not Windows behaviour: a live process with its working directory
+# inside the root does not block the rename (probe_trap_propagation.ps1 C1, re-measured by
+# item15_swap_rename_net/probe_rename_is_not_a_net.ps1 case P: rc=0, root swapped aside), and a front
+# that opens files per request never holds the root at all (serve_aog.js:44, :76). So the enforcement
+# here is the probe, and a front that came up after step 3 has minutes of cover: the staging copy and
+# the whole patch pipeline run between step 3's answer (:358) and this line. The same question is
+# therefore asked again below, on the line that destroys - same rule, same function, later moment.
 $publishedAside = $null    # the previous root, set by Publish-StagedWebroot: only step 12's proof removes it
 function Publish-StagedWebroot {
+    Assert-WebrootNotServed     # re-probed at the destruction point, for the reason in the comment above
     $leaf = Split-Path -Leaf $targetFull
     $asideLeaf = $leaf + '.old-' + (Get-Date -Format 'yyyyMMddHHmmss') + '-' + $PID
     $aside = $null
     if (Test-Path -LiteralPath $targetFull) {
         try { Rename-Item -LiteralPath $targetFull -NewName $asideLeaf -EA Stop } catch {
-            Fail "cannot move the existing webroot $targetFull aside ($($_.Exception.Message)) - a process is holding it. Nothing was replaced."
+            # The OS message is the only fact on this line. It used to name the cause - "a process is
+            # holding it" - and case P of the probe named above shows the reverse holds too, so a
+            # refusal here is an incidental lock or a permissions problem, never evidence about who
+            # serves the root (that is what Assert-WebrootNotServed above decides).
+            Fail "cannot move the existing webroot $targetFull aside ($($_.Exception.Message)): nothing was replaced."
         }
         $aside = Join-Path (Split-Path -Parent $targetFull) $asideLeaf
     }

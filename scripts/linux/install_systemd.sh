@@ -273,7 +273,7 @@ _host_bin 'mfg-lane.service ExecStart=@NODE_BIN@' "$NODE_BIN" \
 _host_bin 'mfg-gate.service ExecStart=@DOTNET_BIN@' "$DOTNET_BIN" \
   'the gate runs as "dotnet WebFront.dll" and needs a .NET 8 runtime on PATH-or-here - pass --dotnet-bin'
 if [ $WITH_TUNNEL = 1 ]; then
-  _host_bin 'mfg-tunnel.service ExecStart=@CLOUDFLARED_BIN@' "$CLOUDFLARED_BIN" \
+  _host_bin "$UNIT_TUNNEL ExecStart=@CLOUDFLARED_BIN@" "$CLOUDFLARED_BIN" \
     'cloudflared must be installed and the tunnel already registered in its account - pass --cloudflared-bin, or stage a plain http lane (no --tunnel)'
 fi
 _host_file 'mfg-lane.service ExecStart target (WorkingDirectory=@CORE_DIR@/dist)' "$CORE_DIR/dist/AsphyxiaCore.js" \
@@ -352,16 +352,16 @@ fi
 # unit will run. It runs before anything is staged, so a refused tunnel leaves no half-hosted
 # lane.env behind for someone to install.
 tunnel_preflight() {
-  [ -e "$TUNNEL_CONFIG" ] || die "--tunnel but there is no cloudflared config at $TUNNEL_CONFIG: refusing to stage mfg-tunnel.service or arm WEBFRONT_TRUST_PROXY with no tunnel behind it (staging a plain http lane is the default; add --tunnel only with a real tunnel)"
+  [ -e "$TUNNEL_CONFIG" ] || die "--tunnel but there is no cloudflared config at $TUNNEL_CONFIG: refusing to stage $UNIT_TUNNEL or arm WEBFRONT_TRUST_PROXY with no tunnel behind it (staging a plain http lane is the default; add --tunnel only with a real tunnel)"
   # exists-but-unreadable says something different from missing: the default now derives from
   # User=@USER@'s home (resolved above), so a real config there is routinely unreadable to the
   # caller - say that, and point at --tunnel-config, instead of claiming the file is absent.
   if [ ! -f "$TUNNEL_CONFIG" ] || [ ! -r "$TUNNEL_CONFIG" ]; then
-    die "$TUNNEL_CONFIG exists but is not a regular file the caller can read (the default derives from User=$LANE_USER's home, and ~/.cloudflared is routinely mode 700 there): refusing to stage mfg-tunnel.service or arm the Secure-cookie posture on a tunnel this run cannot actually read (point --tunnel-config at a copy the caller can read)"
+    die "$TUNNEL_CONFIG exists but is not a regular file the caller can read (the default derives from User=$LANE_USER's home, and ~/.cloudflared is routinely mode 700 there): refusing to stage $UNIT_TUNNEL or arm the Secure-cookie posture on a tunnel this run cannot actually read (point --tunnel-config at a copy the caller can read)"
   fi
   grep -Eq "^[[:space:]]*tunnels?[[:space:]]*:[[:space:]]*['\"]?${TUNNEL_NAME}(['\"]|[[:space:]]*$)|^[[:space:]]+${TUNNEL_NAME}[[:space:]]*:" "$TUNNEL_CONFIG" \
     || die "$TUNNEL_CONFIG does not name tunnel \"$TUNNEL_NAME\": refusing to stage the tunnel unit or arm the Secure-cookie posture (point --tunnel-config/--tunnel-name at the real tunnel, or stage without --tunnel)"
-  say "tunnel proven: $TUNNEL_CONFIG names $TUNNEL_NAME - staging mfg-tunnel.service and WEBFRONT_TRUST_PROXY=cloudflare"
+  say "tunnel proven: $TUNNEL_CONFIG names $TUNNEL_NAME - staging $UNIT_TUNNEL and WEBFRONT_TRUST_PROXY=cloudflare"
 }
 
 if [ $WITH_TUNNEL = 1 ]; then tunnel_preflight; else say 'tunnel: not staged (no --tunnel) - plain http lane, WEBFRONT_TRUST_PROXY left out of lane.env'; fi

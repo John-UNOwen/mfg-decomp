@@ -53,7 +53,12 @@
 #
 # Values containing a newline, a '|' or a '&' are refused (they would corrupt the
 # substitution). The staged lane.env holds no secret values; VFG_PRESENTER_SECRET
-# belongs in <sec-dir>/core.env at mode 600 (see mfg-lane.service).
+# belongs in <sec-dir>/core.env at mode 600 (see mfg-lane.service) - and that file
+# only arms the core's presenter while config.ini's [mfg@asphyxia] section carries
+# no value of the same key: the plugin resolves the key config.ini BEFORE the
+# environment (handlers/utils.ts:1516-1522), so before staging the run reads
+# <core-dir>/dist/config.ini and refuses over a non-empty value it has not proven
+# equal to the gate's <sec-dir>/presenter.secret.
 #
 # Re-running into a staging directory that already holds units is the normal development case and is
 # honest: every unit is rewritten from its template with THIS run's values, the run says so, and a
@@ -263,6 +268,54 @@ if [ ! -f "$SEC_DIR/access.code" ]; then
   say "note: no $SEC_DIR/access.code - lane.env still names it as WEBFRONT_ACCESS_CODE_FILE and webfront/Program.cs:67-74 reads an absent file as no access-code lobby; optional (README 'What the box must have'), so not a reason to refuse this install"
 fi
 
+# ---------------------------- who actually arms the core's presenter? ----------------------------
+# Everything below stages core.env as the core's presenter source, and the printed core.env recipe
+# ends by arming it - but the plugin does not read the environment first. handlers/utils.ts:1623-1624
+# presenterSecret() calls configString (handlers/utils.ts:1516-1522), which takes U.GetConfig(key)
+# BEFORE process.env[key], and ExternalPluginLoader.ts:170-176 serves U.GetConfig straight out of the
+# parsed config.ini [mfg@asphyxia] section (ArgConfig.ts). So on a host whose section already carries
+# a value - written once through the WebUI config page, for instance, or left by an earlier deploy -
+# the environment core.env provides loses silently: the core answers vfgcard_present with the ini
+# value, the gate presents the value read from <sec-dir>/presenter.secret (webfront/Program.cs:57),
+# and every card presentation fails the comparison (handlers/utils.ts:1644) while the install run
+# reported the secret armed from core.env. Prove which source wins BEFORE staging: read the key from
+# the same config.ini the unit's WorkingDirectory starts next to (EXEC_PATH/config.ini, ArgConfig.ts:10,
+# and the unit works in <core>/dist), and refuse when it would outrank the staged env file with a
+# different secret.
+_ini_key_value() {   # print config.ini $1's [mfg@asphyxia] VFG_PRESENTER_SECRET value, '' when absent/empty
+  awk '
+    /^[[:space:]]*\[/ { insec = ($0 ~ /^[[:space:]]*\[mfg@asphyxia\][[:space:]]*$/); next }
+    insec && /^[[:space:]]*VFG_PRESENTER_SECRET[[:space:]]*=/ {
+      sub(/^[^=]*=/, ""); sub(/^[[:space:]]+/, ""); sub(/[[:space:]]+$/, ""); v = $0
+    }
+    END { printf "%s", v }
+  ' "$1"
+}
+PRESENTER_INI="$CORE_DIR/dist/config.ini"
+PRESENTER_INI_VALUE=''
+if [ ! -e "$PRESENTER_INI" ]; then
+  say "core presenter: no $PRESENTER_INI yet (a fresh core tree writes it on first run) - nothing can outrank it, so the staged core.env is what arms the presenter on this box"
+  PRESENTER_ENV_NOTE='this run proved nothing can beat core.env: no config.ini at '"$PRESENTER_INI"' yet'
+elif [ ! -r "$PRESENTER_INI" ]; then
+  die "cannot read $PRESENTER_INI to prove whether its [mfg@asphyxia] VFG_PRESENTER_SECRET would beat the staged core.env (the plugin takes that key config.ini-first, handlers/utils.ts:1516-1522): refusing to stage - make the file readable to this caller (it lives in the core tree the unit user owns) or fix --core-dir"
+else
+  PRESENTER_INI_VALUE=$(_ini_key_value "$PRESENTER_INI")
+  if [ -z "$PRESENTER_INI_VALUE" ]; then
+    say "core presenter: config.ini $PRESENTER_INI carries no VFG_PRESENTER_SECRET value under [mfg@asphyxia] (key absent or empty) - the staged core.env is what arms the presenter on this box; set the key there later and it beats core.env (handlers/utils.ts:1516-1522)"
+    PRESENTER_ENV_NOTE='this run proved no VFG_PRESENTER_SECRET value in '"$PRESENTER_INI"' [mfg@asphyxia], so core.env is what arms the core'
+  else
+    if [ ! -r "$SEC_DIR/presenter.secret" ]; then
+      die "config.ini $PRESENTER_INI carries a non-empty VFG_PRESENTER_SECRET under [mfg@asphyxia], and this caller cannot read $SEC_DIR/presenter.secret to compare - the plugin reads that ini key BEFORE the environment (handlers/utils.ts:1516-1522), so the staged core.env would be silently ignored and could not even be proven equal to what the gate sends (webfront/Program.cs:57): refusing to stage"
+    fi
+    if [ "$PRESENTER_INI_VALUE" = "$(printf '%s' "$(cat "$SEC_DIR/presenter.secret")")" ]; then
+      say "core presenter: $PRESENTER_INI [mfg@asphyxia] carries VFG_PRESENTER_SECRET and beats the staged core.env (handlers/utils.ts:1623-1624 configString reads config.ini before the environment) - but this run proved it equals $SEC_DIR/presenter.secret (contents not printed), so both halves already agree and the lane works"
+      PRESENTER_ENV_NOTE='config.ini '"$PRESENTER_INI"' [mfg@asphyxia] carries the key and beats core.env, proven equal to '"$SEC_DIR"'/presenter.secret by this run - core.env stays as the fallback'
+    else
+      die "config.ini $PRESENTER_INI carries a non-empty VFG_PRESENTER_SECRET under [mfg@asphyxia], and that key beats the environment the staged core.env would arm (the plugin reads config.ini first: handlers/utils.ts:1623-1624 presenterSecret -> configString :1516-1522 -> U.GetConfig from the parsed ini, ExternalPluginLoader.ts:170-176): the core would answer vfgcard_present with the ini value while the gate presents $SEC_DIR/presenter.secret (webfront/Program.cs:57), so the env-file secret is silently ignored and every presentation fails the comparison (handlers/utils.ts:1644). The two were proved DIFFERENT by this run (values not printed). Refusing to stage. Fix one side and re-run: empty the ini key (the VFG_PRESENTER_SECRET= line in the [mfg@asphyxia] section of $PRESENTER_INI) so core.env arms the core, or make $SEC_DIR/presenter.secret hold exactly the ini value so both sides already agree."
+    fi
+  fi
+fi
+
 # ---------------------------- tunnel preflight (the L46 order) ----------------------------
 # The lane_up.sh lesson applied to the systemd path: the hosted posture (a Secure cookie and
 # WEBFRONT_TRUST_PROXY=cloudflare, which makes the gate believe CF-Connecting-IP came from
@@ -407,7 +460,9 @@ lane_env="$STAGING_DIR/lane.env"
   fi
   printf '%s\n' \
     '# VFG_PRESENTER_SECRET goes in '"$SEC_DIR"'/core.env (chmod 600, owner '"$LANE_USER"'), not here.' \
-    '# core.env line shape: VFG_PRESENTER_SECRET=<random bytes from '"$SEC_DIR"'/presenter.secret>'
+    '# core.env line shape: VFG_PRESENTER_SECRET=<random bytes from '"$SEC_DIR"'/presenter.secret>' \
+    '# config.ini [mfg@asphyxia] VFG_PRESENTER_SECRET beats core.env when it carries a value (handlers/utils.ts:1516-1522).' \
+    '# '"$PRESENTER_ENV_NOTE"
 } > "$lane_env"
 say "staged lane.env (no secret values)"
 
@@ -446,6 +501,7 @@ else
     "  sudo -u '$LANE_USER' mkdir -p '$SEC_DIR'" \
     "  sudo -u '$LANE_USER' sh -c 'test -f \"$SEC_DIR/presenter.secret\" && printf \"VFG_PRESENTER_SECRET=%s\\n\" \"\$(cat \"$SEC_DIR/presenter.secret\")\" > \"$SEC_DIR/core.env\" && chmod 600 \"$SEC_DIR/core.env\"'"
 fi
+printf '%s\n' "  # (${PRESENTER_ENV_NOTE})"
 printf '%s\n' \
   '' \
   '  sudo systemctl daemon-reload' \

@@ -44,6 +44,9 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
    `<webfront-dir>/bin/Release/net8.0/WebFront.dll`, `<webroot>/index.html` and
    `<sec-dir>/presenter.secret` - and a host missing any of them is refused with every missing
    path named and nothing staged, because the list it prints ends in `systemctl enable --now`.
+   It also reads `<core-dir>/dist/config.ini` before staging: a non-empty `[mfg@asphyxia]`
+   `VFG_PRESENTER_SECRET` value beats the `core.env` the run stages (`handlers/utils.ts:1516-1522`),
+   so a value proven different from `<sec-dir>/presenter.secret` is refused, both files named.
    A green run says which paths it proved, so the webroot in that line is the one to compare
    with what step 2 actually assembled. The units run as
    `<svcuser>`, and every staged path (webroot, `--sec-dir` and its `core.env`, the tunnel
@@ -80,15 +83,23 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
   `hosting_up.ps1:73-74`; the systemd installer notes it and carries on). For the systemd path also `~/.mfg-web/core.env`
   (mode 600, carries `VFG_PRESENTER_SECRET=` for the core unit) - under the
   *service user's* home and owned by them: the units `EnvironmentFile=` it as that user,
-  and a caller-owned 600 file is skipped with no error.
+  and a caller-owned 600 file is skipped with no error. `core.env` only arms the presenter while
+  `config.ini`'s `[mfg@asphyxia]` section carries no `VFG_PRESENTER_SECRET` value: a non-empty ini key
+  beats the environment (`handlers/utils.ts:1516-1522`), so `install_systemd.sh` proves the key empty,
+  absent, or equal to `presenter.secret` before it stages - a different value there is refused.
 
 ## Environment the two programs actually read
 
 Core (`node AsphyxiaCore.js` + the `mfg@asphyxia` plugin):
 
-- `VFG_PRESENTER_SECRET` - plugin `handlers/utils.ts:1434-1435` (config first, env
-  fallback `utils.ts:1338`); `config.ini` `[mfg@asphyxia]` key of the same name is
-  empty in the current lane, so the exported env var is what arms the presenter.
+- `VFG_PRESENTER_SECRET` - plugin `handlers/utils.ts:1623-1624` (`presenterSecret` -> `configString`,
+  `utils.ts:1516-1522`): a **non-empty `config.ini` `[mfg@asphyxia]` key of the same name wins and the
+  environment is only read when that key is absent or empty** (`U.GetConfig` serves the parsed ini,
+  `ExternalPluginLoader.ts:170-176`). The key is empty in the current lane, so there the exported env
+  var is what arms the presenter; on a host whose key was filled in once (the WebUI config page
+  persists it via `SaveConfig`, `ArgConfig.ts:334-340`) the env export is silently ignored and the gate
+  and core end up on different secrets. `install_systemd.sh` reads `<core-dir>/dist/config.ini` and
+  refuses to stage a `core.env` that would be silently ignored by a different ini value.
 - `mfg_http_bind` / `mfg_http_port` - env beats `config.ini`
   (`index.ts:296-304`: env, then `U.GetConfig`, then directKnob).
 - `WEB_SECURE_COOKIE` - `src/webui/index.ts:65`, accepts `1` or `true`

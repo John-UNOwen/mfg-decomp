@@ -41,6 +41,11 @@
 #   LOCAL_BUILD_DIR     Unity WebGL output tree.  default: ~/mfg/out/webgl
 #                       (same default as assemble_webroot.sh:26; contains index.html,
 #                        Build/, StreamingAssets/, TemplateData/)
+#                       Refused, in a real run and in --dry-run alike, before anything is staged or sent: a
+#                       tree that holds no files. [ -d ] proves the directory exists, and an empty directory is
+#                       precisely what a build cleaned out of the path - or renamed away from it, leaving the
+#                       old name standing empty - leaves behind; shipping zero chunks used to close with
+#                       'transfer done: 0 chunk(s) sent' and exit 0 (2026-11-08 checkup, problem 38/68).
 #   STAGE_DIR           local staging for chunk tars + manifest. default: ~/mfgtmp/transfer_stage
 #   COMPRESS            gzip | none | zstd.      default: gzip
 #                       gzip = tar -z (gzip is nearly everywhere), zstd = tar --zstd
@@ -199,6 +204,20 @@ read _mfiles _mbytes <<EOF
 $(awk -F'\t' '{ n++; b += $2 } END { print n+0, b+0 }' "$MANIFEST")
 EOF
 say "manifest: $_mfiles files, $_mbytes bytes -> $MANIFEST"
+
+# That total is the first observation in this script of whether a build is actually there, and printing
+# it was the whole handling of it. An existing-but-empty tree - a build cleaned out of the path, or renamed
+# away from it, which leaves the old name standing empty - gave 'manifest: 0 files, 0 bytes', an empty chunk
+# list, a chunk loop that never ran, an empty manifest uploaded to the remote bookkeeping dir, and the
+# closing 'transfer done: 0 chunk(s) sent (0 payload bytes moved), 0 chunk(s) skipped' with exit 0; a wrong
+# LOCAL_BUILD_DIR then ended the documented pipeline (README step 1 -> step 2) with a success line here and
+# verify_transfer.sh answering for whatever the remote already held (2026-11-08 checkup, problem 38/68).
+# [ -d ] above cannot catch this: a directory is exactly what a cleaned-out or renamed build leaves behind.
+# So the file count decides, here - after the manifest that carries the answer and before a chunk is staged
+# or a single transport command runs, so a refusal stages nothing and sends nothing.
+if [ "$_mfiles" -eq 0 ]; then
+  die "no build files under LOCAL_BUILD_DIR=$LOCAL_BUILD_DIR (0 files) - refused: nothing staged, nothing sent, no manifest uploaded (the directory exists, and that is all [ -d ] can prove; an empty tree is a build cleaned out of this path or renamed away from it, not a build to ship - re-run with LOCAL_BUILD_DIR at the tree holding index.html, Build/, StreamingAssets/ and TemplateData/)"
+fi
 
 # ---------------------------- chunk list ----------------------------
 (
@@ -383,6 +402,16 @@ while IFS= read -r _cn; do
   sent=$((sent+1))
   bytes_sent=$((bytes_sent+$2))
 done < <(chunk_names)
+
+# 'transfer done' has to mean chunks were looked at. The empty-tree refusal above makes that unreachable for
+# a build that was already empty when it was read, so this can only fire on the other way the count can come
+# out zero: the manifest, the chunk list and the top-level file list are three separate reads of a tree a
+# build job may still be writing, and a run that hashed files the chunk list no longer finds watched a tree
+# change underneath it. That is a refusal, not a transfer of nothing - and it comes before the manifest
+# upload, because a manifest describing bytes this run never sent is the same lie in a different file.
+if [ $((sent + skipped)) -eq 0 ]; then
+  die "looked at 0 chunks against a manifest of $_mfiles files - refused, no 'transfer done' line and no manifest upload: the build tree changed while this script was reading it (re-run it once the build is finished)"
+fi
 
 if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "cat > '$REMOTE_DIR/.lane_transfer/manifest.tsv'" < "$MANIFEST"; then
   die "upload of manifest.tsv to the remote bookkeeping dir failed"

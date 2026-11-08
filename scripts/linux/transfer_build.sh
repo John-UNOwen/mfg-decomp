@@ -6,10 +6,20 @@
 # whole: a chunk interrupted mid-transfer is re-sent from the beginning on the next
 # run. What makes a rerun cheap is the payload digest: each chunk's sha256 over its
 # manifest's per-file hash lines (file bytes, never the compressed container, so a
-# gzip header timestamp cannot defeat the resume), and before sending a chunk the
-# script asks the remote to run the same fold over the files that chunk's paths hold
-# in $REMOTE_DIR right now. Equal digests means the tree holds these exact bytes and
-# the chunk is skipped with 0 bytes sent; different or absent means it goes again.
+# gzip header timestamp cannot defeat the resume). Before sending a chunk the script
+# asks the remote to list the sha256 of every file behind that chunk's paths in
+# $REMOTE_DIR right now, keeps the lines for the files this build's manifest lists for
+# that chunk, and folds those - so both sides of the comparison cover exactly the same
+# files. Equal digests means the tree holds these exact bytes for these exact files and
+# the chunk is skipped with 0 bytes sent; a file of the chunk that is absent or holds
+# other bytes means it goes again. A file the build no longer lists is in neither fold,
+# on purpose: this script issues no remote deletions, so re-sending a tar could never
+# remove one, and a leftover there must not be allowed to block the skip - it is
+# verify_transfer.sh's EXTRA for whoever maintains the tree to remove. One leftover
+# ./Build/webgl.oldname.wasm, the output name a previous build used, used to make the
+# two folds unequal forever: the same digest pair on every rerun, that chunk re-sent from
+# the top every run, and nothing in the kit able to converge it (2026-11-08 re-check of
+# the remote-observation fix below, which folded the whole subtree instead of the chunk).
 # The skip is an observation of the tree, never a reading of .lane_transfer/chunk_hashes:
 # that ledger is append-only history of what was SENT, and a chunk whose bytes were
 # later replaced on the remote read its old ledger line back forever and was reported
@@ -303,8 +313,10 @@ if [ $DRY_RUN = 1 ]; then
     '' \
     '  per chunk, a real run does:' \
     "    payload digest = sha256 over this chunk's manifest lines written as '<file-sha256>  <./path>' (path order)" \
-    "    ssh \"\$SSH_TARGET\" \"cd '$REMOTE_DIR' && find ./<chunk> -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /' | sha256sum | cut -d' ' -f1\"" \
-    '      -> the remote folds the files this chunk holds NOW into one digest (read-only: cd/find/sort/sed/sha256sum/cut)' \
+    "    ssh \"\$SSH_TARGET\" \"cd '$REMOTE_DIR' && find ./<chunk> -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /'\"  > per-file lines the remote tree holds under ./<chunk>" \
+    '      -> the remote lists each file behind ./<chunk> as one "<sha256>  ./<path>" line (read-only: cd/find/sort/xargs/sed/sha256sum)' \
+    "      -> local side keeps only the lines for files this build's manifest lists for this chunk, then sha256s that set;" \
+    '         a surplus remote file under ./<chunk> is not in the manifest set, so it stays out of the fold and the skip' \
     "      -> if that equals this build's payload digest: SKIP the chunk, 0 bytes sent - an observation of the tree," \
     '         never a reading of the sent-ledger, so bytes replaced by another build or a pruned directory re-send' \
     "    ( cd '$LOCAL_BUILD_DIR' && tar $TAR_FLAG -cf '$STAGE_DIR/<tar>' -- <members> )" \
@@ -338,17 +350,27 @@ run_remote "mkdir -p '$REMOTE_DIR/.lane_transfer'" || die "remote mkdir -p '$REM
 # would serve - the exact 2026-11-08 checkup problem 20/48, and checkup hypothesis (e) of 2026-11-06
 # in weaker form (a partial REMOTE_DIR reported complete). So the skip decision now reads the tree.
 # Both sides fold a chunk's per-file sha256 lines - path-sorted, normalised to "64hex  ./path", the
-# same line shape the manifest join parses with substr($0,67) - into one digest. The local fold comes
-# from the manifest this run just built, so it is over file BYTES, not the compressed container: a
-# gzip header timestamp cannot make a rerun look different (the payload-fold answer to the
-# reproducibility problem the README's 'skip verified' claim always leaned on). The remote fold runs
-# over the live files. Absent or pruned paths fold to the empty-input digest, which equals no real
-# payload, so a chunk the ledger remembers but the tree lost re-sends; every observation failure
-# therefore lands on the send side, never on a false skip. Cost is stated where it is paid: the
-# observation re-reads the tree on the VPS each run (sha256 of every file), minutes for a 5.47 GB
-# tree of local disk - cheaper than streaming it over ssh again, and the price of the claim.
+# same line shape the manifest join parses with substr($0,67) - into one digest, and both folds cover
+# exactly the same set of files: the manifest's lines for the chunk on this side, and of the lines the
+# remote returns, only those whose path the manifest lists for that chunk. That scoping is the whole of
+# this pass. What it replaces folded the remote's WHOLE subtree ('find ./Build -type f' -> sha256sum ->
+# sha256sum) against a fold of the manifest's files, so one file under the chunk path that this build
+# does not list - an output name the previous build used, something an upstream step dropped - held the
+# two digests apart forever: the send line blamed "other bytes or absent", neither of which was true, the
+# chunk re-sent whole on every run of a development loop (Build/ is the multi-GB chunk), and because this
+# script issues no remote deletions and a tar extraction cannot remove a file, no number of reruns could
+# converge it. Surplus remote bytes are therefore not a reason to re-send; they are verify_transfer.sh's
+# EXTRA to report to whoever maintains the tree. The local fold comes from the manifest this run just
+# built, so it is over file BYTES, not the compressed container: a gzip header timestamp cannot make a
+# rerun look different (the payload-fold answer to the reproducibility problem the README's 'skip
+# verified' claim always leaned on). The remote lines come from the live files. A chunk the remote has
+# pruned lists nothing, so its fold is the empty-input digest, which equals no real payload, so a chunk
+# the ledger remembers but the tree lost re-sends; every observation failure therefore lands on the send
+# side, never on a false skip. Cost is stated where it is paid: the observation re-reads the tree on the
+# VPS each run (sha256 of every file) and returns one line per file, minutes for a 5.47 GB tree of local
+# disk - cheaper than streaming it over ssh again, and the price of the claim.
 
-payload_digest_local() {                    # chunk -> sha256 over its manifest lines as "sha  ./path"
+payload_lines_build() {                     # chunk -> this build's lines for it: "file-sha256  ./path", path order
   if [ "$1" = '_root_files_' ]; then
     awk -F'\t' '
       NR==FNR { want[$0] = 1; next }
@@ -356,35 +378,62 @@ payload_digest_local() {                    # chunk -> sha256 over its manifest 
     ' "$_rootfiles" "$MANIFEST"
   else
     awk -F'\t' -v p="./$1/" 'index($3, p) == 1 { printf "%s  %s\n", $1, $3 }' "$MANIFEST"
-  fi | sha256sum | cut -d' ' -f1
+  fi
 }
 
-remote_payload_digest() {                   # chunk -> the same fold, computed remotely over its live files
+remote_chunk_lines() {                      # chunk -> "file-sha256  ./path" for every file the remote has behind it
   if [ "$1" = '_root_files_' ]; then
     _paths=''
     while IFS= read -r _rf; do _paths="$_paths '$_rf'"; done < "$_rootfiles"
   else
     _paths="'./$1'"
   fi
-  # Read-only: cd/find/sort/sed/sha256sum/cut, no deletion, no write. 'xargs -0 -r' because a pruned
-  # chunk must fold to the EMPTY digest, not hang: bare 'xargs -0 sha256sum' runs sha256sum with no
-  # operands on an empty list and it sits reading the ssh session's stdin (the verify_transfer.sh
-  # empty-tree hang class, checkup problem 53/64). The sed rewrites the two bytes after each hash to
-  # "  " so a sha256sum that marks its lines binary ("hash *path", Git-for-Windows) and one that
-  # leaves them text ("hash  path", Ubuntu) fold to the same digest - the comparison must not depend
-  # on which box ran the fold.
+  # Read-only: cd/find/sort/xargs/sed/sha256sum - no deletion, no write. And deliberately NOT folded on
+  # the far side: the set to compare is the manifest's, not the subtree's, so the fold has to wait for
+  # the scope step below. 'xargs -0 -r' because a pruned chunk must list NOTHING, not hang: bare
+  # 'xargs -0 sha256sum' runs sha256sum with no operands on an empty list and it sits reading the ssh
+  # session's stdin (the verify_transfer.sh empty-tree hang class, checkup problem 53/64). The sed
+  # rewrites the two bytes after each hash to "  " so a sha256sum that marks its lines binary
+  # ("hash *path", Git-for-Windows) and one that leaves them text ("hash  path", Ubuntu) return the same
+  # lines - the comparison must not depend on which box hashed the files.
   run_remote "cd '$REMOTE_DIR' && find $_paths -type f -print0 | LC_ALL=C sort -z | \
-xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /' | sha256sum | cut -d' ' -f1"
+xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /'"
+}
+
+chunk_scope() {                             # build-lines file, remote-lines file -> "seen differ"; scoped lines -> $3
+  awk -v out="$3" '
+    NR==FNR { want[substr($0, 67)] = substr($0, 1, 64); next }
+    {
+      p = substr($0, 67)
+      if (!(p in want)) next     # not a file this build lists: not bytes of this chunk, so not comparable
+      print > out
+      seen++
+      if (want[p] != substr($0, 1, 64)) differ++
+    }
+    END { print seen+0, differ+0 }
+  ' "$1" "$2"
 }
 
 sent=0 skipped=0 bytes_sent=0
+_build_lines=$STAGE_DIR/_chunk_build_lines.txt
+_remote_lines=$STAGE_DIR/_chunk_remote_lines.txt
+_scoped_lines=$STAGE_DIR/_chunk_scoped_lines.txt
 while IFS= read -r _cn; do
   _tn=$(tar_name "$_cn")
-  _ph=$(payload_digest_local "$_cn")
-  _rh=$(remote_payload_digest "$_cn") || \
+  payload_lines_build "$_cn" > "$_build_lines"
+  _cnfiles=$(awk 'END { print NR+0 }' "$_build_lines")
+  _ph=$(sha256sum < "$_build_lines" | cut -d' ' -f1)
+  remote_chunk_lines "$_cn" > "$_remote_lines" || \
     die "cannot observe the remote copy of chunk '$_cn' via $TRANSFER_TRANSPORT: refusing to claim anything about it - a chunk is skipped only when its bytes on the remote were actually looked at"
+  : > "$_scoped_lines"
+  _scope=$(chunk_scope "$_build_lines" "$_remote_lines" "$_scoped_lines") || \
+    die "could not scope the remote listing of chunk '$_cn' against this build's manifest - refusing to guess: a chunk is skipped only when its bytes on the remote were actually looked at"
+  set -- $_scope
+  _rseen=$1 _rdiff=$2
+  _rh=$(sha256sum < "$_scoped_lines" | cut -d' ' -f1)
+  rm -f -- "$_build_lines" "$_remote_lines" "$_scoped_lines"
   if [ "$_ph" = "$_rh" ]; then
-    say "skip  $_cn ($_tn): the files under '$REMOTE_DIR' for this chunk hash to payload sha256 $_ph - just observed on the remote tree, not the sent-ledger"
+    say "skip  $_cn ($_tn): the remote holds all $_cnfiles files this chunk's manifest lists, hashing to payload sha256 $_ph - just observed on the remote tree, not the sent-ledger"
     skipped=$((skipped+1))
     continue
   fi
@@ -392,7 +441,7 @@ while IFS= read -r _cn; do
   _hash=$(sha256sum "$STAGE_DIR/$_tn" | cut -d' ' -f1)
   printf '%s\t%s\n' "$_hash" "$_tn" >> "$CHUNK_HASHES"
   set -- $(chunk_stats "$_cn")
-  say "send  $_cn: files=$1 bytes=$2 tar=$_tn sha256=$_hash (remote payload $_rh differs from build payload $_ph - replaced by other bytes or absent)"
+  say "send  $_cn: files=$1 bytes=$2 tar=$_tn sha256=$_hash (of the $_cnfiles files this chunk's manifest lists the remote holds $_rseen, $_rdiff of them with other bytes -> payload fold $_rh differs from build payload $_ph; a file the build no longer lists is not counted here - this script never deletes remote files, and verify_transfer.sh reports those as EXTRA)"
   if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "tar $TAR_FLAG -xf - -C '$REMOTE_DIR'" < "$STAGE_DIR/$_tn"; then
     die "chunk '$_cn' failed mid-transfer. A partial chunk cannot be resumed: the next run re-sends it whole. Nothing was deleted remote."
   fi

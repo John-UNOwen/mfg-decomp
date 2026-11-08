@@ -164,31 +164,45 @@ done
 # replacement travel through the environment on purpose: awk -v would interpret
 # backslashes in them, ENVIRON[] does not. 'all' mirrors .NET String.Replace (replaces
 # every occurrence, which is what the PowerShell version used); 'first' mirrors the
-# [regex]::Replace(..., 1) call at ps1 :86.
+# [regex]::Replace(..., 1) call at ps1 :86. Its exit status is the answer this helper never
+# used to give: 0 when the needle occurred, 1 when it occurred nowhere and <out> is <file>
+# unchanged. A no-match used to exit 0 exactly like a match - which is what let every
+# "patched ..." line below print even on a template whose loader markup had moved and the
+# anchor had matched nothing (a page with no config.arguments and no resized canvas, shipped
+# as "done").
 litreplace() {
   _lr_needle=$2 _lr_repl=$3 _lr_mode=$4 awk '
-    BEGIN { needle = ENVIRON["_lr_needle"]; repl = ENVIRON["_lr_repl"]; mode = ENVIRON["_lr_mode"] }
+    BEGIN { needle = ENVIRON["_lr_needle"]; repl = ENVIRON["_lr_repl"]; mode = ENVIRON["_lr_mode"]; _lr_hits = 0 }
     {
       out = ""; s = $0
       for (;;) {
         i = index(s, needle)
         if (i == 0) break
+        _lr_hits++
         out = out substr(s, 1, i - 1) repl
         s = substr(s, i + length(needle))
         if (mode == "first") break
       }
       print out s
     }
+    END { exit (_lr_hits > 0 ? 0 : 1) }   # 1 = the needle never occurred: <out> is <file> unchanged
   ' "$1" > "$5"
 }
 
 # apply_patch <file> <needle> <replacement> <all|first>
 # Writes the patched text back in place, preserving the file's trailing-newline state
 # (Set-Content -NoNewline wrote the string back exactly as Get-Content -Raw read it).
+# It hands litreplace's answer straight back: 0 when the needle matched and the file changed,
+# 1 when the needle was absent and the file was left byte-for-byte as it was. Every caller
+# that prints a success line must branch on that return - a success line after a 1 is a claim
+# about a byte that was never written.
 apply_patch() {
   _p_file=$1 _p_needle=$2 _p_repl=$3 _p_mode=$4
   _p_tmp=${_p_file}.lit.tmp
-  litreplace "$_p_file" "$_p_needle" "$_p_repl" "$_p_mode" "$_p_tmp"
+  if ! litreplace "$_p_file" "$_p_needle" "$_p_repl" "$_p_mode" "$_p_tmp"; then
+    rm -f -- "$_p_tmp"
+    return 1                                # needle absent: file untouched, caller decides
+  fi
   if [ -n "$(tail -c 1 "$_p_file")" ]; then
     # input ended without a newline; awk's print added one, so drop it.
     # head -c is a coreutils/BSD extension; POSIX alternative: cut -b 1-N.
@@ -198,6 +212,7 @@ apply_patch() {
     cat "$_p_tmp" > "$_p_file"
   fi
   rm -f -- "$_p_tmp"
+  return 0
 }
 
 has() { grep -F -q -- "$2" "$1"; }   # has <file> <literal>
@@ -621,14 +636,24 @@ MERGE_JS='(function(){var base=["-KONAMINET", "-FRONTURL", "__FRONTURL__", "-GAM
 MERGE_JS=${MERGE_JS//__FRONTURL__/$FRONT_URL}   # ps1 :50 (FrontUrl spliced in)
 
 if ! has "$idx" 'arguments:'; then
+  _cfg_ok=0
   if has "$idx" 'var config = {'; then
     # ps1 :51-53: 'var config = { arguments: <merge>,' replaces 'var config = {'
-    apply_patch "$idx" 'var config = {' "var config = { arguments: $MERGE_JS," all
+    if apply_patch "$idx" 'var config = {' "var config = { arguments: $MERGE_JS," all; then _cfg_ok=1; fi
   else
     # ps1 :55-56: loaders with no config literal get the args object as 2nd parameter
-    apply_patch "$idx" 'createUnityInstance(canvas, ' "createUnityInstance(canvas, { arguments: $MERGE_JS }, " all
+    if apply_patch "$idx" 'createUnityInstance(canvas, ' "createUnityInstance(canvas, { arguments: $MERGE_JS }, " all; then _cfg_ok=1; fi
   fi
-  printf 'patched index.html config.arguments\n'
+  if [ "$_cfg_ok" = 1 ]; then
+    printf 'patched index.html config.arguments\n'
+  else
+    # Neither anchor spliced: no "arguments:" block was written, and the gate splices the play
+    # page only through config.arguments (it answers 500 "play page template not splicable"
+    # without it, webfront/Program.cs:1359-1385). Publishing this root would ship a lane whose
+    # every play page 500s while stdout says all done, so the assembly fails here - on the
+    # staged copy, before anything is swapped in.
+    die "the config.arguments patch found no anchor to splice into: neither 'var config = {' nor 'createUnityInstance(canvas, ' occurs in $idx, so no arguments: block was written; this build's loader markup differs from the 2022.3 Default template and the webroot was NOT published."
+  fi
 else
   printf 'index.html already has arguments\n'
 fi
@@ -638,13 +663,29 @@ fi
 # reference resolution is 1920x1080; the CSS makes the canvas fill the window as a
 # 16:9 letterbox. ps1 :67 used -replace with a pattern that has no metacharacters, so
 # the literal needle below matches the same text.
-apply_patch "$idx" '<canvas id="unity-canvas" width=960 height=600 ' '<canvas id="unity-canvas" width=1280 height=720 ' all
+_canvas_ok=0
+if apply_patch "$idx" '<canvas id="unity-canvas" width=960 height=600 ' '<canvas id="unity-canvas" width=1280 height=720 ' all; then
+  _canvas_ok=1
+elif has "$idx" '<canvas id="unity-canvas" width=1280 height=720 '; then
+  _canvas_ok=1                                 # already the resized canvas (an already-assembled build root)
+fi
 
 CANVAS_CSS='<style>/*MFG-CANVAS*/html,body{margin:0;padding:0;overflow:hidden;background:#000}#unity-container{position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;transform:none!important}#unity-canvas{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;width:min(100vw,177.78vh)!important;height:min(56.25vw,100vh)!important;display:block!important}#unity-loading-bar,#unity-logo,#unity-fullscreen-button,#unity-progress-bar-full,#unity-webgl-logo,#unity-build-title{display:none!important}</style>'
-if ! has "$idx" 'MFG-CANVAS'; then           # ps1 :73 idempotence marker
-  apply_patch "$idx" '</head>' "${CANVAS_CSS}</head>" all
+_css_ok=0
+if has "$idx" 'MFG-CANVAS'; then                # ps1 :73 idempotence marker: already there, observed
+  _css_ok=1
+elif has "$idx" '</head>'; then
+  if apply_patch "$idx" '</head>' "${CANVAS_CSS}</head>" all; then _css_ok=1; fi
 fi
-printf 'patched index.html canvas->letterbox-fill\n'
+if [ "$_canvas_ok" = 1 ] && [ "$_css_ok" = 1 ]; then
+  printf 'patched index.html canvas->letterbox-fill\n'
+else
+  # The 960x600 unity-canvas is what this step resizes and the /*MFG-CANVAS*/ block is what splices
+  # the 16:9 letterbox CSS in; without them the end-of-match / continue button falls off-screen (the
+  # reason the patch exists, ps1 :65-75). Claiming the letterbox "applied" on a template whose canvas
+  # or </head> markup had moved would hide exactly that, so the assembly fails here instead.
+  die "the canvas->letterbox patch did not take: the 960x600 unity-canvas tag was not present to resize (canvas resized to 1280x720: $_canvas_ok) and the /*MFG-CANVAS*/ letterbox CSS was not spliced into '</head>' (CSS spliced: $_css_ok), checked in $idx; a template whose canvas markup differs from the 2022.3 Default page clips the end-of-match UI, and the webroot was NOT published."
+fi
 
 # ---------------------------- 6. framework.js url -> argv ----------------------------
 # ps1 :80-90. Single-point edit: replace only the FIRST 'var arguments_=[]' (the loader
@@ -656,8 +697,15 @@ FW="$WEBROOT/Build/webgl.framework.js"       # ps1 :80
 if [ -f "$FW" ]; then
   if ! has "$FW" 'MFG-URLARGV'; then
     FW_INJECT='var arguments_=/*MFG-URLARGV*/(function(){var out=[];try{var s=location.search.substring(1).split("&");for(var i=0;i<s.length;i++){if(!s[i])continue;var kv=s[i].split("=");var k=decodeURIComponent(kv[0].replace(/\+/g," "));if(kv.length>1){out.push(k);out.push(decodeURIComponent(kv[1].replace(/\+/g," ")))}else{out.push(k)}}if(typeof Module!=="undefined"&&Module["arguments"]){out=Module["arguments"].concat(out)}}catch(e){}return out})()'
-    apply_patch "$FW" 'var arguments_=[]' "$FW_INJECT" first
-    printf 'patched framework.js url->argv\n'
+    if apply_patch "$FW" 'var arguments_=[]' "$FW_INJECT" first; then
+      printf 'patched framework.js url->argv\n'
+    else
+      # The loader factory freezes `var arguments_=[]` at script load, before config.arguments can
+      # reach it, so this is the only path by which URL-query arguments reach Environment.GetCommandLineArgs
+      # in the wasm. If that needle moved, the argv rewrite never ran and the client silently starts with no
+      # arguments - so fail here instead of claiming a patch that was never made.
+      die "the framework.js url->argv patch found no anchor: 'var arguments_=[]' does not occur in $FW, so the loader's frozen argv was never rewritten and the client receives no URL-query arguments; this build's framework.js differs from the 2022.3 Default loader and the webroot was NOT published."
+    fi
   else
     printf 'framework.js already url->argv patched\n'
   fi
@@ -680,9 +728,13 @@ for f in "${stamp_files[@]}"; do
 done
 STAMP=$(printf '%s' "$joined" | _hash_stdin | tr '[:lower:]' '[:upper:]' | cut -c1-12)
 
-# ps1 :101-104 literal '"/<asset>"' -> '"/<asset>?v=<stamp>"' (the gate ignores queries)
+# ps1 :101-104 literal '"/<asset>"' -> '"/<asset>?v=<stamp>"' (the gate ignores queries). Count how
+# many of the four the patch actually rewrote, so the line below reports what was observed rather than
+# asserting all four on a template that spells the asset urls another way (or a previously assembled
+# root, where they are already "...?v=OLD" and the fresh needle matches nothing).
+_stamp_n=0
 for asset in webgl.loader.js webgl.framework.js webgl.data webgl.wasm; do
-  apply_patch "$idx" "\"/$asset\"" "\"/$asset?v=$STAMP\"" all
+  if apply_patch "$idx" "\"/$asset\"" "\"/$asset?v=$STAMP\"" all; then _stamp_n=$((_stamp_n+1)); fi
 done
 
 # ps1 :114 build_stamp.txt, UTF-8 no BOM, no trailing newline (Set-Content -NoNewline)
@@ -711,7 +763,11 @@ else
   # ps1 :127-129 no </head> to splice into: the block is appended at the end
   printf '%s' "$WATCHDOG" >> "$idx"
 fi
-printf 'stamped build asset urls v=%s; catalog-fetch stamp + auto-refresh watchdog baked\n' "$STAMP"
+if [ "$_stamp_n" = 0 ]; then
+  printf 'build asset urls NOT stamped: none of "/webgl.loader.js", "/webgl.framework.js", "/webgl.data", "/webgl.wasm" occur in %s to carry v=%s (already stamped, or this template spells the asset urls another way); catalog-fetch stamp + auto-refresh watchdog baked\n' "$idx" "$STAMP"
+else
+  printf 'stamped %s/4 build asset urls v=%s; catalog-fetch stamp + auto-refresh watchdog baked\n' "$_stamp_n" "$STAMP"
+fi
 
 # ---------------------------- 9. brotli sidecars ----------------------------
 # ps1 :133-135 called scripts\brotli-sidecar\bin\Release\net8.0\sidecar.exe <webroot>.

@@ -31,10 +31,11 @@
 #   WEBFRONT_DIR    webfront checkout root.      default: <repo>/webfront
 #   WEBROOT         gate webroot (WEBFRONT_ROOT). default: ~/mfgtmp/webroot (hosting_up.ps1:64)
 #   CORE_HOST       core listen host, probed.    default: 127.0.0.1
-#   CORE_PORT       core webui port, probed.     default: 8083
-#                   (config.ini:1 port=8083; probed like hosting_up.ps1:36,56-60)
+#   CORE_PORT       core webui port.             default: 8083
+#                   (config.ini:1 port= is rewritten to it while the core is stopped,
+#                   and mfg_service_url follows it; probed like hosting_up.ps1:36,56-60)
 #   CORE_HTTP_PORT  plugin native listener port. default: 22421
-#                   (config.ini:29 mfg_http_port; hosting_up.ps1:38 comment "native 22421
+#                   (config.ini:29 mfg_http_port is rewritten to it; hosting_up.ps1:38 comment "native 22421
 #                   listener"). Probed too: the plugin would fail EADDRINUSE with it
 #                   taken. 0 = do not probe it.
 #   GATE_PORT       gate port (WEBFRONT_PORT).   default: 8090 (hosting_up.ps1:67,80-84)
@@ -416,21 +417,34 @@ fi
 # its line endings.
 ini="$coreDist/config.ini"
 iniStamp=$(date +%Y%m%d%H%M%S)
+# The declared ports must be the ports config.ini actually starts the core on. This block used to
+# rewrite only mfg_http_bind while CORE_PORT/CORE_HTTP_PORT only ever moved the probes and the gate's
+# upstream - so a lane "started on 18083" probed a port that config.ini's port= line never set, the
+# core bound the old one, and the up-wait died with the port busy. Every port the lane takes is now
+# written here, anchored per key line (^[[:space:]]*port= never touches matching_port=), with the
+# same [^[:cntrl:]]* stop that keeps a CRLF file's line endings intact. mfg_service_url carries the
+# webui port too - the cabinets get it from the AOG replies, so a moved port without a moved url is
+# a lane whose game traffic still points at the old one.
+for _pn in CORE_PORT CORE_HTTP_PORT GATE_PORT; do
+  eval _pv=\$$_pn
+  case $_pv in ''|*[!0-9]*) die "$_pn must be a number: '$_pv'" ;; esac
+done
+_ini_expr="s/^[[:space:]]*mfg_http_bind=[^[:cntrl:]]*/mfg_http_bind=127.0.0.1/; s/^[[:space:]]*port=[^[:cntrl:]]*/port=$CORE_PORT/; s/^[[:space:]]*mfg_http_port=[^[:cntrl:]]*/mfg_http_port=$CORE_HTTP_PORT/; s|^[[:space:]]*mfg_service_url=[^[:cntrl:]]*|mfg_service_url=http://$CORE_HOST:$CORE_PORT/aog|"
 if [ -f "$ini" ]; then
   iniBackup="$ini.bak.$iniStamp"
   if [ $DRY_RUN = 1 ]; then
     say "dry-run: cp -p '$ini' '$iniBackup'"
-    say "dry-run: sed 's/mfg_http_bind=[^[:cntrl:]]*/mfg_http_bind=127.0.0.1/g' applied to '$ini' in place"
+    say "dry-run: sed '$ini_expr' applied to '$ini' in place"
   else
     cp -p "$ini" "$iniBackup"
     _tmp="$ini.lane.tmp"
-    sed 's/mfg_http_bind=[^[:cntrl:]]*/mfg_http_bind=127.0.0.1/g' "$ini" > "$_tmp"
+    sed "$ini_expr" "$ini" > "$_tmp"
     cat "$_tmp" > "$ini"
     rm -f -- "$_tmp"
-    say "config.ini: mfg_http_bind rewritten to 127.0.0.1 (timestamped copy: $iniBackup)"
+    say "config.ini: bind 127.0.0.1, webui port $CORE_PORT, native port $CORE_HTTP_PORT, service_url http://$CORE_HOST:$CORE_PORT/aog (timestamped copy: $iniBackup)"
   fi
 else
-  die "no config.ini at $coreDist - keep mfg_http_bind=127.0.0.1 in the environment"   # hosting_up.ps1:45
+  die "no config.ini at $coreDist - the core cannot be configured (mfg_http_bind stays 127.0.0.1)"   # hosting_up.ps1:45
 fi
 
 # ---------------------------- 7. the plan (--dry-run exits here) ----------------------------
@@ -514,7 +528,9 @@ stop_tunnel_on_lane_failure() {   # the lane is not up: do not leave a registere
 }
 
 # ---------------------------- 9. core up (hosting_up.ps1:46-61) ----------------------------
-export VFG_PRESENTER_SECRET=$secret
+# Quoted, always: an unquoted export truncated a presenter secret at its first space and
+# still printed "presenter armed" - the one message this line is not allowed to lie about.
+export VFG_PRESENTER_SECRET="$secret"
 export mfg_http_bind=127.0.0.1
 if [ "$CLOUDFLARED" != 0 ]; then export WEB_SECURE_COOKIE=1; fi   # hosting_up.ps1:52; tunnel proven in section 8
 
@@ -528,7 +544,16 @@ if ! wait_up "$CORE_HOST" "$CORE_PORT" "$CORE_UP_TRIES"; then
   stop_tunnel_on_lane_failure
   die "core did not bind $CORE_HOST:$CORE_PORT (see $coreErr); core pid file removed only while the child was still identifiable"
 fi
-say "core up: presenter armed, mfg_http_bind=127.0.0.1 (pid $corePid, cwd $coreDist)"
+# "core up" means every port the core owns, not just the webui one: the native AOG listener
+# (config.ini mfg_http_port) opens a beat later, and a lane that lost it serves pages while
+# every cabinet's game traffic silently fails.
+if [ "$CORE_HTTP_PORT" != 0 ] && ! wait_up "$CORE_HOST" "$CORE_HTTP_PORT" "$CORE_UP_TRIES"; then
+  tail -n 12 "$coreErr" >&2 2>/dev/null || true
+  cleanup_child core "$corePid"
+  stop_tunnel_on_lane_failure
+  die "core bound $CORE_HOST:$CORE_PORT but never its native listener $CORE_HOST:$CORE_HTTP_PORT (config.ini mfg_http_port; see $coreErr)"
+fi
+say "core up: presenter armed, $CORE_HOST:$CORE_PORT webui + $CORE_HOST:$CORE_HTTP_PORT native, mfg_http_bind=127.0.0.1 (pid $corePid, cwd $coreDist)"
 
 # ---------------------------- 10. gate up (hosting_up.ps1:63-85) ----------------------------
 export WEBFRONT_ROOT=$WEBROOT

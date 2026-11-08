@@ -891,30 +891,37 @@ if [ "$SERVE" = 1 ]; then
   servePid=$!
   mkdir -p -- "$PID_DIR"
   echo "$servePid" > "$GATE_PID_FILE"
-  printf 'webfront started (pid %s, recorded in %s, logs in %s) bind=%s port=%s WEBFRONT_UPSTREAM=%s\n' "$servePid" "$GATE_PID_FILE" "$LOG_DIR" "$BIND" "$GATE_PORT" "$UPSTREAM"
-  # Step 9b's other half, and the only place its rule can be met. The front this run started is its
-  # own child, on the port this run bound, with WEBFRONT_ROOT pointed at the root that was just
-  # swapped in - so it is the one front whose answer counts as proof that the new root serves, asked
-  # with the same /build_stamp.txt question as step 3 and 9b, no new rule. Only on that answer does
-  # the previous root go. If the answer never comes, the aside stays where it is and this says so,
-  # instead of quietly deleting the last thing the lane could have rolled back to (ledger L90).
+  # Ask whether the process this run just started actually answers, BEFORE any up claim. $! proves
+  # the shell forked a child, not that the child bound its port: dotnet exits 1 when it cannot bind
+  # (webfront/Program.cs:371), and the old line printed "webfront started (pid ...)" either way - the
+  # exact unobserved success lane_up.sh refuses with wait_gate_up (:546). The question is the one step
+  # 3 and 9b ask (/build_stamp.txt against this root's own stamp), and it is now asked whether or not a
+  # previous root was moved aside: a first-time swap used to start a front that NOTHING ever checked.
+  _disk=$(_disk_stamp "$WEBROOT")
+  _proved=0
+  _last="it never answered on 127.0.0.1:$GATE_PORT"
+  _pt=1
+  while [ $_pt -le 40 ]; do                       # ~10s, the window a dotnet front needs to bind
+    _st=''; _body=''
+    if _pf=$(_probe_front "$GATE_PORT"); then
+      { read -r _st; read -r _body; } <<<"$_pf" || true
+      if [ "$_st" = 200 ] && [ -n "$_disk" ] && [ "$_body" = "$_disk" ]; then _proved=1; break; fi
+      _last="it answers /build_stamp.txt with HTTP $_st (body: ${_body:-<empty>})"
+    fi
+    sleep 0.25
+    _pt=$((_pt+1))
+  done
+  if [ "$_proved" = 1 ]; then
+    printf 'webfront listening (pid %s, recorded in %s, logs in %s) bind=%s port=%s WEBFRONT_UPSTREAM=%s: it answered /build_stamp.txt with %s, the stamp in %s\n' "$servePid" "$GATE_PID_FILE" "$LOG_DIR" "$BIND" "$GATE_PORT" "$UPSTREAM" "$_disk" "$WEBROOT/build_stamp.txt"
+  else
+    printf 'webfront pid %s was recorded in %s, but this run did NOT PROVE it is listening: %s, so the new root is UNPROVEN against %s (its stamp is %s)\n' "$servePid" "$GATE_PID_FILE" "$_last" "$WEBROOT/build_stamp.txt" "${_disk:-<none>}"
+  fi
+  # Step 9b's other half, and the only place its rule can be met: only the answer above proves the new
+  # root serves, so only on that answer does the previous root go; if it never came the aside stays put
+  # and this says so, instead of quietly deleting the last thing the lane could have rolled back to (L90).
   if [ -n "$_aside" ]; then
-    _disk=$(_disk_stamp "$WEBROOT")
-    _proved=0
-    _last="it never answered on 127.0.0.1:$GATE_PORT"
-    _pt=1
-    while [ $_pt -le 40 ]; do
-      _st=''; _body=''
-      if _pf=$(_probe_front "$GATE_PORT"); then
-        { read -r _st; read -r _body; } <<<"$_pf" || true
-        if [ "$_st" = 200 ] && [ -n "$_disk" ] && [ "$_body" = "$_disk" ]; then _proved=1; break; fi
-        _last="it answers /build_stamp.txt with HTTP $_st (body: $_body)"
-      fi
-      sleep 0.25
-      _pt=$((_pt+1))
-    done
-    if [ $_proved = 1 ]; then
-      printf 'the front this run started (pid %s on 127.0.0.1:%s) answered /build_stamp.txt with %s: the new root is proved to be serving, so the previous root can go\n' "$servePid" "$GATE_PORT" "$_disk"
+    if [ "$_proved" = 1 ]; then
+      printf 'the new root answers for itself on 127.0.0.1:%s: the previous root can go\n' "$GATE_PORT"
       if _rm_why=$(rm -rf -- "$_aside" 2>&1); then
         printf 'the previous root at %s was removed\n' "$_aside"
       else
@@ -923,5 +930,10 @@ if [ "$SERVE" = 1 ]; then
     else
       printf 'the front this run started (pid %s) never answered /build_stamp.txt with the stamp of this root (%s): the new root is UNPROVEN, so the previous root was kept at %s\n' "$servePid" "$_last" "$_aside"
     fi
+  fi
+  if [ "$_proved" != 1 ]; then
+    _kept='there was no previous root to fall back to'
+    if [ -n "$_aside" ]; then _kept="the previous root was kept at $_aside (the undo handle)"; fi
+    die "the webroot was assembled and stands at $WEBROOT, but --serve could not prove webfront pid $servePid is listening: it never answered /build_stamp.txt on 127.0.0.1:$GATE_PORT with this root's stamp (${_disk:-<none>}). The gate record $GATE_PID_FILE was kept, and $_kept."
   fi
 fi

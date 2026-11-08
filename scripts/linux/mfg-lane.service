@@ -32,20 +32,36 @@ ProtectSystem=strict
 ReadWritePaths=@CORE_DIR@/dist
 ; dist itself is written: SaveConfig() rewrites config.ini on exit
 ; (dist/AsphyxiaCore.js:60; hosting_up.ps1:41-45 patches the same file while the core
-; is stopped) and winston appends log.txt in cwd (dist/utils/Logger.js:37)
-ReadWritePaths=@CORE_DIR@/dist/savedata
+; is stopped) and winston appends log.txt in cwd (dist/utils/Logger.js:37). No '-'
+; prefix on dist or on the assets line below: install_systemd.sh proves
+; <core>/dist/AsphyxiaCore.js before it stages this unit, build-env/assets is tracked
+; (the core repo's .gitignore negates it with !build-env/assets/), and a dist that is
+; not there fails on WorkingDirectory= anyway - strict entries stay strict.
+ReadWritePaths=-@CORE_DIR@/dist/savedata
 ; SAVE_PATH = resolve(cwd, "savedata") (dist/utils/EamuseIO.js:99; the -d option
 ; default is "savedata", dist/utils/ArgConfig.js:60-63) - core.db plus every plugin
-; SQLite store and their -wal sidecars live here
-ReadWritePaths=@CORE_DIR@/dist/uploads
+; SQLite store and their -wal sidecars live here. The '-' prefix is load-bearing:
+; savedata/ is gitignored and exists only because the core's first run makes it
+; (recursive mkdir in PrepareDirectory, dist/utils/EamuseIO.js:176-181), and
+; systemd.exec(5) ignores a missing ReadWritePaths target only when it carries '-' -
+; without the prefix the unit dies at the NAMESPACE step (status=226) before
+; ExecStart, so the mkdir that would create it never runs and a fresh checkout can
+; never start (2026-11-08 checkup). The core still creates it under the unit, because
+; dist itself is writable.
+ReadWritePaths=-@CORE_DIR@/dist/uploads
 ; UPLOADS_PATH = cwd/uploads, served at /uploads (dist/AsphyxiaCore.js:74-75);
-; profile/banner uploads are written there
-ReadWritePaths=@CORE_DIR@/dist/plugins
+; profile/banner uploads are written there, and uploads/avatars plus uploads/banners
+; are mkdir'd when the core loads (dist/webui/routes/profile.js:371-376) - first-run
+; directory, same '-' rule as savedata above
+ReadWritePaths=-@CORE_DIR@/dist/plugins
 ; dist/plugins/<name>/*.ts are loaded through ts-node
 ; (dist/eamuse/ExternalPluginLoader.js:59-74); plugin attribution compares literal
 ; stack-frame prefixes against the cwd-derived PLUGIN_PATH
 ; (dist/utils/EamuseIO.js:97, dist/eamuse/ExternalPluginLoader.js:36), so this exact
-; path spelling must be the real one - do not symlink or bind-mount it from elsewhere
+; path spelling must be the real one - do not symlink or bind-mount it from elsewhere.
+; '-' like savedata: neither git clone nor tsc produces this directory (dist/* is
+; gitignored and the mfg@asphyxia plugin is fed from its own repo), so a freshly
+; built tree has none until the operator mirrors the plugin in
 ReadWritePaths=@CORE_DIR@/build-env/assets
 ; ASSETS_PATH = cwd-relative "../build-env/assets" (dist/utils/EamuseIO.js:98): the
 ; webui renders views and static files from it. Writable because the deployment

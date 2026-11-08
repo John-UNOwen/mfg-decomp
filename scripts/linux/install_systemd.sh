@@ -23,7 +23,12 @@
 #   --staging DIR     where substituted units + lane.env are written.
 #                     default: <this script's directory>/systemd-staging
 #   --user NAME       User= in every unit. default: current user id
-#   --home DIR        target user's home (for @HOME@ in the tunnel unit). default: $HOME
+#   --home DIR        the TARGET USER's home. WEBROOT, SEC_DIR (core.env), @HOME@ in the
+#                     tunnel unit and --tunnel-config all derive from it - never from the
+#                     home of whoever runs this script. Without --home the home is the
+#                     caller's $HOME only when --user IS the caller; otherwise it is read
+#                     from getent passwd <user>. A different user this box cannot resolve
+#                     without --home is refused, naming both candidate homes.
 #   --core-dir / --webfront-dir / --webroot / --sec-dir   override the paths
 #   --env-file PATH   EnvironmentFile= shared by core and gate. default: /etc/mfg/lane.env
 #   --tunnel-name     cloudflared tunnel name. default: mfg (hosting_up.ps1:88)
@@ -42,7 +47,7 @@
 #                     only after the cloudflared config is read and names --tunnel-name. The
 #                     preflight runs before anything is staged: a refused tunnel leaves the
 #                     staging directory empty, not half a hosted posture.
-#   --tunnel-config   cloudflared config to check. default: <home>/.cloudflared/config.yml
+#   --tunnel-config   cloudflared config to check. default: <target user's home>/.cloudflared/config.yml
 #                     (lane_up.sh:99; the same directory mfg-tunnel.service's ReadWritePaths=)
 #   --no-tunnel       explicit plain http (the default; kept for scripts that pass it)
 #
@@ -59,7 +64,8 @@ SCRIPT_DIR=${SCRIPT_PATH%/*}
 
 STAGING_DIR="$SCRIPT_DIR/systemd-staging"
 LANE_USER=$(id -un 2>/dev/null || echo mfg)
-TARGET_HOME=$HOME
+TARGET_HOME=''   # the TARGET USER's home, resolved after argument parsing - never silently the caller's
+HOME_SET=0
 TARGET_DIR=''
 ENV_FILE='/etc/mfg/lane.env'
 TUNNEL_NAME='mfg'
@@ -86,7 +92,7 @@ while [ $# -gt 0 ]; do
   case $1 in
     --staging)         [ $# -ge 2 ] || die "--staging needs a value"; STAGING_DIR=$2; shift 2 ;;
     --user)            [ $# -ge 2 ] || die "--user needs a value"; LANE_USER=$2; shift 2 ;;
-    --home)            [ $# -ge 2 ] || die "--home needs a value"; TARGET_HOME=$2; shift 2 ;;
+    --home)            [ $# -ge 2 ] || die "--home needs a value"; TARGET_HOME=$2; HOME_SET=1; shift 2 ;;
     --core-dir)        [ $# -ge 2 ] || die "--core-dir needs a value"; CORE_DIR=$2; shift 2 ;;
     --webfront-dir)    [ $# -ge 2 ] || die "--webfront-dir needs a value"; WEBFRONT_DIR=$2; shift 2 ;;
     --webroot)         [ $# -ge 2 ] || die "--webroot needs a value"; WEBROOT=$2; shift 2 ;;
@@ -109,6 +115,43 @@ done
 
 [ -n "$TARGET_DIR" ] || die "TARGET_DIR is required (the lane repo root on the Linux box)"
 case $TARGET_DIR in /*) : ;; *) die "TARGET_DIR must be an absolute path: $TARGET_DIR" ;; esac
+
+# ---------------------------- whose home is the lane's home? ----------------------------
+# Every default below (WEBROOT=<home>/mfgtmp/webroot, SEC_DIR=<home>/.mfg-web and its core.env,
+# --tunnel-config, the tunnel unit's ReadWritePaths=@HOME@/.cloudflared) names a directory the
+# process running as User=@USER@ must be able to read. The line this replaces took TARGET_HOME
+# from the caller's $HOME no matter what --user said, so the kit's own README step 6
+# (install_systemd.sh /path/to/repo --user <svcuser>) staged the whole layout under the CALLER:
+# core.env gets chmod 600 and is unreadable to User=<svcuser> (mfg-lane.service loads it with the
+# '-' prefix, so the core starts "successfully" with the presenter un-armed), and the tunnel's
+# ReadWritePaths named a ~/.cloudflared that cloudflared - whose HOME comes from the target user's
+# passwd entry - never looks at. Derive from the user the units actually run as; when that is not
+# the caller, print both homes so nobody is surprised by where the files landed.
+_caller_user=$(id -un 2>/dev/null || printf '%s' "$LANE_USER")
+if [ $HOME_SET = 1 ]; then
+  case $TARGET_HOME in
+    /*) : ;;
+    *) die "--home must be an absolute path: $TARGET_HOME" ;;
+  esac
+  _home_from='--home'
+elif [ "$LANE_USER" = "$_caller_user" ]; then
+  TARGET_HOME=$HOME          # the units run as the caller: this shell's $HOME is that user's home
+  _home_from='--user is the caller, so $HOME'
+else
+  _th=''
+  if command -v getent >/dev/null 2>&1; then
+    _th=$(getent passwd "$LANE_USER" 2>/dev/null | cut -d: -f6 | head -n 1) || _th=''
+  fi
+  case $_th in
+    /*) TARGET_HOME=$_th; _home_from="getent passwd $LANE_USER" ;;
+    *)  die "cannot resolve a home for User=$LANE_USER (getent passwd $LANE_USER gave no home): refusing to pick between the two candidate homes - the caller's home $HOME (WEBROOT, SEC_DIR and a chmod-600 core.env staged there are permanently unreadable to a User=$LANE_USER service) and $LANE_USER's home, which this box does not record. Pass --home DIR (the real home of $LANE_USER), or create the user and re-run, or stage for the caller (drop --user)." ;;
+  esac
+fi
+if [ "$TARGET_HOME" = "$HOME" ]; then
+  say "paths resolve under $TARGET_HOME ($_home_from; unit User=$LANE_USER is the caller, so the service can read them)"
+else
+  say "the units run as User=$LANE_USER: WEBROOT, SEC_DIR (core.env) and the tunnel unit's ReadWritePaths resolve under the target user's home $TARGET_HOME ($_home_from), NOT the caller's home $HOME"
+fi
 
 CORE_DIR=${CORE_DIR:-"$TARGET_DIR/tmp/RyuNET-core"}
 WEBFRONT_DIR=${WEBFRONT_DIR:-"$TARGET_DIR/webfront"}
@@ -148,7 +191,13 @@ if [ ! -d "$TARGET_DIR" ]; then say "note: TARGET_DIR does not exist yet ($TARGE
 # unit will run. It runs before anything is staged, so a refused tunnel leaves no half-hosted
 # lane.env behind for someone to install.
 tunnel_preflight() {
-  [ -f "$TUNNEL_CONFIG" ] || die "--tunnel but there is no cloudflared config at $TUNNEL_CONFIG: refusing to stage mfg-tunnel.service or arm WEBFRONT_TRUST_PROXY with no tunnel behind it (staging a plain http lane is the default; add --tunnel only with a real tunnel)"
+  [ -e "$TUNNEL_CONFIG" ] || die "--tunnel but there is no cloudflared config at $TUNNEL_CONFIG: refusing to stage mfg-tunnel.service or arm WEBFRONT_TRUST_PROXY with no tunnel behind it (staging a plain http lane is the default; add --tunnel only with a real tunnel)"
+  # exists-but-unreadable says something different from missing: the default now derives from
+  # User=@USER@'s home (resolved above), so a real config there is routinely unreadable to the
+  # caller - say that, and point at --tunnel-config, instead of claiming the file is absent.
+  if [ ! -f "$TUNNEL_CONFIG" ] || [ ! -r "$TUNNEL_CONFIG" ]; then
+    die "$TUNNEL_CONFIG exists but is not a regular file the caller can read (the default derives from User=$LANE_USER's home, and ~/.cloudflared is routinely mode 700 there): refusing to stage mfg-tunnel.service or arm the Secure-cookie posture on a tunnel this run cannot actually read (point --tunnel-config at a copy the caller can read)"
+  fi
   grep -Eq "^[[:space:]]*tunnels?[[:space:]]*:[[:space:]]*['\"]?${TUNNEL_NAME}(['\"]|[[:space:]]*$)|^[[:space:]]+${TUNNEL_NAME}[[:space:]]*:" "$TUNNEL_CONFIG" \
     || die "$TUNNEL_CONFIG does not name tunnel \"$TUNNEL_NAME\": refusing to stage the tunnel unit or arm the Secure-cookie posture (point --tunnel-config/--tunnel-name at the real tunnel, or stage without --tunnel)"
   say "tunnel proven: $TUNNEL_CONFIG names $TUNNEL_NAME - staging mfg-tunnel.service and WEBFRONT_TRUST_PROXY=cloudflare"
@@ -248,12 +297,28 @@ if [ $WITH_TUNNEL = 1 ]; then
   printf '%s\n' \
     "  sudo install -o root -g root -m 0644 '$STAGING_DIR/mfg-tunnel.service' '/etc/systemd/system/mfg-tunnel.service'"
 fi
+# The core.env recipe follows the same rule as the paths above: whoever the units run as must
+# be able to READ the file. A caller-owned 600 core.env is unreadable to the service forever,
+# and mfg-lane.service loads it with the '-' prefix, so the core starts and stays up with no
+# presenter secret at all. When the caller IS the unit user the old unprivileged trio is exactly
+# right; otherwise every step has to run as that user, hence the sudo -u form below.
+if [ "$LANE_USER" = "$_caller_user" ]; then
+  printf '%s\n' \
+    '' \
+    '  # the core secret env file (fill it in yourself; never world-readable):' \
+    "  mkdir -p '$SEC_DIR'" \
+    "  printf 'VFG_PRESENTER_SECRET=%s\\n' \"\$(cat '$SEC_DIR/presenter.secret')\" > '$SEC_DIR/core.env'" \
+    "  chmod 600 '$SEC_DIR/core.env'"
+else
+  printf '%s\n' \
+    '' \
+    "  # the core secret env file, created as User=$LANE_USER so the core can actually read it" \
+    "  # (a caller-owned 600 core.env is silently skipped by the unit's \"-\"-prefixed EnvironmentFile," \
+    '  # and the core then runs un-armed); presenter.secret must already live in that directory:' \
+    "  sudo -u '$LANE_USER' mkdir -p '$SEC_DIR'" \
+    "  sudo -u '$LANE_USER' sh -c 'test -f \"$SEC_DIR/presenter.secret\" && printf \"VFG_PRESENTER_SECRET=%s\\n\" \"\$(cat \"$SEC_DIR/presenter.secret\")\" > \"$SEC_DIR/core.env\" && chmod 600 \"$SEC_DIR/core.env\"'"
+fi
 printf '%s\n' \
-  '' \
-  '  # the core secret env file (fill it in yourself; never world-readable):' \
-  "  mkdir -p '$SEC_DIR'" \
-  "  printf 'VFG_PRESENTER_SECRET=%s\\n' \"\$(cat '$SEC_DIR/presenter.secret')\" > '$SEC_DIR/core.env'" \
-  "  chmod 600 '$SEC_DIR/core.env'" \
   '' \
   '  sudo systemctl daemon-reload' \
   '  sudo systemctl enable --now mfg-lane.service mfg-gate.service'

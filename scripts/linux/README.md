@@ -38,7 +38,12 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
 6. Optional permanent form: `install_systemd.sh /path/to/repo --user <svcuser>`,
    review the staging directory, run the printed `sudo` commands yourself, then
    `systemctl status mfg-lane.service`. From then on use `systemctl start/stop` -
-   do not run `lane_up.sh`/`lane_down.sh` for the same services.
+   do not run `lane_up.sh`/`lane_down.sh` for the same services. The units run as
+   `<svcuser>`, and every staged path (webroot, `--sec-dir` and its `core.env`, the tunnel
+   unit's `ReadWritePaths`) resolves under that user's home: with no `--home` the installer
+   reads the home from `getent passwd <svcuser>`, and a user this box cannot resolve is
+   refused with both candidate homes printed. Its printed `core.env` recipe runs
+   `sudo -u <svcuser>` - the service must own what it reads at mode 600.
 
 ## What the box must have
 
@@ -54,7 +59,9 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
 - Secrets under `~/.mfg-web` at mode **600**: `presenter.secret` (required;
   `hosting_up.ps1:19-21`), `access.code` (optional, access-code lobby,
   `hosting_up.ps1:73-74`). For the systemd path also `~/.mfg-web/core.env`
-  (mode 600, carries `VFG_PRESENTER_SECRET=` for the core unit).
+  (mode 600, carries `VFG_PRESENTER_SECRET=` for the core unit) - under the
+  *service user's* home and owned by them: the units `EnvironmentFile=` it as that user,
+  and a caller-owned 600 file is skipped with no error.
 
 ## Environment the two programs actually read
 

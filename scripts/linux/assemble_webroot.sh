@@ -33,9 +33,10 @@
 #                   only leaves the tree once the new one stands at the path, and it is then
 #                   parked as WEBROOT.old-<stamp>-<pid> - the undo handle - until an answer
 #                   this run observed proves the new root serves (only --serve can observe it).
-#                   Refused before any of that when WEBROOT is the operator home, the repo
-#                   root, the lane pid dir, the lane log dir, a path that contains (or is
-#                   contained by) BUILD_DIR, or a root a live front is answering out of -
+#                   Refused before any of that when WEBROOT is, or sits above, the operator home, the
+#                   repo root, the lane pid dir or the lane log dir (the typo WEBROOT=$HOME/mfgtmp
+#                   carries the lane's records away with the root), when it is a path that contains
+#                   (or is contained by) BUILD_DIR, or when a live front is answering out of it -
 #                   step 3 asks the fronts, because the rm -rf this replaced had no undo and
 #                   its old guard only refused '' and /.
 #   UPSTREAM        Identity origin URL.         default: http://127.0.0.1:8080
@@ -282,6 +283,26 @@ _refuse_if_same "operator home" "$HOME"
 _refuse_if_same "repo root (this script lives under it)" "$REPO_ROOT"
 _refuse_if_same "lane pid dir" "$PID_DIR"
 _refuse_if_same "lane log dir" "$LOG_DIR"
+# The same list, the other direction: equality is not containment. WEBROOT=$HOME/mfgtmp - the typo
+# for $HOME/mfgtmp/webroot - equals none of the four paths above, so it passed every comparison while
+# the lane's pid dir and log dir hang one level under it (lane_up.sh:105-106 defaults:
+# $HOME/mfgtmp/lane_pids and $HOME/mfgtmp/lane_logs). The swap then takes that whole tree with the
+# root: parked as the undo handle, and rm -rf'd on --serve's proof - so the lane loses core.pid and
+# tunnel.pid while its core goes on serving, and lane_down.sh:230 then answers 'lane already down
+# (no pid files in ...)' over a live game server. Step 2 cannot cover this: it knows only the recorded
+# gate, a systemd gate leaves no record at all, and this script never touches the core. The trailing
+# slash in the pattern keeps this at directory boundaries: $WEBROOT-lane_pids is a sibling, not inside.
+_refuse_if_holds() {  # _refuse_if_holds <what the path is> <path>
+  _n=$(_abs "$2")
+  if [ -n "$_n" ] && [ "${_n#"$_webroot_norm/"}" != "$_n" ]; then
+    die "refusing to wipe WEBROOT=$WEBROOT: the $1 ($_n) is inside it, so the swap would carry it away with the root"
+  fi
+  return 0
+}
+_refuse_if_holds "operator home" "$HOME"
+_refuse_if_holds "repo root (this script lives under it)" "$REPO_ROOT"
+_refuse_if_holds "lane pid dir" "$PID_DIR"
+_refuse_if_holds "lane log dir" "$LOG_DIR"
 case "$_build_norm" in
   "$_webroot_norm"/*) die "refusing to wipe WEBROOT=$WEBROOT: the build tree ($_build_norm) is inside it, so the wipe would delete the build" ;;
 esac

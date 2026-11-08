@@ -55,7 +55,10 @@ export LC_ALL=C
 
 # ---------------------------- configuration ----------------------------
 SCRIPT_PATH=${BASH_SOURCE[0]}
-SCRIPT_DIR=${SCRIPT_PATH%/*}                 # <repo>/scripts/linux
+case $SCRIPT_PATH in
+  */*) SCRIPT_DIR=$(cd "${SCRIPT_PATH%/*}" && pwd) ;;   # <repo>/scripts/linux, absolute so a bare-name call still works
+  *)   SCRIPT_DIR=$(pwd) ;;                             # invoked by bare name: bash resolved it against the cwd
+esac
 REPO_ROOT=${SCRIPT_DIR%/*}                   # <repo>/scripts
 REPO_ROOT=${REPO_ROOT%/*}                    # <repo>  (the lane_up.sh:74-76 model)
 

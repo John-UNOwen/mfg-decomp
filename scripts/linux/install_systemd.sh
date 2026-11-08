@@ -79,7 +79,10 @@ export LC_ALL=C
 
 # ---------------------------- configuration ----------------------------
 SCRIPT_PATH=${BASH_SOURCE[0]}
-SCRIPT_DIR=${SCRIPT_PATH%/*}
+case $SCRIPT_PATH in
+  */*) SCRIPT_DIR=$(cd "${SCRIPT_PATH%/*}" && pwd) ;;   # invoked with a path: the directory in front of the name
+  *)   SCRIPT_DIR=$(pwd) ;;                             # invoked by bare name: bash resolved it against the cwd
+esac
 
 STAGING_DIR="$SCRIPT_DIR/systemd-staging"
 LANE_USER=$(id -un 2>/dev/null || echo mfg)

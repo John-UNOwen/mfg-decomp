@@ -155,7 +155,10 @@ SERVE=${SERVE:-0}
 # relative to the repo root, not relative to the caller's cwd. BASH_SOURCE is bash's
 # stand-in for $MyInvocation.MyCommand.Path.
 SCRIPT_PATH=${BASH_SOURCE[0]}
-SCRIPT_DIR=${SCRIPT_PATH%/*}                 # <repo>/scripts/linux
+case $SCRIPT_PATH in
+  */*) SCRIPT_DIR=$(cd "${SCRIPT_PATH%/*}" && pwd) ;;   # <repo>/scripts/linux, absolute so a bare-name call still works
+  *)   SCRIPT_DIR=$(pwd) ;;                             # invoked by bare name: bash resolved it against the cwd
+esac
 REPO_ROOT=${SCRIPT_DIR%/*}                   # <repo>/scripts
 REPO_ROOT=${REPO_ROOT%/*}                    # <repo>
 SIDECAR_DLL=${SIDECAR_DLL:-"$REPO_ROOT/scripts/brotli-sidecar/bin/Release/net8.0/sidecar.dll"}

@@ -74,34 +74,49 @@ scene switches in regardless.
 - Four loads + no exceptions ⇒ the camera-index race in 4; then the capture should show the
   reveal order (`Loaded ItemID` timestamps) not matching seat order.
 
-### Runtime reproduction state
+### Runtime reproduction — complete, with the console evidence the table predicted
 
-Windows lane, current production webroot stamp, four accounts, one table. What the harness runs so
-far established that the LOCAL tier itself is unreliable for a client repro, three separate causes:
+Lane facts first. The repro needs valid accounts: two of the four lane accounts had silently
+wrong bcrypt hashes (CRLF-polluted signup lines); until they were verified offline against the
+core's own hashes, every "browser can't log in" chase was chasing a wrong password. Registered
+state can be injected server-side (`states.player_game` on the profile doc, with the core down so
+its in-memory copy can't overwrite it) — the resume rule at `GameDataManager.cs:178` then skips
+NewRegistration. (Side observation, separate defect: in the deployed webroot the NewRegistration
+scene loads and its 99 s name-timer never advances — Unity's loop alive, no console output; the
+injection sidesteps it, so it does not block the repro.)
 
-1. **Loopback bundle-drop = hard scene hang.** During the boot addressables fan-out Windows
-   intermittently kills loopback sockets (`net::ERR_NO_BUFFER_SPACE`). Unity reports it as
-   `RemoteProviderException ... ConnectionError, ResponseCode 500` and the dependent load chain
-   never completes — the game freezes at whatever scene was loading (observed: pre-Login and at
-   NewRegistration, console silent afterwards). The harness XHR shim cannot see this: Unity 2022
-   WebGL downloads bundles through `fetch`+blob, so a fetch-level retry shim was added
-   (`tmp/webgl_proof.cjs`).
-2. **Headed windows freeze when occluded.** With several browser windows the non-focused ones stop
-   getting animation frames and their Unity loop freezes mid-scene (screenshots byte-identical for
-   minutes while `page.evaluate` still answers). Harness now pins `Page.setWebLifecycleState
-   active` via CDP and single-window runs use headless, where the page is always visible.
-3. **The harness login preamble was the failing door.** `fetch`-POSTed `/welcome`+`/login` get
-   cookie-less POSTs in the puppeteer browser context (`[req] ... cookies=NONE` from the door
-   probe), while the identical curl sequence authenticates (`login=302 sid=1 account=200`).
-   Symptom: core's "Invalid username or password." page despite correct bodies. Fixed by driving
-   the real forms (gate lobby `input[name=code]`, core `input[name=username/password]`) with
-   submit + navigation, exactly as a human player does.
+With four accounts on one table (gate lobby → card flow → Login → Home → AUTOSERVE queue):
+matching, seating, entry, and play are healthy — the core logs each seat fill, every client reaches
+MahjongPlay, and matches run to Result. The failure is entirely client-side reveal:
 
-Repro loop armed for the next capture: console counts every `Standing CharaManager: Loaded ItemID`
-(`StandingCharaManager.cs:249`) between entering Matching and `LoadScene:MahjongPlay` and prints a
-`[verdict]` line — fewer than four loads, or a repeated ItemID, is the blank-seat symptom; plus
-screenshot bursts every 2 s while in Matching. Awaiting the first clean run to registration → Home
-→ match.
+- **Host clients reveal 4/4 seats. Non-host clients revealed 1/4** — only the first completed
+  `StartCharaMatchingAnime` — and the one that completed was the host's girl, not their own.
+  Owner's "only two of four load" is the same failure with a different survivor count.
+- The missing seats print **no `Loaded ItemID` line and no console error**. The established flag is
+  set *before* the reveal is invoked (`MatchingFlow.cs:299` before `:300 .Forget()`), so
+  `WaitUntil` (`:254`) passes and the flow proceeds to MahjongPlay regardless — while the reveal
+  chain died between the `m_charaManager.Load` call (`:321`) and the success log
+  (`StandingCharaManager.cs:249`): inside `StandingCharaManager.Load`/`CharaModel.Load`. The
+  `.Forget()` call site swallows the exception (the exact WebGL trap documented at
+  `ResidentFlow.cs:219`) — the failure is silent by construction.
+- **The visible "freeze" is bounded and proven**: post-confirm choreography is a fixed 8 s + 2 s +
+  2 s (`:256/:270/:274`), and every seat whose chain died stays an empty frame for it (and for
+  however long the surviving chains keep the room open). p3 timeline: Matching 173 s, one reveal
+  178 s, exit 205 s — a 32 s room with three blank seats.
+- Reveal timing is client-local (elapsed accumulation, no server clock): the same table staggered
+  17–26 s apart on one client and collapsed to near-simultaneous on another — which seat survives
+  is nondeterministic per client, matching "sometimes two, sometimes different ones".
+- The same-costume variant of the run (four accounts injected with one donor profile) revealed
+  **four loads everywhere, all `Costume03_001`** — four same-named instances under
+  `AllowDuplicatesInstance:1`, and every seat's camera lookup `Find("{itemID}/Camera")` (`:322`)
+  resolves to whichever instance completed first: the camera race from section 4, live on screen.
+
+Why the two fix rounds did not change the symptom: they targeted duplicate-instance allowance and
+seat liveness; the failure path observed here is a reveal chain that never returns, invoked
+fire-and-forget after its seat flag is already true — nothing in the current design notices, waits,
+or logs. The next discriminator needs the client: wrap the `:321` call (or log inside
+`StandingCharaManager.Load` before/after each await) so the swallowed failure names itself —
+a rebuild, worth doing before any candidate fix ships.
 
 ## Defect 2 — seated characters: leg motion swivels then teleports back (facts inventory, no fix)
 

@@ -52,7 +52,26 @@
 #   GATE_PORT       Port --serve puts the gate on (WEBFRONT_PORT).
 #                                                  default: 8090 (lane_up.sh:95)
 #                   Probed before anything is started: an already answering port is refused
-#                   rather than stacked on (the lane_up.sh:356-363 posture).
+#                   rather than stacked on (the lane_up.sh:356-363 posture). A port the cloudflared
+#                   ingress forwards to is refused too - before anything is replaced, and again on
+#                   the line that binds it: see TUNNEL_CONFIG.
+#   TUNNEL_CONFIG   cloudflared config the ingress ports are read out of (read-only, never written).
+#                                                  default: ~/.cloudflared/config.yml (lane_up.sh:103)
+#                   Two rules come from it, both learned the hard way on 2026-11-07 (ps1 :88-124,
+#                   :278-286) when an assemble run took the hosted front down through a pid record:
+#                     * the stop step refuses to signal a live recorded gate that owns one of those
+#                       ports. That front is what the public hostname serves; stopping it is an
+#                       operator decision, never a side effect of assembling a webroot - whatever
+#                       the pid record claims, and whatever the stamp probe says it serves.
+#                     * --serve refuses to START a front on one at all. What --serve starts is
+#                       WEBFRONT_GATE=0 on $BIND (default any), so an ingress port would put a
+#                       relay that checks no access control behind the public hostname - and that
+#                       port is normally free only because the hosted gate behind it is down, so
+#                       the port probe alone never catches it. The stop-side rule cannot cover a
+#                       front this run starts itself, which is why both ends need the list.
+#                   Set GATE_PORT to a port this config does not name, or edit the config.
+#                   Re-read at each of the three points that ask, not cached: it is an operator
+#                   file and an assembly runs for minutes (the mirror + brotli pass).
 #   LOG_DIR         Where --serve writes webfront.out.txt / webfront.err.txt.
 #                                                  default: ~/mfgtmp/lane_logs
 #                   The same directory lane_up.sh:102 uses. The old fixed
@@ -122,6 +141,7 @@ UPSTREAM=${UPSTREAM:-'http://127.0.0.1:8080'}
 FRONT_URL=${FRONT_URL:-'http://127.0.0.1:8090/aog'}
 BIND=${BIND:-'any'}
 GATE_PORT=${GATE_PORT:-8090}                      # same default as lane_up.sh:95
+TUNNEL_CONFIG=${TUNNEL_CONFIG:-"$HOME/.cloudflared/config.yml"}   # same default as lane_up.sh:103
 PID_DIR=${PID_DIR:-"$HOME/mfgtmp/lane_pids"}           # same default as lane_up.sh:88
 LOG_DIR=${LOG_DIR:-"$HOME/mfgtmp/lane_logs"}           # same default as lane_up.sh:102
 GATE_PID_FILE=${GATE_PID_FILE:-"$PID_DIR/gate.pid"}   # the file lane_up.sh:427 writes
@@ -233,6 +253,69 @@ hash_upper() { _hash_stdin < "$1" | tr '[:lower:]' '[:upper:]'; }
 
 _norm_name() { printf '%s' "$1" | tr 'A-Z' 'a-z' | sed 's/\.exe$//; s/\.dll$//'; }
 
+# ---------------------------- the tunnel ingress ports (read-only) ----------------------------
+# The local ports a cloudflared ingress forwards to - the ports behind the public hostname - read
+# out of $TUNNEL_CONFIG. Both ends of the run need the same list and neither may cache it: the stop
+# step refuses to signal a gate owning one (ps1 :278-286), and --serve refuses to START a gate-off
+# front on one at all (Assert-ServePortNotIngress, ps1 :101-124, asked at :124 before anything is
+# replaced and again at :557 on the line that binds). Prints one port per line; prints nothing and
+# returns 0 when there is no config - a lane with no tunnel has no ingress ports to disturb.
+# rc 1 = the config cannot be read as a file: the question could not be asked, which every caller
+# turns into a refusal, never into a pass. A path that exists but is not a readable regular file
+# counts as unreadable on purpose: awk only WARNS and exits 0 when handed a directory, so without
+# this test a config path that is not a file would answer "no ingress ports" - a vacuous pass, the
+# exact shape this kit keeps refusing (an unasked question is never evidence).
+_tunnel_ingress_ports() {
+  if [ ! -e "$TUNNEL_CONFIG" ]; then return 0; fi
+  if [ ! -f "$TUNNEL_CONFIG" ] || [ ! -r "$TUNNEL_CONFIG" ]; then return 1; fi
+  # Literal parsing (index/substr), not a regex: the same needle rules as litreplace above, so a
+  # value with " / : ( )" needs no escaping. A "service:" key whose value is an http(s) URL is a
+  # local listener; the port is what follows the LAST ':' before any path, so a bracketed [::1]
+  # host costs nothing, and a service with no port (https://host, ssh:user@host) is skipped - that
+  # is not a local port either. The trailing - service: form of a YAML ingress item is a service:
+  # line once the leading dash is dropped, so one strip covers both spellings.
+  awk '
+    {
+      l = $0; sub(/\r$/, "", l)
+      sub(/^[ \t]+/, "", l); sub(/^-+[ \t]+/, "", l)
+      if (substr(l, 1, 8) != "service:") next
+      u = substr(l, 9)
+      gsub(/["'\'']/, "", u)                       # a quoted YAML value
+      hi = index(u, "http://"); hs = index(u, "https://")
+      if (hs > 0) { u = substr(u, hs + 8) } else if (hi > 0) { u = substr(u, hi + 7) } else next
+      sl = index(u, "/"); if (sl > 0) u = substr(u, 1, sl - 1)
+      c = 0
+      for (i = length(u); i >= 1; i--) if (substr(u, i, 1) == ":") { c = i; break }
+      if (c == 0) next                             # no port: not a local listener to collide with
+      host = substr(u, 1, c - 1); port = substr(u, c + 1)
+      gsub(/[\[\]]/, "", host)                     # [::1] -> ::1
+      if (port !~ /^[0-9]+$/) next
+      host = tolower(host)
+      if (host != "localhost" && host != "127.0.0.1" && host != "::1" && host != "0.0.0.0") next
+      if (!(port in seen)) { seen[port] = 1; print port }
+    }' "$TUNNEL_CONFIG"
+}
+
+# assert_serve_port_not_ingress <what to tell the operator about what this run has already done>:
+# what --serve is about to start is WEBFRONT_GATE=0 on $BIND (default 'any') - an ungated relay. On
+# a port the ingress forwards to, the public hostname would answer from that relay with no session
+# check at all. The stop guard protects only a front ALREADY sitting there; it says nothing about
+# the front this run starts itself, and the port probe says nothing either: the ingress port is
+# usually free precisely because the hosted gate behind it is down. So the config is the only
+# witness, and the answer is a refusal naming both values compared.
+assert_serve_port_not_ingress() {
+  if ! _aspi_ports=$(_tunnel_ingress_ports); then
+    die "cannot read $TUNNEL_CONFIG to learn which ports are tunnel ingress ports: refusing to start a front whose port cannot be compared against them. $1"
+  fi
+  [ -n "$_aspi_ports" ] || return 0
+  while IFS= read -r _aspi_p; do
+    case $_aspi_p in ''|*[!0-9]*) continue ;; esac
+    if [ "$_aspi_p" = "$GATE_PORT" ]; then
+      die "--serve would start a gate-off front (WEBFRONT_GATE=0, WEBFRONT_BIND=$BIND) on 127.0.0.1:$GATE_PORT, which the cloudflared ingress in $TUNNEL_CONFIG forwards to: the public hostname would be served by an ungated relay. $1 Set GATE_PORT to a port $TUNNEL_CONFIG does not name, or edit that config."
+    fi
+  done <<<"$_aspi_ports"
+}
+
 # ---------------------------- 1. validate before destroying ----------------------------
 # ps1 :25 checked one thing (the build directory exists) and this port stopped there, so
 # every failure below was discovered after step 3 had already wiped a working webroot: no
@@ -263,6 +346,10 @@ if [ "$SERVE" = 1 ]; then
   if ! command -v dotnet >/dev/null 2>&1; then
     die "dotnet runtime not on PATH (needed for $WEBFRONT_DLL, --serve): refusing to wipe $WEBROOT"
   fi
+  # The port --serve is about to bind, asked here - before the gate stop, the staging and the swap -
+  # because a run that would put an ungated relay behind the public hostname must fail while refusing
+  # still costs nothing at all (the -Serve prerequisites block, ps1 :118-135).
+  assert_serve_port_not_ingress 'Nothing is replaced: this refusal is in front of the gate stop, the staging and the swap.'
 fi
 
 # WEBROOT itself. The old guard was 'case $WEBROOT in ""|"/")', which accepts $HOME, the
@@ -311,12 +398,20 @@ case "$_webroot_norm" in
 esac
 
 # ---------------------------- 2. stop the recorded gate ----------------------------
+# Say which ports this run will not disturb, so the guard is visible rather than implicit: the value
+# the messages below compare against is the value printed here.
+if ! _ingress_now=$(_tunnel_ingress_ports); then
+  printf 'assemble_webroot: cannot read %s to learn the tunnel ingress ports; the stop step and --serve will refuse anything they cannot compare\n' "$TUNNEL_CONFIG" >&2
+elif [ -n "$_ingress_now" ]; then
+  printf 'tunnel ingress ports this script will never disturb (from %s): %s\n' "$TUNNEL_CONFIG" "$(printf '%s' "$_ingress_now" | tr '\n' ',' | sed 's/,$//')"
+fi
 # ps1 :26-36. The PowerShell version read the pid out of gate_pid.txt and stopped that
 # one process only after Get-CimInstance confirmed its name was WebFront.exe.
 # Linux equivalent: same pid file, same single pid, verified through /proc/<pid> before
 # any signal. Never a name kill, never pkill/pgrep, never a pattern, never a port owner:
 # if the pid does not match the gate, nothing is signalled. If the file is absent,
-# nothing happens at all.
+# nothing happens at all. Port ownership is consulted only ever the other way - to refuse a signal
+# this run would otherwise send (a recorded gate holding a tunnel ingress port is left alone).
 pid_alive() { [ -e "/proc/$1" ] || kill -0 "$1" 2>/dev/null; }   # lane_down.sh:112 rule
 port_in_use() { (exec 3<>"/dev/tcp/$1/$2") 2>/dev/null; }        # lane_up.sh:134 rule: probe the port, never a name
 
@@ -550,6 +645,36 @@ stop_recorded_gate() {
   if [ -n "$gate_bin_dir" ] && [ "$pid_cwd" != "$gate_bin_dir" ]; then
     printf 'gate pid %s names the gate program but its working directory is %s, not %s: not signalled (not the gate this lane started)\n' "$pid" "${pid_cwd:-<unreadable>}" "$gate_bin_dir"
     return 1
+  fi
+  # A front owning a tunnel ingress port is what the public hostname serves. This script never stops
+  # one, whatever the pid record claims and whatever it turns out to serve (ps1 :278-286): on
+  # 2026-11-07 an assemble run on a preview lane stopped the hosted gate through exactly such a
+  # record and took the public site down. Asked BEFORE the serving probe, because owning that port is
+  # a refusal on its own - the probe answers what a front serves, not what the hostname in front of
+  # it is pointed at. Read again here, not taken from the step-1 reading: the config can change.
+  if ! _sg_ingress=$(_tunnel_ingress_ports); then
+    printf 'cannot read %s to learn which ports are tunnel ingress ports: refusing to signal the recorded gate pid %s, which may own one of them\n' "$TUNNEL_CONFIG" "$pid"
+    return 1
+  fi
+  if [ -n "$_sg_ingress" ]; then
+    if ! _sg_rows=$(_listener_rows); then
+      printf 'cannot list the listening sockets to ask whether the recorded gate pid %s owns one of the tunnel ingress ports in %s: refusing to signal it\n' "$pid" "$TUNNEL_CONFIG"
+      return 1
+    fi
+    while IFS=$'\t' read -r _sg_port _sg_lpid; do
+      case $_sg_port in ''|*[!0-9]*) continue ;; esac
+      printf '%s\n' "$_sg_ingress" | grep -Fxq -- "$_sg_port" || continue
+      if [ -z "$_sg_lpid" ]; then
+        # The socket is there and its owner is not: an ss that hides another user's socket cannot
+        # prove this live recorded gate is NOT the front behind the hostname.
+        printf 'the cloudflared ingress in %s forwards to 127.0.0.1:%s and the owner of that listening socket is not visible to us, so this run cannot prove the recorded gate pid %s is not the front behind the public hostname: nothing signalled, record %s kept\n' "$TUNNEL_CONFIG" "$_sg_port" "$pid" "$GATE_PID_FILE"
+        return 1
+      fi
+      if [ "$_sg_lpid" = "$pid" ]; then
+        printf 'the recorded gate pid %s owns 127.0.0.1:%s, which the cloudflared ingress in %s forwards to: that is the hosted front behind the public hostname. Stop the hosted lane first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service) if this root really is meant to be replaced\n' "$pid" "$_sg_port" "$TUNNEL_CONFIG"
+        return 1
+      fi
+    done <<<"$_sg_rows"
   fi
   # The probe, not the record, decides who is safe to stop (ps1 :287-295). Name and cwd prove what
   # this pid is; they do not prove what it serves. On 2026-11-07 an assemble of a staging root
@@ -870,6 +995,10 @@ if [ "$SERVE" = 1 ]; then
   if port_in_use 127.0.0.1 "$GATE_PORT"; then
     die "something already answers 127.0.0.1:$GATE_PORT (the gate port) - refusing to start a gate on it. Stop that front first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service) or set GATE_PORT"
   fi
+  # Free is not enough. A free INGRESS port is exactly where a gate-off relay must not be put, and it
+  # is free most of the time only because the hosted gate that normally sits behind it is down - so the
+  # probe above passes on precisely the setup this rule exists to refuse (ps1 :122-124).
+  assert_serve_port_not_ingress 'The new webroot is published but no front was started, so nothing is serving it. The gate record and the undo handle (if any) were left exactly as they are.'
   if [ -f "$GATE_PID_FILE" ]; then
     _live=$(sed -n '1p' "$GATE_PID_FILE" 2>/dev/null | tr -d '\r\t' | sed 's/^ *//; s/ *$//')
     case $_live in

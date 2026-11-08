@@ -14,7 +14,15 @@
 #       [--user NAME] [--home DIR] [--core-dir DIR] [--webfront-dir DIR]
 #       [--webroot DIR] [--sec-dir DIR] [--env-file PATH] [--tunnel-name NAME]
 #       [--node-bin PATH] [--dotnet-bin PATH] [--cloudflared-bin PATH]
-#       [--core-port N] [--gate-port N]
+#       [--core-port N] [--gate-port N] [--instance NAME]
+#
+#   --instance NAME     stage a second, isolated lane: units mfg-NAME-lane/gate/tunnel,
+#                       env default /etc/mfg-NAME/lane.env. NAME is [a-z0-9-]; empty (the
+#                       default) keeps today's exact names. Point --core-dir/--webfront-dir/
+#                       --webroot/--sec-dir/--core-port/--gate-port/--tunnel-config at the
+#                       second lane's own directories and ports - the installer proves every
+#                       path exists, but only the port probes at actual start time notice an
+#                       instance aimed at the live lane's files.
 #
 #   TARGET_DIR        the lane repo root on the Linux box. Defaults under it:
 #                     core @CORE_DIR@      = TARGET_DIR/tmp/RyuNET-core
@@ -89,7 +97,7 @@ LANE_USER=$(id -un 2>/dev/null || echo mfg)
 TARGET_HOME=''   # the TARGET USER's home, resolved after argument parsing - never silently the caller's
 HOME_SET=0
 TARGET_DIR=''
-ENV_FILE='/etc/mfg/lane.env'
+ENV_FILE=''                                      # default derives from INSTANCE after the parse loop: /etc/mfg[-INSTANCE]/lane.env
 TUNNEL_NAME='mfg'
 NODE_BIN='/usr/bin/node'
 DOTNET_BIN='/usr/bin/dotnet'
@@ -98,6 +106,7 @@ CORE_PORT=8083
 GATE_PORT=8090
 GATE_BIND='loopback'
 WITH_TUNNEL=0                                  # plain http unless --tunnel says otherwise (L46 posture)
+INSTANCE=''                                    # --instance NAME: a second isolated lane; '' keeps today's names (mfg-lane, /etc/mfg)
 
 usage() {
   sed -n '2,/^set -euo/p' "$SCRIPT_PATH" | sed '$d'
@@ -130,6 +139,7 @@ while [ $# -gt 0 ]; do
     --tunnel)          WITH_TUNNEL=1; shift ;;
     --tunnel-config)   [ $# -ge 2 ] || die "--tunnel-config needs a value"; TUNNEL_CONFIG=$2; shift 2 ;;
     --no-tunnel)       WITH_TUNNEL=0; shift ;;
+    --instance)        [ $# -ge 2 ] || die "--instance needs a value"; INSTANCE=$2; shift 2 ;;
     -h|--help)         usage; exit 0 ;;
     *)                 die "unknown argument: $1" ;;
   esac
@@ -137,6 +147,21 @@ done
 
 [ -n "$TARGET_DIR" ] || die "TARGET_DIR is required (the lane repo root on the Linux box)"
 case $TARGET_DIR in /*) : ;; *) die "TARGET_DIR must be an absolute path: $TARGET_DIR" ;; esac
+
+# --instance turns every output name of this run into the second lane's name: units
+# mfg-INSTANCE-lane/gate/tunnel, env file /etc/mfg-INSTANCE/lane.env. The templates in
+# this directory keep their mfg-*.service names (one template set, many instances); the
+# @UNIT_PREFIX@ token inside them is what makes the staged bytes name this instance's
+# siblings in After=/Wants=. Empty INSTANCE reproduces today's names exactly.
+case $INSTANCE in
+  '') UNIT_PREFIX='mfg-' ;;
+  *[!a-z0-9-]*|-[!a-z]*|'') die "--instance must be lowercase letters, digits and inner dashes (it becomes a unit name component): '$INSTANCE'" ;;
+  *)  UNIT_PREFIX="mfg-$INSTANCE-" ;;
+esac
+[ -n "$ENV_FILE" ] || ENV_FILE="/etc/mfg${INSTANCE:+-$INSTANCE}/lane.env"
+UNIT_LANE="${UNIT_PREFIX}lane.service"
+UNIT_GATE="${UNIT_PREFIX}gate.service"
+UNIT_TUNNEL="${UNIT_PREFIX}tunnel.service"
 
 # ---------------------------- whose home is the lane's home? ----------------------------
 # Every default below (WEBROOT=<home>/mfgtmp/webroot, SEC_DIR=<home>/.mfg-web and its core.env,
@@ -180,6 +205,7 @@ WEBFRONT_DIR=${WEBFRONT_DIR:-"$TARGET_DIR/webfront"}
 WEBROOT=${WEBROOT:-"$TARGET_HOME/mfgtmp/webroot"}
 SEC_DIR=${SEC_DIR:-"$TARGET_HOME/.mfg-web"}
 TUNNEL_CONFIG=${TUNNEL_CONFIG:-"$TARGET_HOME/.cloudflared/config.yml"}   # lane_up.sh:99
+TUNNEL_DIR=${TUNNEL_CONFIG%/*}     # what the tunnel unit's ReadWritePaths= must cover
 
 case $CORE_PORT in *[!0-9]*|'') die "--core-port must be a number" ;; esac
 case $GATE_PORT in *[!0-9]*|'') die "--gate-port must be a number" ;; esac
@@ -390,6 +416,7 @@ substitute_unit() {  # substitute_unit <template file> <staged file>
   cp -- "$_src" "$_tmp" || die "cannot write a working copy of the template $_src: refusing to stage $_dst"
   for _tok in USER:LANE_USER CORE_DIR:CORE_DIR WEBFRONT_DIR:WEBFRONT_DIR WEBROOT:WEBROOT \
               SEC_DIR:SEC_DIR HOME:TARGET_HOME ENV_FILE:ENV_FILE TUNNEL_NAME:TUNNEL_NAME \
+              UNIT_PREFIX:UNIT_PREFIX TUNNEL_CONFIG:TUNNEL_CONFIG TUNNEL_DIR:TUNNEL_DIR \
               NODE_BIN:NODE_BIN DOTNET_BIN:DOTNET_BIN CLOUDFLARED_BIN:CLOUDFLARED_BIN; do
     _ph=@${_tok%%:*}@
     eval _val=\$${_tok#*:}
@@ -414,14 +441,17 @@ substitute_unit() {  # substitute_unit <template file> <staged file>
   rm -f -- "$_rtmp"
 }
 
-units='mfg-lane.service mfg-gate.service'
-[ $WITH_TUNNEL = 1 ] && units="$units mfg-tunnel.service"
+units="$UNIT_LANE $UNIT_GATE"
+[ $WITH_TUNNEL = 1 ] && units="$units $UNIT_TUNNEL"
+# Template names in SCRIPT_DIR never change (one set serves every instance); the staged name
+# carries the prefix. TEMPLATE_OF maps a staged unit name back to the template it was built from.
+template_of() { case $1 in "$UNIT_PREFIX"lane.service) printf '%s\n' "$SCRIPT_DIR/mfg-lane.service" ;; "$UNIT_PREFIX"gate.service) printf '%s\n' "$SCRIPT_DIR/mfg-gate.service" ;; "$UNIT_PREFIX"tunnel.service) printf '%s\n' "$SCRIPT_DIR/mfg-tunnel.service" ;; *) die "no template mapping for $_u" ;; esac; }
 # A staging directory that outlives one run is still this script's to keep honest, and that includes
 # the units from earlier runs. The block this replaced never touched them: run 1 with --tunnel, run 2
 # without, and last run's mfg-tunnel.service stayed in the directory next to a lane.env that no longer
 # arms WEBFRONT_TRUST_PROXY - an installable hosted unit that no sudo command printed below names.
 # So any unit this script can stage but this run does not is removed, and the removal is said.
-for _stale in mfg-lane.service mfg-gate.service mfg-tunnel.service; do
+for _stale in "$UNIT_PREFIX"lane.service "$UNIT_PREFIX"gate.service "$UNIT_PREFIX"tunnel.service; do
   case " $units " in *" $_stale "*) continue ;; esac
   if [ -e "$STAGING_DIR/$_stale" ]; then
     rm -f -- "$STAGING_DIR/$_stale"
@@ -429,10 +459,11 @@ for _stale in mfg-lane.service mfg-gate.service mfg-tunnel.service; do
   fi
 done
 for _u in $units; do
-  [ -f "$SCRIPT_DIR/$_u" ] || die "template unit missing: $SCRIPT_DIR/$_u"
-  substitute_unit "$SCRIPT_DIR/$_u" "$STAGING_DIR/$_u"
+  _t=$(template_of "$_u")
+  [ -f "$_t" ] || die "template unit missing: $_t"
+  substitute_unit "$_t" "$STAGING_DIR/$_u"
   if [ "$_unit_replaced" = 1 ]; then
-    say "staged $_u (re-staged from $SCRIPT_DIR/$_u over the copy already in $STAGING_DIR, every token from this run: User=$LANE_USER CORE_DIR=$CORE_DIR WEBFRONT_DIR=$WEBFRONT_DIR WEBROOT=$WEBROOT SEC_DIR=$SEC_DIR)"
+    say "staged $_u (re-staged from $_t over the copy already in $STAGING_DIR, every token from this run: User=$LANE_USER CORE_DIR=$CORE_DIR WEBFRONT_DIR=$WEBFRONT_DIR WEBROOT=$WEBROOT SEC_DIR=$SEC_DIR)"
   else
     say "staged $_u"
   fi
@@ -442,7 +473,7 @@ done
 lane_env="$STAGING_DIR/lane.env"
 {
   printf '%s\n' \
-    '# /etc/mfg/lane.env - shared non-secret lane environment.' \
+    '# '"$ENV_FILE"' - shared non-secret lane environment.' \
     '# Installed by the human from this staging directory (see the sudo list below).' \
     '# No secret values live here: presenter material stays under '"$SEC_DIR"' at mode 600.' \
     '# core/gate env names come from webfront/Program.cs:25-74 and hosting_up.ps1:46-75.' \
@@ -481,11 +512,11 @@ printf '%s\n' \
   '' \
   "  sudo mkdir -p '$(dirname "$ENV_FILE")'" \
   "  sudo install -o root -g root -m 0644 '$lane_env' '$ENV_FILE'" \
-  "  sudo install -o root -g root -m 0644 '$STAGING_DIR/mfg-lane.service' '/etc/systemd/system/mfg-lane.service'" \
-  "  sudo install -o root -g root -m 0644 '$STAGING_DIR/mfg-gate.service' '/etc/systemd/system/mfg-gate.service'"
+  "  sudo install -o root -g root -m 0644 '$STAGING_DIR/$UNIT_LANE' '/etc/systemd/system/$UNIT_LANE'" \
+  "  sudo install -o root -g root -m 0644 '$STAGING_DIR/$UNIT_GATE' '/etc/systemd/system/$UNIT_GATE'"
 if [ $WITH_TUNNEL = 1 ]; then
   printf '%s\n' \
-    "  sudo install -o root -g root -m 0644 '$STAGING_DIR/mfg-tunnel.service' '/etc/systemd/system/mfg-tunnel.service'"
+    "  sudo install -o root -g root -m 0644 '$STAGING_DIR/$UNIT_TUNNEL' '/etc/systemd/system/$UNIT_TUNNEL'"
 fi
 # The core.env recipe follows the same rule as the paths above: whoever the units run as must
 # be able to READ the file. A caller-owned 600 core.env is unreadable to the service forever,
@@ -512,14 +543,14 @@ printf '%s\n' "  # (${PRESENTER_ENV_NOTE})"
 printf '%s\n' \
   '' \
   '  sudo systemctl daemon-reload' \
-  '  sudo systemctl enable --now mfg-lane.service mfg-gate.service'
+  "  sudo systemctl enable --now $UNIT_LANE $UNIT_GATE"
 if [ $WITH_TUNNEL = 1 ]; then
-  printf '%s\n' '  sudo systemctl enable --now mfg-tunnel.service'
+  printf '%s\n' "  sudo systemctl enable --now $UNIT_TUNNEL"
 fi
 printf '%s\n' \
-  '  sudo systemctl status mfg-lane.service mfg-gate.service' \
+  "  sudo systemctl status $UNIT_LANE $UNIT_GATE" \
   '' \
-  'lane_down semantics under systemd: systemctl stop mfg-gate.service mfg-tunnel.service mfg-lane.service' \
+  "lane_down semantics under systemd: systemctl stop $UNIT_GATE$([ $WITH_TUNNEL = 1 ] && printf ' %s' "$UNIT_TUNNEL") $UNIT_LANE" \
   'lane_up.sh/lane_down.sh (the pid-file path) must NOT run alongside these units - pick one manager.' \
   'Do not run any of this against the Windows box that already hosts the lane.'
 

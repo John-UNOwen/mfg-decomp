@@ -6,13 +6,16 @@
 
 [Unit]
 Description=MFG lane cloudflared tunnel (@TUNNEL_NAME@)
-After=network-online.target mfg-gate.service
-Wants=mfg-gate.service
+After=network-online.target @UNIT_PREFIX@gate.service
+Wants=@UNIT_PREFIX@gate.service
 
 [Service]
 Type=simple
 User=@USER@
-ExecStart=@CLOUDFLARED_BIN@ tunnel run @TUNNEL_NAME@
+ExecStart=@CLOUDFLARED_BIN@ --config @TUNNEL_CONFIG@ tunnel run @TUNNEL_NAME@
+; --config is global (it must precede the subcommand) and names THIS instance's ingress file:
+; a second instance keeps its own cloudflared directory, so one lane's front can never be
+; swapped for another's by a config sitting in a shared home
 ; the tunnel name must be one already installed in the operator account
 ; (hosting_up.ps1:88 ran the same command for tunnel "mfg"; the origin stays loopback -
 ; Cloudflare reaches it only through this tunnel)
@@ -21,9 +24,9 @@ RestartSec=10
 TimeoutStopSec=15
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=@HOME@/.cloudflared
-; cloudflared reads the tunnel definition and its cert cache from the operator's
-; ~/.cloudflared; the name comes from the same config hosting_up.ps1 relied on
+ReadWritePaths=@TUNNEL_DIR@
+; cloudflared reads the tunnel definition and its cert cache from the directory its
+; --config lives in; the name comes from the same config hosting_up.ps1 relied on
 
 [Install]
 WantedBy=multi-user.target

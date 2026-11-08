@@ -5,8 +5,8 @@
 
 [Unit]
 Description=MFG lane gate (WebFront, hosted gate mode)
-After=network-online.target mfg-lane.service
-Wants=mfg-lane.service
+After=network-online.target @UNIT_PREFIX@lane.service
+Wants=@UNIT_PREFIX@lane.service
 
 [Service]
 Type=simple

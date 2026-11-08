@@ -7,14 +7,15 @@
 #
 #   1. validate the build, the sidecar, the serve target and WEBROOT itself   (ps1 :25, extended)
 #   2. stop only the gate pid this lane recorded               (ps1 :29-36)
-#   3. wipe the webroot, mirror the build tree into it         (ps1 :37-38)
+#   3. refuse a root a front is serving, stage the build beside it (ps1 :318-380)
 #   4. bake config.arguments merge function into index.html    (ps1 :39-60)
 #   5. canvas 960x600 -> 1280x720 plus letterbox-fill CSS      (ps1 :61-75)
 #   6. framework.js URL-query -> argv rewrite                  (ps1 :76-90)
 #   7. hash stamp over the four Build artifacts                (ps1 :91-104)
 #   8. build_stamp.txt, catalog XHR stamp, refresh watchdog    (ps1 :105-131)
-#   9. brotli sidecars                                         (ps1 :132-135)
-#  10. optional webfront serve                                 (ps1 :136-147)
+#   9. brotli sidecars, on the staged copy                     (ps1 :132-135)
+#   9b. swap the staged copy into WEBROOT with two renames     (ps1 :485-547)
+#  10. optional webfront serve, and the answer that frees the undo handle (ps1 :136-147, :581-609)
 #
 # Usage
 # -----
@@ -26,10 +27,17 @@
 #   BUILD_DIR       Build tree to mirror.        default: ~/mfg/out/webgl
 #                   (Unity WebGL output: index.html, Build/, StreamingAssets/, TemplateData/)
 #   WEBROOT         Assembled webroot.           default: ~/mfgtmp/webroot
-#                   Wiped (rm -rf) and recreated from BUILD_DIR on every run. Refused
-#                   before the wipe when it is the operator home, the repo root, the lane
-#                   pid dir, the lane log dir, or a path that contains (or is contained by)
-#                   BUILD_DIR - the rm -rf has no undo and the old guard only refused '' and /.
+#                   Replaced on every run - but not in place. The build is mirrored into
+#                   WEBROOT.assembling-XXXX beside the target, patched and sidecar'd there,
+#                   and two renames move it into the leaf name (step 9b): the previous root
+#                   only leaves the tree once the new one stands at the path, and it is then
+#                   parked as WEBROOT.old-<stamp>-<pid> - the undo handle - until an answer
+#                   this run observed proves the new root serves (only --serve can observe it).
+#                   Refused before any of that when WEBROOT is the operator home, the repo
+#                   root, the lane pid dir, the lane log dir, a path that contains (or is
+#                   contained by) BUILD_DIR, or a root a live front is answering out of -
+#                   step 3 asks the fronts, because the rm -rf this replaced had no undo and
+#                   its old guard only refused '' and /.
 #   UPSTREAM        Identity origin URL.         default: http://127.0.0.1:8080
 #                   Only used by --serve (WEBFRONT_UPSTREAM).
 #   FRONT_URL       URL baked into the player args as the -FRONTURL value.
@@ -63,7 +71,11 @@
 #                   when its command line names the gate program AND its working
 #                   directory is the gate's own bin dir - the cwd rule lane_up.sh:171-182
 #                   and lane_down.sh:120-131 use. When a live recorded gate cannot be
-#                   stopped, the webroot wipe is refused instead of run under it.
+#                   stopped, replacing the webroot is refused instead of run under it - and
+#                   since the staged-swap pass, a missing record is not a licence to replace
+#                   the root either: step 3 asks every front on the box what it answers
+#                   /build_stamp.txt with and refuses on that answer, record or none (the
+#                   systemd units write no pid file, so the record alone never covered them).
 #   GATE_PROCESS    Process name the recorded pid must match before any signal.
 #                                                  default: WebFront
 #                   Matches comm, argv[0] basename or argv[1] basename (dotnet
@@ -269,6 +281,156 @@ esac
 pid_alive() { [ -e "/proc/$1" ] || kill -0 "$1" 2>/dev/null; }   # lane_down.sh:112 rule
 port_in_use() { (exec 3<>"/dev/tcp/$1/$2") 2>/dev/null; }        # lane_up.sh:134 rule: probe the port, never a name
 
+# ---------------------------- who serves a root: ask, do not assume ----------------------------
+# A pid record says who somebody last restarted. It does not say which process serves the root this
+# run is about to replace - and that second question has an answer that needs no record at all
+# (ps1 :166-177): a front answers /build_stamp.txt out of its own root (webfront/Program.cs
+# ServeStatic; measured byte-identical to the file on disk), and step 8 writes that file every run.
+# So the probe below asks whatever fronts this box has and compares what they answer with the stamp
+# file on disk. That is the guard the 2026-11-07 outages left behind (ledger L72), and it is asked
+# twice: before staging, and again on the line that destroys (L91 - the rename is not a net, this
+# probe is). The undo-handle rule it hands over to is L90: an unproven swap never deletes what it
+# could have rolled back to.
+
+# _probe_front <port> -> two lines: the HTTP status, then the first non-empty body line;
+# rc 1 = nothing answered at all. One raw read (-d '' -n 65536): build_stamp.txt is written with no
+# trailing newline, so a line-oriented read never sees the last line of the body and a serving front
+# would read as "no front". The answer is parsed by awk, not by shell patterns: a $'\r\n\r\n'
+# pattern measured here (bash 5.2.26 msys) matches at top level and MISSES inside a command
+# substitution, CRs present in the value and all - parsed that way a serving front answers an empty
+# body and walks straight past this guard, which is the exact failure the guard exists to stop.
+_probe_front() {
+  _pf_out=$(
+    exec 3<>"/dev/tcp/127.0.0.1/$1" || exit 1
+    printf 'GET /build_stamp.txt HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' >&3
+    IFS= read -r -d '' -n 65536 -t 5 _pf_all <&3 || true
+    exec 3>&-
+    [ -n "$_pf_all" ] || exit 1
+    printf '%s\n' "$_pf_all" | awk '
+      NR == 1 {
+        line = $0; sub(/\r$/, "", line)
+        if (line !~ /^HTTP\//) { print "0"; print line; done = 1; exit }   # a banner, not http
+        split(line, f, " "); code = f[2]
+        next
+      }
+      !done && !inbody { l = $0; sub(/\r$/, "", l); if (l == "") inbody = 1; next }
+      !done && inbody  { l = $0; sub(/\r$/, "", l); if (l != "") { print code; print l; done = 1; exit } }
+      END { if (!done && code != "") { print code; print "" } }'
+  ) || return 1
+  [ -n "$_pf_out" ] || return 1
+  printf '%s\n' "$_pf_out"
+}
+
+_disk_stamp() {   # <dir> -> trimmed first line of its build_stamp.txt, empty when it has none
+  if [ -f "$1/build_stamp.txt" ]; then
+    sed -n '1p' "$1/build_stamp.txt" 2>/dev/null | tr -d '\r\t' | sed 's/^ *//; s/ *$//'
+  fi
+}
+
+# _listener_rows -> "<port>\t<pid>" for the listening TCP sockets this box can show, the pid empty
+# when the owner is not visible to us (ss hides another user's socket). rc 1 = the box cannot be
+# asked at all, which is a refusal, never a pass: a question never asked proves nothing.
+_listener_rows() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -lntp 2>/dev/null | awk '
+      {
+        lp = ""
+        for (i = 1; i <= NF; i++) if (lp == "" && $i ~ /:[0-9]+$/) lp = $i
+        if (lp == "") next
+        c = length(lp)
+        while (c > 0 && substr(lp, c, 1) != ":") c--
+        if (c == 0) next
+        port = substr(lp, c + 1); addr = substr(lp, 1, c - 1)
+        okaddr = (addr == "*" || addr == "0.0.0.0" || addr == "[*]" || addr == "::" || addr == "[::]" || addr == "[::1]" || substr(addr, 1, 4) == "127.")
+        if (!okaddr) next                                 # not dialable where the probe dials
+        pid = ""
+        if (match($0, /pid=[0-9]+/)) pid = substr($0, RSTART + 4, RLENGTH - 4)
+        print port "\t" pid
+      }'
+    return 0
+  fi
+  if [ -r /proc/net/tcp ] || [ -r /proc/net/tcp6 ]; then
+    # no ss on this box: the LISTEN rows (state 0A) of procfs. Ports only - procfs names no owner,
+    # so every row here is unattributed and only a stamp answer can refuse.
+    for _f in /proc/net/tcp /proc/net/tcp6; do
+      [ -r "$_f" ] || continue
+      awk 'NR > 1 && $4 == "0A" { print $2 }' "$_f" | while IFS= read -r _lr_local; do
+        _lr_addr=${_lr_local%:*}; _lr_hex=${_lr_local##*:}
+        case $_lr_hex in ''|*[!0-9A-Fa-f]*) continue ;; esac
+        _lr_u=${_lr_addr^^}
+        # The filter is on the ADDRESS, not the port (testing this branch caught the two mixed up):
+        # 00000000 is 0.0.0.0 and 24 trailing zeros is the v6 wildcard, *0100007F is 127.0.0.1
+        # including the v4-mapped form, *01000000 catches ::1. A socket bound to some other address
+        # is not reachable where the probe dials; a v6 that merely ends that way is probed on
+        # loopback, does not answer, and an unattributed row never refuses on a non-answer.
+        case $_lr_u in 00000000|*000000000000000000000000|*0100007F|*01000000) : ;; *) continue ;; esac
+        printf '%d\t\n' "0x$_lr_hex"
+      done
+    done
+    return 0
+  fi
+  return 1
+}
+
+# _front_of_pid <pid> -> a short identity for the message. rc 0 when the command line names a front
+# this kit keeps: the gate program by the same name rule stop_recorded_gate uses, or node running
+# serve_aog.js (ps1 :182-197 - that front serves a root like any other, and image names alone
+# never decide anything: it is the command line that proves which script an interpreter runs).
+_front_of_pid() {
+  [ -n "$1" ] || return 1
+  [ -r "/proc/$1/cmdline" ] || return 1
+  _fp_cmd=$(cat "/proc/$1/cmdline" 2>/dev/null | tr '\0' ' ' | cut -c1-140) || _fp_cmd=''
+  _fp_a0=$(cat "/proc/$1/cmdline" 2>/dev/null | tr '\0' '\n' | sed -n '1p') || _fp_a0=''
+  _fp_a1=$(cat "/proc/$1/cmdline" 2>/dev/null | tr '\0' '\n' | sed -n '2p') || _fp_a1=''
+  _fp_want=$(_norm_name "$GATE_PROCESS")
+  if [ "$(_norm_name "${_fp_a0##*/}")" = "$_fp_want" ] || [ "$(_norm_name "${_fp_a1##*/}")" = "$_fp_want" ]; then
+    printf 'pid %s (%s)' "$1" "${_fp_cmd:-$GATE_PROCESS}"
+    return 0
+  fi
+  case $_fp_cmd in
+    *serve_aog.js*) printf 'pid %s (%s)' "$1" "${_fp_cmd:-node serve_aog.js}"; return 0 ;;
+  esac
+  printf 'pid %s (%s)' "$1" "${_fp_cmd:-command line unreadable}"
+  return 1
+}
+
+# assert_root_not_served <root>: refuse when a front is answering out of <root>, and refuse when a
+# front holds a port and the question cannot be answered at all. It never signals anything, so it
+# also runs for --no-gate-stop probe assembly, and it is read-only by construction.
+assert_root_not_served() {
+  _an_root=$1
+  if [ ! -e "$_an_root" ]; then return 0; fi          # nothing is served out of a root that is not there
+  if ! _an_rows=$(_listener_rows); then
+    die "cannot list the listening sockets to check who serves $_an_root (no ss and no readable /proc/net/tcp): refusing to replace a webroot that may be served"
+  fi
+  [ -n "$_an_rows" ] || return 0                      # nothing listening on loopback to ask
+  _an_disk=$(_disk_stamp "$_an_root")
+  while IFS=$'\t' read -r _an_port _an_pid; do
+    case $_an_port in ''|*[!0-9]*) continue ;; esac
+    _an_who=''
+    _an_front=0
+    if [ -n "$_an_pid" ] && _an_who=$(_front_of_pid "$_an_pid"); then _an_front=1; fi
+    _an_who=${_an_who:-pid unknown (owner not visible to us)}
+    _an_asked=0
+    _an_st=''; _an_body=''
+    if _an_pf=$(_probe_front "$_an_port"); then
+      _an_asked=1
+      { read -r _an_st; read -r _an_body; } <<<"$_an_pf" || true
+    fi
+    if [ $_an_asked = 1 ] && [ "$_an_st" = 200 ] && [ -n "$_an_disk" ] && [ "$_an_body" = "$_an_disk" ]; then
+      die "$_an_who is serving $_an_root on 127.0.0.1:$_an_port: it answers /build_stamp.txt with $_an_body, the stamp in $_an_root/build_stamp.txt. Refusing to replace a root a front is serving - stop that front first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service) or point WEBROOT at another root."
+    elif [ $_an_asked = 1 ] && [ "$_an_st" = 200 ] && [ -n "$_an_disk" ]; then
+      printf 'listener %s on 127.0.0.1:%s answers /build_stamp.txt with %s, not the stamp of this webroot (%s): a different build, not this root\n' "$_an_who" "$_an_port" "$_an_body" "$_an_disk"
+    elif [ $_an_asked = 1 ] && [ -n "$_an_disk" ] && [ "$_an_st" != 0 ]; then
+      printf 'listener %s on 127.0.0.1:%s answers /build_stamp.txt with HTTP %s, not the stamp of this webroot (%s): not this root\n' "$_an_who" "$_an_port" "$_an_st" "$_an_disk"
+    elif [ $_an_asked = 1 ] && [ -z "$_an_disk" ] && [ $_an_front = 1 ]; then
+      die "cannot prove $_an_who is not serving $_an_root: it answered HTTP $_an_st and $_an_root has no build_stamp.txt to compare against. Assemble into a fresh root, or stop that front, first."
+    elif [ $_an_front = 1 ]; then
+      die "cannot prove $_an_who is not serving $_an_root: it holds 127.0.0.1:$_an_port but did not answer /build_stamp.txt. Stop it first or choose another WEBROOT."
+    fi
+  done <<<"$_an_rows"
+}
+
 stop_recorded_gate() {
   if [ "$NO_GATE_STOP" = 1 ]; then
     printf 'gate stop skipped (NO_GATE_STOP=1)\n'
@@ -338,13 +500,45 @@ if ! stop_recorded_gate; then
   die "the recorded gate ($GATE_PID_FILE) is live and was not signalled: refusing to wipe $WEBROOT under a serving gate. Stop that gate first (scripts/linux/lane_down.sh, or systemctl stop mfg-gate.service) and run again, or pass --no-gate-stop for a probe assembly."
 fi
 
-# ---------------------------- 3. wipe + mirror ----------------------------
-# ps1 :37-38  Remove-Item $Webroot -Recurse -Force ; Copy-Item $Build $Webroot -Recurse
-if [ -e "$WEBROOT" ]; then rm -rf -- "$WEBROOT"; fi
-mkdir -p -- "$WEBROOT"
+# ---------------------------- 3. refuse a served root, then stage beside it ----------------------------
+# What this used to be (ps1 :37-38): Remove-Item $Webroot -Recurse -Force, then copy the build in.
+# Two faults, both of them the 2026-11-07 story (ledger L72):
+#   * the only thing standing between the rm -rf and a live front was the step-2 pid record, and a
+#     record is not a fact. The kit's documented permanent form - README step 6, the systemd units,
+#     and mfg-gate.service names no PIDFile= - leaves no pid file at all, so stop_recorded_gate
+#     returned 0 having done nothing and the wipe tore the tree out from under a serving gate and
+#     left it as the work-in-progress tree for the whole mirror + brotli pass (9 GB / 58,809 files
+#     by the README's own transfer numbers), with the served root answering from it per request.
+#   * every check and patch after the wipe could fail, and left the lane with a half-deleted root.
+# So the front is asked, not assumed (assert_root_not_served), the build is mirrored into
+# WEBROOT.assembling-XXXX beside the target, and the target is destroyed only in step 9b, by two
+# renames, after the probe is asked again: the previous root is parked as WEBROOT.old-<stamp>-<pid>
+# and that aside is the undo handle - removed only on an answer this run observed (step 10, L90).
+assert_root_not_served "$WEBROOT"
+TARGET_ROOT=$_webroot_norm         # the path this run replaces; WEBROOT below becomes the staged copy
+_staged=''                         # the staged copy; the exit trap removes it unless it was published
+_keep_staged=0                     # 1 = a failure kept it for inspection instead of removing it
+_aside=''                          # the previous root, parked aside; only step 10's proof removes it
+_on_exit() {
+  _oe_rc=$?
+  if [ -n "$_staged" ] && [ -e "$_staged" ]; then
+    if [ "$_keep_staged" = 1 ]; then
+      printf 'assemble_webroot: assembly failed; the staged copy was kept for inspection at %s\n' "$_staged" >&2
+    else
+      rm -rf -- "$_staged" 2>/dev/null || true
+      printf 'assemble_webroot: assembly failed (exit %s); the staged copy was removed and %s was left untouched\n' "$_oe_rc" "$TARGET_ROOT" >&2
+    fi
+  fi
+}
+trap _on_exit EXIT
+if [ "${TARGET_ROOT%/*}" != "$TARGET_ROOT" ]; then mkdir -p -- "${TARGET_ROOT%/*}" 2>/dev/null || true; fi
+if ! _staged=$(mktemp -d "${TARGET_ROOT}.assembling-XXXXXXXX" 2>/dev/null); then
+  die "cannot create a staging directory beside $TARGET_ROOT: refusing to replace the webroot in place"
+fi
 # cp -a is coreutils (mode+timestamps preserved, symlinks copied as links); POSIX
 # fallback is cp -R. Copy-Item copied attributes too and did not follow symlinks.
-cp -a "$BUILD_DIR"/. "$WEBROOT"/
+cp -a "$BUILD_DIR"/. "$_staged"/
+WEBROOT=$_staged                   # steps 4-9 patch the staged copy; step 9b swaps it into TARGET_ROOT
 
 # ---------------------------- 4. config.arguments merge ----------------------------
 # ps1 :43-60. Skip when the page already carries an "arguments:" key.
@@ -470,6 +664,54 @@ else
   dotnet "$SIDECAR_DLL" "$WEBROOT" "$BROTLI_QUALITY"
 fi
 
+# ---------------------------- 9b. swap the staged root into place ----------------------------
+# Two renames instead of a wipe: the previous root only leaves the tree once the new one stands at
+# its path, and that is all the renames do - they are NOT a net. A live process does not block
+# renaming the directory it works in, and a front that opens files per request never holds the root
+# at all (measured on the Windows twin: probe_rename_is_not_a_net case P, ledger L91), so the net
+# is the probe - and since step 3 answered, the 9 GB mirror and the whole patch pipeline have run,
+# which is minutes in which a front can have come up. Same question, same function, here again.
+# The old root then waits at WEBROOT.old-<stamp>-<pid> as the undo handle, and nothing in this
+# script removes it before something is observed answering out of the new root (step 10, L90).
+publish_staged_webroot() {
+  assert_root_not_served "$TARGET_ROOT"                   # asked again on the line that destroys
+  _pw_leaf=${TARGET_ROOT##*/}
+  if [ -z "$_pw_leaf" ]; then die "refusing to publish into $TARGET_ROOT: it has no leaf name to swap"; fi
+  if [ -e "$TARGET_ROOT" ] || [ -L "$TARGET_ROOT" ]; then
+    _aside="$TARGET_ROOT.old-$(date +%Y%m%d%H%M%S)-$$"
+    if ! _pw_why=$(mv -- "$TARGET_ROOT" "$_aside" 2>&1); then
+      die "cannot move the existing webroot $TARGET_ROOT aside ($_pw_why): nothing was replaced."
+    fi
+  fi
+  if [ -e "$TARGET_ROOT" ] || [ -L "$TARGET_ROOT" ]; then
+    # Somebody took the leaf name while the copy was staging, and mv would land the staged tree
+    # inside it. Put the old root back where it was and change nothing else.
+    _keep_staged=1
+    if _pw_back=$(mv -- "$_aside" "$TARGET_ROOT" 2>&1); then
+      die "the leaf name $TARGET_ROOT was taken while the copy was staging: the previous webroot is put back in place, the staged copy is kept at $_staged"
+    fi
+    die "the leaf name $TARGET_ROOT was taken while the copy was staging, and the previous webroot could NOT be put back ($_pw_back): it is still at $_aside and $TARGET_ROOT is not it. Put it back by hand: mv -- '$_aside' '$TARGET_ROOT'. The staged copy is kept at $_staged"
+  fi
+  if ! _pw_why=$(mv -- "$_staged" "$TARGET_ROOT" 2>&1); then
+    _keep_staged=1                                        # the exit trap must not delete what this names
+    if [ -n "$_aside" ]; then
+      if _pw_back=$(mv -- "$_aside" "$TARGET_ROOT" 2>&1); then
+        die "cannot move the assembled webroot into place ($_pw_why): the previous webroot was put back at $TARGET_ROOT, the staged copy is kept at $_staged"
+      fi
+      die "cannot move the assembled webroot into place ($_pw_why): the previous webroot could NOT be put back ($_pw_back) - it is still at $_aside and $TARGET_ROOT is not it. Put it back by hand: mv -- '$_aside' '$TARGET_ROOT'. The staged copy is kept at $_staged"
+    fi
+    die "cannot move the assembled webroot into place ($_pw_why): the target was not there to begin with, the staged copy is kept at $_staged"
+  fi
+  _staged=''                     # published: the exit trap must not clean up the target
+  if [ -n "$_aside" ]; then
+    printf 'webroot swapped in: %s - the previous root is kept at %s, because nothing has proved the new root answers yet (it is the undo handle: remove it by hand once you have checked the new root, or --serve removes it once a front answers for it)\n' "$TARGET_ROOT" "$_aside"
+  else
+    printf 'webroot swapped in: %s (there was no previous root to remove)\n' "$TARGET_ROOT"
+  fi
+}
+publish_staged_webroot
+WEBROOT=$TARGET_ROOT             # steps 4-9 worked on the staged copy; from here the real path again
+
 # ---------------------------- 10. optional serve ----------------------------
 # ps1 :136-147. Off by default; nothing is started unless SERVE=1 / --serve. The assembly
 # (dotnet, WEBFRONT_DLL) was already checked in step 1; what is checked here is the port and
@@ -508,4 +750,36 @@ if [ "$SERVE" = 1 ]; then
   mkdir -p -- "$PID_DIR"
   echo "$servePid" > "$GATE_PID_FILE"
   printf 'webfront started (pid %s, recorded in %s, logs in %s) bind=%s port=%s WEBFRONT_UPSTREAM=%s\n' "$servePid" "$GATE_PID_FILE" "$LOG_DIR" "$BIND" "$GATE_PORT" "$UPSTREAM"
+  # Step 9b's other half, and the only place its rule can be met. The front this run started is its
+  # own child, on the port this run bound, with WEBFRONT_ROOT pointed at the root that was just
+  # swapped in - so it is the one front whose answer counts as proof that the new root serves, asked
+  # with the same /build_stamp.txt question as step 3 and 9b, no new rule. Only on that answer does
+  # the previous root go. If the answer never comes, the aside stays where it is and this says so,
+  # instead of quietly deleting the last thing the lane could have rolled back to (ledger L90).
+  if [ -n "$_aside" ]; then
+    _disk=$(_disk_stamp "$WEBROOT")
+    _proved=0
+    _last="it never answered on 127.0.0.1:$GATE_PORT"
+    _pt=1
+    while [ $_pt -le 40 ]; do
+      _st=''; _body=''
+      if _pf=$(_probe_front "$GATE_PORT"); then
+        { read -r _st; read -r _body; } <<<"$_pf" || true
+        if [ "$_st" = 200 ] && [ -n "$_disk" ] && [ "$_body" = "$_disk" ]; then _proved=1; break; fi
+        _last="it answers /build_stamp.txt with HTTP $_st (body: $_body)"
+      fi
+      sleep 0.25
+      _pt=$((_pt+1))
+    done
+    if [ $_proved = 1 ]; then
+      printf 'the front this run started (pid %s on 127.0.0.1:%s) answered /build_stamp.txt with %s: the new root is proved to be serving, so the previous root can go\n' "$servePid" "$GATE_PORT" "$_disk"
+      if _rm_why=$(rm -rf -- "$_aside" 2>&1); then
+        printf 'the previous root at %s was removed\n' "$_aside"
+      else
+        printf 'the previous root at %s could NOT be removed (%s): it is still there and nothing else was changed\n' "$_aside" "$_rm_why"
+      fi
+    else
+      printf 'the front this run started (pid %s) never answered /build_stamp.txt with the stamp of this root (%s): the new root is UNPROVEN, so the previous root was kept at %s\n' "$servePid" "$_last" "$_aside"
+    fi
+  fi
 fi

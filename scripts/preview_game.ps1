@@ -21,6 +21,10 @@
 #   preview_game.ps1 -Reassemble # re-copy + re-patch out\webgl into the served webroot first
 #   preview_game.ps1 -FrontPort N# preview relay port (default 8096). Never 8090: that is the hosted
 #                                  # gate port and the port the cloudflared tunnel ingress forwards to
+#   preview_game.ps1 -CorePort N # the lane core port (default 8083): reused if it already answers, and
+#                                  # the port a recorded core must own before -Stop will signal it
+#   preview_game.ps1 -PidDir DIR # where this lane's pid records live (default C:\mfgtmp\preview_pids),
+#                                  # same knob hosting_down.ps1:34 offers for C:\mfgtmp\lane_pids
 #
 # Lane ownership (2026-11-06 checkup item 5). This script used to reclaim "the lane" by process
 # name on every launch (every WebFront.exe, plus every node.exe whose command line merely
@@ -28,10 +32,12 @@
 # live hosted lane that destroyed the gated production front and put an ungated relay on the port
 # the owner's cloudflared tunnel serves, or left the hosted lane with no front at all. The
 # contract now:
-#   * every process this script starts is recorded in C:\mfgtmp\preview_pids, and -Stop (or a
-#     relaunch) stops only those pids - each one re-proved (name plus the port it must own, the exact
-#     AsphyxiaCore.js argument, or the command line recorded at launch for the browser window) before it
-#     is signalled, as scripts/linux/lane_down.sh does;
+#   * every process this script starts is recorded in -PidDir as one file per child (pid on line 1,
+#     the command line WMI sees at start on line 2, the hosting_up.ps1:63-67 shape), and -Stop (or a
+#     relaunch) stops only those pids - each one re-proved with hosting_down.ps1's Test-LaneIdentity
+#     rule (the image name; for node, an ARGUMENT whose file name is AsphyxiaCore.js; the command line
+#     recorded at launch) plus the port that record claims, as scripts/linux/lane_down.sh does. A
+#     record that cannot be proved is a refusal that keeps the file, never something to kill;
 #   * a process this script did not start is never signalled: a port held by a foreign listener
 #     is a refusal with a reason, not something to kill;
 #   * a core already answering 8083 is reused, not replaced - killing it drops every live session
@@ -47,6 +53,13 @@ param(
     [switch]$Guest,
     [string]$DataID = '6AE73807BA1CE8CB',
     [int]$FrontPort = 8096,
+    # The lane core port. It is a parameter for the same reason hosting_down.ps1:37-38 takes -CorePort:
+    # a child process has to be able to exercise the stop path against a scratch port instead of the
+    # live 8083 (which belongs to the hosted core and is never touched here).
+    [int]$CorePort = 8083,
+    # Where this lane writes its one-pid-per-child records. Same knob as hosting_down.ps1:34, so a
+    # harness can drive the real script against scratch records instead of C:\mfgtmp\preview_pids.
+    [string]$PidDir = 'C:\mfgtmp\preview_pids',
     [string]$EdgeExe = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 )
 $ProgressPreference = 'SilentlyContinue'
@@ -71,11 +84,14 @@ if (Test-Path $secFile) {
 } else { 'note: no presenter secret at ' + $secFile + ' - claimed accounts will not log in on this lane' }
 $page = if ($Park) { 'index_park2.html' } else { 'index_play.html' }
 $url = 'http://127.0.0.1:8094/aog/' + $page
-$corePort = 8083
+# The lane core port is the -CorePort parameter (used below as $corePort: PowerShell names are
+# case-insensitive), so a harness can exercise the whole lane against a scratch port.
 $mockPort = 8085
-# Ownership record: one pid file per child this script starts. Only these pids are ever
-# signalled, and each one is re-identified from the live process before the signal.
-$pidDir = 'C:\mfgtmp\preview_pids'
+# Ownership record: one pid file per child this script starts (-PidDir, default C:\mfgtmp\preview_pids).
+# Each file is line 1 = the pid, line 2 = the command line WMI sees at start - the shape
+# hosting_up.ps1:63-67 writes for the hosted lane, and the only shape that carries enough to re-prove
+# the process later. Only these pids are ever signalled, and each one is re-identified from the live
+# process before the signal.
 
 function Stop-PreviewWindow {
     # Close ONLY the preview window this script started, by the pid it recorded for it. This used to
@@ -150,37 +166,89 @@ function Assert-FrontPortFree($port) {
     }
 }
 
+function Get-Argv([string]$commandLine) {
+    # Quote-aware argv split, the same implementation as hosting_down.ps1:47-58: a quoted argument is
+    # ONE argument. Splitting on whitespace instead turns a quoted argument that happens to mention
+    # AsphyxiaCore.js into bare AsphyxiaCore.js "arguments", which is a substring match wearing a token
+    # rule's clothes - that is exactly how this script proved its core (checkup 2026-11-08).
+    $argv = @()
+    foreach ($m in [regex]::Matches("$commandLine", '"([^"]*)"|(\S+)')) {
+        $v = if ($m.Groups[1].Success) { $m.Groups[1].Value } else { $m.Groups[2].Value }
+        if ($v) { $argv += $v.Trim('"').Trim("'") }
+    }
+    return $argv
+}
+
+function Write-PreviewPid($label, $proc) {
+    # The ownership record, in the hosting_up.ps1:63-67 Write-LanePid shape: line 1 the pid, line 2 the
+    # command line as WMI sees it now. Stop-RecordedPid compares that line against the live one, so a
+    # pid that has since been recycled onto some other process is refused instead of signalled (a
+    # Windows command line never changes after creation). Written the moment the child starts: a record
+    # made after a later failure would leave that child unowned.
+    $rec = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.Id)" -EA SilentlyContinue
+    Set-Content -LiteralPath (Join-Path $pidDir ($label + '.pid')) -Value @("$($proc.Id)", [string]$rec.CommandLine) -Encoding utf8
+}
+
 function Stop-RecordedPid($label, $expectName, $port) {
     # Stop exactly one child this script started. The pid file is the ownership record; the live
     # process is re-identified before any signal, and a mismatch is a refusal that KEEPS the file
     # (deleting it would strand a live process with no handle - scripts/linux/lane_down.sh:17-19).
+    # The proof is hosting_down.ps1's Test-LaneIdentity (:60-87), which replaced this shape on the
+    # hosted lane: the image name, plus for node an ARGUMENT whose file name is AsphyxiaCore.js
+    # (:70-77, lane_down.sh:100-106) decided on whole arguments and never on a whitespace-split token,
+    # plus the command line recorded when this child started. It used to prove the core with the split
+    # alone, claim no port at all (Stop-OwnLane passed 0, which skips the port check below) and read a
+    # pid-only record with nothing to compare: a stale core.pid whose pid had been recycled onto the
+    # hosted core - node.exe, AsphyxiaCore.js, the listener on 8083 - satisfied every one of those and
+    # the next preview launch force-killed it. A record that carries no command line (the shape this
+    # script wrote before this fix) proves nothing about who holds the pid now, so it is refused and
+    # kept: unlike hosting_down.ps1, which documents adopting a bare pid in hosting_deploy.md, this
+    # lane has no adoption path - every record here is written by Write-PreviewPid, with the line.
     $file = Join-Path $pidDir ($label + '.pid')
     if (-not (Test-Path -LiteralPath $file)) { return }
-    $raw = (Get-Content -LiteralPath $file -Raw -EA SilentlyContinue)
-    $old = if ($raw) { $raw.Trim() } else { '' }
+    $lines = @(Get-Content -LiteralPath $file -EA SilentlyContinue | ForEach-Object { "$_".Trim() })
+    $old = if ($lines.Count -gt 0) { $lines[0] } else { '' }
+    $recordedCmd = if ($lines.Count -gt 1) { ($lines[1..($lines.Count - 1)] -join ' ').Trim() } else { '' }
     if ($old -notmatch '^\d+$') { "$label : pid file $file holds no usable pid ('$old'); left alone"; return }
     $oldPid = [int]$old
     if ($oldPid -le 3) { "$label : pid file holds pid $oldPid; system pids are never signalled; file kept"; return }
     if ($oldPid -eq $PID) { "$label : pid file holds this script (pid $oldPid); left alone"; return }
     $p = Get-CimInstance Win32_Process -Filter "ProcessId=$oldPid" -EA SilentlyContinue
-    if (-not $p) { "$label : pid $old is not running; stale pid file removed"; Remove-Item -LiteralPath $file -Force -EA SilentlyContinue; return }
-    $ours = ($p.Name -eq $expectName)
-    if ($ours -and $port -gt 0) {
-        # a listener we own is proven by the lane port it serves - the strongest signal available
-        $ours = [bool](Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue |
+    if (-not $p) { "$label : pid $oldPid is not running; stale pid file removed"; Remove-Item -LiteralPath $file -Force -EA SilentlyContinue; return }
+    $why = $null
+    if ($p.Name -ne $expectName) {
+        $why = "not this lane's $expectName"
+    } elseif ($expectName -eq 'node.exe') {
+        # node is the shared interpreter: only an argument whose FILE NAME is AsphyxiaCore.js is this
+        # lane's core; the hosted core is the same binary and the same script, so the file name alone
+        # is not enough either - the recorded command line and the port below decide.
+        $coreArg = $false
+        foreach ($t in Get-Argv $p.CommandLine) { if ($t -match '(^|[\\/])AsphyxiaCore\.js$') { $coreArg = $true; break } }
+        if (-not $coreArg) { $why = 'no argument whose file name is AsphyxiaCore.js (mentioning it is not identity)' }
+    }
+    if (-not $why -and -not $recordedCmd) {
+        $why = 'the record carries no command line, so nothing in it proves this pid is still the process the record named'
+    }
+    if (-not $why -and ("$($p.CommandLine)" -cne $recordedCmd)) {
+        $why = 'the live command line is not the one recorded when this child started - a recycled pid is not this child'
+    }
+    $portClaim = if ($port -gt 0) { [string]$port } else { '<none>' }
+    $portOwned = $null
+    if (-not $why -and $port -gt 0) {
+        # a listener we own is proved by the lane port it serves - the strongest signal available
+        $portOwned = [bool](Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue |
             Where-Object { $_.OwningProcess -eq $oldPid })
+        if (-not $portOwned) { $why = "it does not own the port the record claims ($port)" }
     }
-    if ($ours -and $expectName -eq 'node.exe') {
-        # node is the shared interpreter: only an exact AsphyxiaCore.js argument is this lane's core
-        $ours = (@($p.CommandLine -split '\s+') -contains 'AsphyxiaCore.js')
-    }
-    if (-not $ours) {
-        "$label : pid $old is $($p.Name) [$($p.CommandLine)] - not this lane's $expectName" +
-            $(if ($port -gt 0) { " (it does not own port $port)" } else { '' }) + '; NOT signalled; pid file KEPT'
+    if ($why) {
+        "$label : pid $oldPid is $($p.Name) [$($p.CommandLine)] - $why; NOT signalled; pid file KEPT"
+        "       recorded cmd: $(if ($recordedCmd) { $recordedCmd } else { '<none - pid-only record, nothing to compare>' })"
+        "       live cmd:     $($p.CommandLine)"
+        "       port claimed: $portClaim" + $(if ($null -ne $portOwned) { "; owned by pid $oldPid : $portOwned" } else { '' })
         return
     }
     Stop-Process -Id $oldPid -Force -EA SilentlyContinue
-    "$label : stopped $expectName pid=$old" + $(if ($port -gt 0) { " (port $port)" } else { '' })
+    "$label : stopped $expectName pid=$oldPid" + $(if ($port -gt 0) { " (port $port)" } else { '' })
     Remove-Item -LiteralPath $file -Force -EA SilentlyContinue
 }
 
@@ -189,7 +257,10 @@ function Stop-OwnLane {
     Stop-PreviewWindow
     Stop-RecordedPid 'front' 'WebFront.exe' $FrontPort
     Stop-RecordedPid 'mock' 'MockServer.exe' $mockPort
-    Stop-RecordedPid 'core' 'node.exe' 0
+    # the core is claimed on the lane core port: a recorded node pid that no longer owns $corePort is a
+    # stale or recycled record, and the hosted core (node.exe, AsphyxiaCore.js, the 8083 listener) must
+    # never be signalled on the strength of a pid file alone.
+    Stop-RecordedPid 'core' 'node.exe' $corePort
 }
 
 function Wait-Port($port, $tries = 80) {
@@ -215,7 +286,7 @@ function Start-Front($port, $upstream, $bind) {
     $wd = 'C:\mfg\webfront\bin\Release\net8.0'
     $p = Start-Process -FilePath (Join-Path $wd 'WebFront.exe') -WorkingDirectory $wd -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput ("C:\mfgtmp\webfront$port.out.txt") -RedirectStandardError ("C:\mfgtmp\webfront$port.err.txt")
-    Set-Content -LiteralPath (Join-Path $pidDir 'front.pid') $p.Id -Encoding utf8
+    Write-PreviewPid 'front' $p
     'WEBFRONT port={0} pid={1} upstream={2} (gate off, loopback, recorded in {3})' -f $port, $p.Id, $upstream, $pidDir
 }
 
@@ -286,7 +357,7 @@ if ($Park) {
     $mockProc = Start-Process -FilePath (Join-Path $m85 'MockServer.exe') -ArgumentList "$mockPort" -WorkingDirectory $m85 `
         -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $m85 'stdout.txt') -RedirectStandardError (Join-Path $m85 'stderr.txt')
-    Set-Content -LiteralPath (Join-Path $pidDir 'mock.pid') $mockProc.Id -Encoding utf8
+    Write-PreviewPid 'mock' $mockProc
     Remove-Item Env:MOCK_HOLD_CS_WRITE_MS -EA SilentlyContinue
     if (-not (Wait-Port $mockPort 30)) { throw ('mock ' + $mockPort + ' did not come up') }
     New-PlayPage ('http://127.0.0.1:' + $mockPort + '/aog')
@@ -301,7 +372,7 @@ if ($Park) {
     } else {
         $core = Start-Process node -ArgumentList 'AsphyxiaCore.js' -WorkingDirectory $ryuDist -WindowStyle Hidden `
             -RedirectStandardOutput 'C:\mfgtmp\ryunet.out.txt' -RedirectStandardError 'C:\mfgtmp\ryunet.err.txt' -PassThru
-        Set-Content -LiteralPath (Join-Path $pidDir 'core.pid') $core.Id -Encoding utf8
+        Write-PreviewPid 'core' $core
         if (-not (Wait-Port $corePort 120)) {
             'ryunet stderr tail:'; Get-Content 'C:\mfgtmp\ryunet.err.txt' -Tail 10 -EA SilentlyContinue
             throw ('RyuNET did not bind ' + $corePort)
@@ -333,11 +404,10 @@ $edge = Start-Process -FilePath $EdgeExe -PassThru -ArgumentList @(
     '--window-size=1600,976', '--window-position=80,40',
     '--app=' + $url
 )
-# Record the window we just started the same way front/mock/core are recorded (pid + the command line
+# Record the window we just started through the same writer front/mock/core use (pid + the command line
 # WMI sees at launch), so -Stop and a relaunch can close exactly this pid after re-proving it - never
 # by sweeping msedge by pattern. Written before the wait so a later failure never leaves it unowned.
-$edgeRec = Get-CimInstance Win32_Process -Filter "ProcessId=$($edge.Id)" -EA SilentlyContinue
-Set-Content -LiteralPath (Join-Path $pidDir 'edge.pid') -Value @("$($edge.Id)", [string]$edgeRec.CommandLine) -Encoding utf8
+Write-PreviewPid 'edge' $edge
 Start-Sleep -Seconds 3
 if (-not (Get-Process -Id $edge.Id -EA SilentlyContinue)) {
     $any = Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like '*edge-preview*' }

@@ -163,10 +163,10 @@ ResidentFlow boot-hook trap family (`ResidentFlow.cs:219`) is belt-and-braces, n
 
 Named cause, fixed in `StandingCharaManager`: `_loadSemaphore` became the in-house `LoggedSem` —
 a `UniTaskCompletionSource` queue that hands the permit off on the Unity main loop, the same
-shape as the 2026-11-03 SoundManager fix (unity-project `0c85a197`). A cancelled acquirer that
-was already granted the permit re-hands it; a cancelled wait raises
-`OperationCanceledException` into the `RevealDiag` catch instead of parking silently. The
-success line `Standing CharaManager: Loaded ItemID` is untouched — the harness verdict counts it.
+shape as the 2026-11-03 SoundManager fix (unity-project `0c85a197`). (This paragraph also
+claimed cancel-safety properties; that part was false as shipped — see the correction below,
+which records what the code now provides.) The success line `Standing CharaManager: Loaded
+ItemID` is untouched — the harness verdict counts it.
 
 Verification on the instrumented+fixed build (stamp `D6884B37E808`, then `92242DF355CC`):
 
@@ -195,6 +195,40 @@ Verification on the instrumented+fixed build (stamp `D6884B37E808`, then `92242D
   the core's teardown `kiken_game` lines settled all four seats per table. Lane smoke on the
   same webroot: 17 PASS / 0 FAIL / 3 SKIP. The `TileSurface` InvalidKeyException reveal-burst
   (L102) is unchanged — separate defect, out of scope here.
+
+### Correction: the cancel-safety claims were dead code until wired (2026-11-08 evening)
+
+The adversarial review confirmed the core of the fix above (root cause, main-loop handoff,
+stamps `D6884B37E808`/`92242DF355CC`) and killed the removed paragraph's cancel-safety claims:
+`WaitAsync` took no `CancellationToken` and nothing ever cancelled the queued
+`UniTaskCompletionSource`s, so `semGot` was always true, `Load`'s
+`if (!semGot) throw new OperationCanceledException` was unreachable, and the shipped
+"cancel-with-permit → re-hand" branch could never run — the four delivered lane logs contain
+zero `SEM cancelled`/`cancel-with-permit` lines. That branch was dead *structurally*, not just
+untested: completion sources complete once, so a waiter that accepted the grant can never
+afterwards observe cancellation.
+
+Follow-up (unity-project `8605788b25`, test `967762efda`):
+
+- `WaitAsync(who, token)` — optional token; while a waiter is queued a registration calls
+  `TrySetCanceled` on its completion source (with a pre-acquire `IsCancellationRequested`
+  short-circuit), so a cancelled acquirer returns `false` and `Load`'s throw is live.
+- `Release` pops waiters until one **accepts** the grant: a waiter cancelled after being popped
+  but before its continuation removed it from the queue is skipped, never handed the permit.
+  The dead waiter-side re-hand branch and the fallback `Handoff()` are gone.
+- The reveal passes the token for real: `StartCharaMatchingAnimeCore` forwards the Matching
+  scene's destroy token (`MatchingFlow.cs:300` `GetCancellationTokenOnDestroy`) into
+  `StandingCharaManager.Load`, so a scene switch during the reveal cancels parked loads. That
+  path logs at info level (`RevealDiag StartCharaMatchingAnime cancelled seat=N (scene
+  teardown)`); real failures keep the `FAILED` error line. SoundManager's 16 facade call sites
+  pass no token (fire-and-forget) and are unchanged.
+- Proof: editor-only `LoggedSemSelfTest` (`unity-project Assets/RuntimeHarness/`, batchmode
+  `-executeMethod MfgRebuild.LoggedSemSelfTest.Run`) — `SEMTEST RESULT PASS`, 58 PASS / 0 FAIL:
+  queued-waiter cancel returns false instead of parking, cancelled waiters never eat the
+  permit, 20 cross-thread cancel-vs-release races all conserved it, and defect 1's own shape
+  (contended queued handoff) stays green. The granter-side skip branch never fired in the
+  editor environment (cancellation always resumed the waiter inline there) — it is the guard
+  for the deferred-resume window, and every interleaving that did occur conserved the permit.
 
 ## Defect 2 — seated characters: leg motion swivels then teleports back (facts inventory, no fix)
 

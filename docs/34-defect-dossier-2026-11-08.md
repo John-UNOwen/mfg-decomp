@@ -219,8 +219,8 @@ Follow-up (unity-project `8605788b25`, test `967762efda`):
 - The reveal passes the token for real: `StartCharaMatchingAnimeCore` forwards the Matching
   scene's destroy token (`MatchingFlow.cs:300` `GetCancellationTokenOnDestroy`) into
   `StandingCharaManager.Load`, so a scene switch during the reveal cancels parked loads. That
-  path logs at info level (`RevealDiag StartCharaMatchingAnime cancelled seat=N (scene
-  teardown)`); real failures keep the `FAILED` error line. SoundManager's 16 facade call sites
+  path logs at info level (`RevealDiag StartCharaMatchingAnime cancelled (scene switch)
+  seat=N`); real failures keep the `FAILED` error line. SoundManager's 16 facade call sites
   pass no token (fire-and-forget) and are unchanged.
 - Proof: editor-only `LoggedSemSelfTest` (`unity-project Assets/RuntimeHarness/`, batchmode
   `-executeMethod MfgRebuild.LoggedSemSelfTest.Run`) — `SEMTEST RESULT PASS`, 58 PASS / 0 FAIL:

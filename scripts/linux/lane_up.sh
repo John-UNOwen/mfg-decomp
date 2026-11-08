@@ -429,7 +429,7 @@ for _pn in CORE_PORT CORE_HTTP_PORT GATE_PORT; do
   eval _pv=\$$_pn
   case $_pv in ''|*[!0-9]*) die "$_pn must be a number: '$_pv'" ;; esac
 done
-_ini_expr="s/^[[:space:]]*mfg_http_bind=[^[:cntrl:]]*/mfg_http_bind=127.0.0.1/; s/^[[:space:]]*port=[^[:cntrl:]]*/port=$CORE_PORT/; s/^[[:space:]]*mfg_http_port=[^[:cntrl:]]*/mfg_http_port=$CORE_HTTP_PORT/; s|^[[:space:]]*mfg_service_url=[^[:cntrl:]]*|mfg_service_url=http://$CORE_HOST:$CORE_PORT/aog|"
+ini_expr="s/^[[:space:]]*mfg_http_bind=[^[:cntrl:]]*/mfg_http_bind=127.0.0.1/; s/^[[:space:]]*port=[^[:cntrl:]]*/port=$CORE_PORT/; s/^[[:space:]]*mfg_http_port=[^[:cntrl:]]*/mfg_http_port=$CORE_HTTP_PORT/; s|^[[:space:]]*mfg_service_url=[^[:cntrl:]]*|mfg_service_url=http://$CORE_HOST:$CORE_PORT/aog|"
 if [ -f "$ini" ]; then
   iniBackup="$ini.bak.$iniStamp"
   if [ $DRY_RUN = 1 ]; then

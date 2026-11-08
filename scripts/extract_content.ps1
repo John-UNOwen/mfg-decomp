@@ -70,7 +70,21 @@ try {
 }
 finally {
     if (-not $KeepServer) {
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue   # PID we started only; never kill by name
-        Write-Host "stopped pid=$($proc.Id)"
+        # This run's own child, by the id Start-Process gave it (:36). The line below reports what the
+        # signal did, not what it attempted: -EA SilentlyContinue used to swallow a refused kill and
+        # print "stopped" regardless. Reported, never thrown - this finally must not mask the error
+        # that sent us here.
+        $killWhy = $null
+        try { Stop-Process -Id $proc.Id -Force -ErrorAction Stop } catch { $killWhy = $_.Exception.Message }
+        $kidGone = $false
+        foreach ($attempt in 1..8) {
+            if (-not (Get-Process -Id $proc.Id -EA SilentlyContinue)) { $kidGone = $true; break }
+            Start-Sleep -Milliseconds 250
+        }
+        if ($kidGone) { Write-Host "stopped pid=$($proc.Id)" }
+        else {
+            $what = if ($killWhy) { "could not be signalled ($killWhy)" } else { 'survived Stop-Process -Force' }
+            Write-Host "pid $($proc.Id) $what - it is still running, stop it yourself"
+        }
     }
 }

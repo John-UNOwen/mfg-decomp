@@ -159,6 +159,43 @@ Fix candidates for the next round: a PlayerLoop-native await handoff instead of 
 the reveal path (reveals are already gated 2 s apart); a bounded timeout fallback per the
 ResidentFlow boot-hook trap family (`ResidentFlow.cs:219`) is belt-and-braces, not the cause.
 
+### Fix and two green batches — defect 1 closed (2026-11-08 late PM)
+
+Named cause, fixed in `StandingCharaManager`: `_loadSemaphore` became the in-house `LoggedSem` —
+a `UniTaskCompletionSource` queue that hands the permit off on the Unity main loop, the same
+shape as the 2026-11-03 SoundManager fix (unity-project `0c85a197`). A cancelled acquirer that
+was already granted the permit re-hands it; a cancelled wait raises
+`OperationCanceledException` into the `RevealDiag` catch instead of parking silently. The
+success line `Standing CharaManager: Loaded ItemID` is untouched — the harness verdict counts it.
+
+Verification on the instrumented+fixed build (stamp `D6884B37E808`, then `92242DF355CC`):
+
+- Batches at 12:58 and 13:32: 8/8 clients completed 4/4 reveals, zero `RevealDiag ... FAILED`
+  lines. At 13:32 p3 hit the contention live — `Costume05_001` logged `SEM granted ... queued`
+  after a 3 s park, then completed. The case that used to die, observed surviving.
+- Both runs still split the four lanes across tables (3+CPU / 2+1+1), and neither split is the
+  reveal: the matching lobby is force-CPU-filled at age 60 s (`LOBBY_FORCE_SECONDS`, applied by
+  the first `gget` poll past that age), while a 20 s harness stagger spreads `/entry` arrivals
+  ~62 s — the fourth lane missed by 1-2 s. Separately, the harness's periodic Home center-tap
+  opened p3's EVENT mode window and the forced tile click decided its first tile, so that lane
+  entered as `gmode=6` — a lobby key that can never join `1`.
+- 14:07:11: the core (pid 9760) died silently mid-batch. `AsphyxiaCore.js:126` registers
+  `process.stdin.on('data', process.exit.bind(process, 0))` — one stdin byte exits it cleanly:
+  no stderr, no crash event, gate answers 502, WebGL clients fall to ErrorMode. The lane
+  restart script now redirects core stdin from an empty file; `scripts/hosting_up.ps1`/`.bat`
+  still launch with stdin live (open defect, launcher-side).
+- Lane fixes: `WR_STAGGER=10` (arrival spread ~30 s < 60 s), and an AutoServe mode pin —
+  every Home poll forces `MahjongGameData.TakuType/EventType` back to Tonpu/None on
+  `-AUTOSERVE` lanes (unity-project `1b3bade1`), so entry sends gmode 1 whatever tile was
+  clicked.
+- Two consecutive green batches on `92242DF355CC` (tid=1100 at 14:16, tid=1101 at 14:37): all
+  four clients logged `[verdict] MahjongPlay entered with 4 standing chara loads:
+  [Costume01_001 Costume05_001 Costume08_001 Costume11_001]` (both matches of each run), zero
+  RevealDiag failure lines, zero unhandled reveal exceptions, every client reached Result, and
+  the core's teardown `kiken_game` lines settled all four seats per table. Lane smoke on the
+  same webroot: 17 PASS / 0 FAIL / 3 SKIP. The `TileSurface` InvalidKeyException reveal-burst
+  (L102) is unchanged — separate defect, out of scope here.
+
 ## Defect 2 — seated characters: leg motion swivels then teleports back (facts inventory, no fix)
 
 Owner observation: at the side seats (left/right), a character whose idle includes leg motion

@@ -232,6 +232,43 @@ Follow-up (unity-project `8605788b25`, test `967762efda`):
   editor environment (cancellation always resumed the waiter inline there) — it is the guard
   for the deferred-resume window, and every interleaving that did occur conserved the permit.
 
+### Strengthened verification batches: same-costume contention + distinct-costume regression (2026-11-09)
+
+The delivered batches above all ran four DISTINCT costumes, so they mostly re-tested the
+uncontended reveal fast path: across the 2026-11-08 delivered logs the contended reveal
+handoff (`SEM granted StandingCharaManager... queued`) ran exactly once (p3, Costume05_001),
+and the duplicate-ItemID camera binding from the per-instance fix was never exercised by a
+batch. Batch design fixed (both on stamp `D33DFEFDA262` — full content+player build incl.
+`062835b74b`, Succeeded, `exceptions=FullWithStacktrace`, 0 `error CS`, served `Build/webgl.data`
+UTF-8 marker scan green incl. the `062835b74b` warn strings):
+
+- `wr_inject_pg.py` takes `WR_SEL` — a comma-separated SelectChara list per lane
+  (default `0,4,7,10` = the distinct regression batch; `4,4,4,4` = all four seats on one
+  ItemID `Costume05_001`). Injection still runs core-down + `wr_core_restart.ps1`.
+- `wr_census.sh` gates each lane mechanically: ≥4 `Loaded ItemID` lines, a `[verdict]`
+  `entered with 4 standing chara loads` line, exactly 4 `RevealDiag camera bound seat=`
+  lines with ALL instanceIDs distinct, 0 error-level `RevealDiag ... FAILED`; and reports
+  the queued-handoff counts.
+
+Results — 8/8 lanes PASS:
+
+- Batch A (distinct `01/05/08/11_001`, 03:00): 4/4 verdicts, 4 binds per lane with 4
+  distinct instanceIDs, zero FAILED; p3 hit the contended reveal handoff again
+  (1 queued grant + 1 handed-off release, surviving — the defect-1 shape, observed healthy
+  on the cancellation-wired build).
+- Batch B (same costume, all `Costume05_001`, 03:24): every client revealed FOUR duplicate
+  ItemIDs and every seat's camera/light bound to its OWN instance — 4 binds per lane, 4
+  distinct instanceIDs (p1: -12704/-15410/-18104/-20798), zero FAILED. This is the major
+  fix's duplicate-ItemID path exercised by design, 16 seats of it.
+- Honest contention census: batch B queued ZERO reveal-handoff grants — with the shared
+  asset set warm from the self-preview load, four same-costume loads each take ~1-2 s and
+  the 2 s seat stagger keeps them serialized; same costume makes loads FASTER, not slower.
+  Contended reveal handoffs stay event-driven (1 per ~8-lane sample: 2026-11-08 p3,
+  batch A p3); the sound semaphore runs 16-21 handed-off releases per lane continuously.
+  The same-costume batch guarantees the duplicate-binding coverage, not the queueing.
+- Lane smoke on `D33DFEFDA262`: 17 PASS / 0 FAIL / 3 SKIP. Previous batch logs archive to
+  `wr_archive/<ts>` (keep 3) at every `wr_four.sh` launch, so both batches survive.
+
 ## Defect 2 — seated characters: leg motion swivels then teleports back (facts inventory, no fix)
 
 Owner observation: at the side seats (left/right), a character whose idle includes leg motion

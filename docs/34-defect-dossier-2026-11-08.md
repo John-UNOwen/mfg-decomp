@@ -190,10 +190,12 @@ Verification on the instrumented+fixed build (stamp `D6884B37E808`, then `92242D
   clicked.
 - Two consecutive green batches on `92242DF355CC` (tid=1100 at 14:16, tid=1101 at 14:37): all
   four clients logged `[verdict] MahjongPlay entered with 4 standing chara loads:
-  [Costume01_001 Costume05_001 Costume08_001 Costume11_001]` (both matches of each run), zero
-  RevealDiag failure lines, zero unhandled reveal exceptions, every client reached Result, and
-  the core's teardown `kiken_game` lines settled all four seats per table. Lane smoke on the
-  same webroot: 17 PASS / 0 FAIL / 3 SKIP. The `TileSurface` InvalidKeyException reveal-burst
+  [Costume01_001 Costume05_001 Costume08_001 Costume11_001]` once per match — the second
+  `[verdict]` line these old logs print was the harness misfiring on `UnLoadScene:MahjongPlay`,
+  not a second match (harness since guarded with `(?<!Un)` + a per-Matching-load counter reset).
+  Zero RevealDiag failure lines, zero unhandled reveal exceptions, every client reached Result,
+  and the core's teardown `kiken_game` lines settled all four seats per table. Lane smoke on
+  the same webroot: 17 PASS / 0 FAIL / 3 SKIP. The `TileSurface` InvalidKeyException reveal-burst
   (L102) is unchanged — separate defect, out of scope here.
 
 ### Correction: the cancel-safety claims were dead code until wired (2026-11-08 evening)

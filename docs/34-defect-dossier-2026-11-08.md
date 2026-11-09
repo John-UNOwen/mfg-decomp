@@ -163,7 +163,7 @@ ResidentFlow boot-hook trap family (`ResidentFlow.cs:219`) is belt-and-braces, n
 
 Named cause, fixed in `StandingCharaManager`: `_loadSemaphore` became the in-house `LoggedSem` —
 a `UniTaskCompletionSource` queue that hands the permit off on the Unity main loop, the same
-shape as the 2026-11-03 SoundManager fix (unity-project `0c85a197`). (This paragraph also
+shape as the 2026-11-03 SoundManager fix (unity-project `0f6bf645`). (This paragraph also
 claimed cancel-safety properties; that part was false as shipped — see the correction below,
 which records what the code now provides.) The success line `Standing CharaManager: Loaded
 ItemID` is untouched — the harness verdict counts it.

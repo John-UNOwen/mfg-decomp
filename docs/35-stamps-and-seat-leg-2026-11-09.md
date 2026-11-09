@@ -121,3 +121,18 @@ have moved the build away from the shipped bytes (P0, not done).
 - A stale `fireStamp()` call site crashed every lane ~103 s in (at first reveal) — fixed.
 - Tool-runner process supervision can retry/killed-sweep detached lanes; batches now run
   from a Windows scheduled task (`mfg_wr_batch`), outside the tool call's process tree.
+
+## 7. Owner validation on staging — defect 2 fix rejected and reverted (2026-11-09)
+
+The owner tested the fixed build (`0EC5FC16E761`) on the staging edge and rejected the defect-2
+change. Reported: leg swivel/reset unchanged; physics parts (hair, chest) glitch and thrash widely
+in bursts whenever the game is low on memory; Hiyori's bowtie stays in sync with her body but her
+chest does not. On a 60 Hz browser (the owner's staging lane) the baked `simulationFrameRate: 60`
+already equals wall clock, so the change could not move the leg symptom — and `timeStep =
+Time.deltaTime` converts every memory-pressure frame stall into one huge springbone integration
+step, which is exactly the observed bursty thrash and the body/chest desync (spring-driven parts
+are step-sensitive; body-parented parts are not). Both defect-2 commits were reverted
+(unity repo `a70b969`), restoring the shipped `simulationFrameRate: 60` and the pre-change quality
+level. The full asset inventory, the reverted scope, and the open questions for the next agent are
+in [docs/36](36-seat-animation-handoff-2026-11-09.md). The stamps verdict (sections 1-2) stands —
+no code change was made for stamps and none is needed.

@@ -29,6 +29,10 @@ param(
     [switch]$NoGateStop,
     # Skip the brotli sidecar pass (a loopback probe lane serves plain files fine; saves ~5 min).
     [switch]$NoSidecar,
+    # Apply the L105 framework.js experiment (force decodeAudioData for all clips). DEFAULT OFF:
+    # tried 2026-11-09, Unity wedges the boot loop ~6 s in (no error, raf stops, C# mid-Boot) -
+    # the streaming-class clips do not survive the forced buffer branch. Audit trail docs/37.
+    [switch]$L105BufferLoop,
     [string]$Build = 'C:\mfg\build\unity-project\out\webgl',
     [string]$Webroot = 'C:\mfgtmp\webroot',
     [string]$Upstream = 'http://127.0.0.1:8080',
@@ -429,6 +433,28 @@ if (Test-Path $fw) {
         Set-Content $fw $fwText -Encoding UTF8 -NoNewline
         'patched framework.js url->argv'
     } else { 'framework.js already url->argv patched' }
+}
+# L105 EXPERIMENT (docs/37, docs/38) - OFF BY DEFAULT. The shipped sound glue streams every clip
+# >= 128 KB through HTMLAudioElement.loop, and Chrome's media-element loop restarts the stream each
+# cycle with ~12 ms of digital silence on top of the AAC container's no-edit-list priming/tail
+# truncation - audible on short mid-sustain loops (BGM_CASTING, owner report). The experiment forced
+# the decodeAudioData buffer path for ALL clips here. MEASURED 2026-11-09: the patched build boots,
+# WebGL context comes up, then Unity's loop stops dead ~6 s in (fps=0, no JS error, no PAGEERROR);
+# the unpatched root on the same machine/harness runs 120 fps. Do not re-arm without changing the
+# approach (the streaming-class clips do not survive the forced decompress=1 branch).
+if (Test-Path $fw) {
+    if (-not $L105BufferLoop) { 'L105 buffer-loop patch skipped (default; boot-wedge 2026-11-09)' }
+    else {
+        $fwL = Get-Content $fw -Raw
+        if ($fwL -match 'MFG-L105') { 'framework.js already L105 buffer-loop patched' }
+        else {
+            $needle = 'if(length<131072)decompress=1;'
+            if (-not $fwL.Contains($needle)) { Fail 'L105 needle if(length<131072)decompress=1; not found in webgl.framework.js: the Unity sound glue changed, audit _JS_Sound_Load before shipping loops' }
+            $fwL = $fwL.Replace($needle, 'decompress=1;/*MFG-L105: force decodeAudioData buffer loop for all clips, sample-accurate (docs/37)*/')
+            Set-Content $fw $fwL -Encoding UTF8 -NoNewline
+            'patched framework.js L105 buffer-loop (all clips decode to AudioBufferSourceNode)'
+        }
+    }
 }
 # Cloudflare edge caches .js/.css but treats .wasm/.data as dynamic. After a rebuild the
 # tunnel browser gets a stale framework.js glued to a fresh wasm - the pair is version-

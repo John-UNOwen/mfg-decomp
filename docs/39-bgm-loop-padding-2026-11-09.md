@@ -1,5 +1,10 @@
 # 39 — BGM loop-seam padding: fix build and verification (2026-11-09)
 
+**SUPERSEDED 2026-11-09 same day: the padding fixed the wrong thing.** The owner's "nothing
+changed" was right - the audible defect is the double onset from crossfade-authored loop tails,
+analyzed and fixed in docs/40; this padding is fully reverted (unity repo `df0af9ed90`). The
+instrumentation lessons below (MPSEAM taps, harness gotchas) still hold and are cited there.
+
 Follows docs/37 (RCA + failed glue attempt) and docs/38 (exposure map). Fixes L105 content-side.
 
 ## The lever (owner-approved)

@@ -38,7 +38,9 @@
 #                     after the swap. Required. No whitespace and no '/'.
 #   STAGED            the tree to promote. Default: <WEBROOT>.new-<STAMP> - the name the
 #                     delta-staging flow leaves the incoming tree at (cp -al the live root to
-#                     that path, ship the delta into it, verify, swap).
+#                     that path, ship the delta into it, verify, swap). That handle costs the
+#                     delta, not a tree, and df before and after, never du, is what says so -
+#                     the disk note near the foot of this header has the rule and the numbers.
 #   SERVICES          space-separated systemd units to stop before the renames and start after
 #                     them. Default: mfg-gate. Use 'mfg-gate mfg-lane' when the core is a unit
 #                     too (and raise PROOF_TRIES: the core needs ~20 s to bind). SERVICES=''
@@ -80,11 +82,21 @@
 # Everything left of the first rename is reversible by construction (nothing has moved); the
 # exit trap covers everything right of it.
 #
-# Disk accounting on a small box: the swap itself costs no space (two renames inside one
-# directory on one filesystem), which is the reason it renames rather than extracting - a 30 GB
-# VPS box with ~9 GB free cannot hold a second untarred webroot. But while the aside stands
-# there are two roots in the tree, so this script never deletes it: smoke the new root, then
-# remove the aside by hand (the success line prints the path and the command).
+# Disk accounting on a small box: the swap itself costs no space (two renames inside one directory
+# on one filesystem), which is the reason it renames rather than extracting - a 30 GB VPS box with
+# ~9 GB free cannot hold a second untarred webroot. What does cost space is the tree this script is
+# handed as STAGED, and the two shapes of it are an order of magnitude apart: a freshly extracted
+# tree needs one full tree of free space, a `cp -al` handle (the shape the STAGED default above
+# describes) needs roughly the delta - the copy shares every inode with the live root, and only the
+# files the delta rewrites become its own bytes. Account either with df before and after, never du:
+# `du -sh` on the live root and on the handle, one tree per call, reports two full trees (du folds
+# hardlinks only within one invocation), while a single call naming both reports the handle at 0.
+# Before `cp -al`, after the delta has shipped, and again after the aside is removed: 'df -B1
+# --output=avail' each time is the measurement. The aside left behind is a handle of that same kind,
+# so removing it returns the blocks no other tree links - the delta's old versions - not the tree.
+# The README's swap section carries the numbers. While the aside stands this script never deletes it:
+# smoke the new root, then remove it by hand (the success line prints the path, the command, and the
+# same accounting note).
 #
 # Assumptions: file names contain no newlines (Unity output satisfies this), find -printf is GNU
 # find (the README's "What the box must have" already says so for the transfer scripts), and the
@@ -559,7 +571,7 @@ fi
 say "proof: $PROOF_HOST:$GATE_PORT answered /build_stamp.txt with $STAMP - the live root is this build"
 say "swap done: $WEBROOT now serves stamp $STAMP (proven over http on $PROOF_HOST:$GATE_PORT; services restarted: ${SERVICES:-none})"
 if [ -n "$_aside" ]; then
-  say "previous root kept at $_aside - this script does not delete it: smoke the new root, then free the disk yourself (rm -rf '$_aside'); until you do, the old and the new root both occupy the filesystem, which on a 30 GB box is most of what is free"
+  say "previous root kept at $_aside - this script does not delete it: smoke the new root, then free the disk yourself (rm -rf '$_aside'); if the tree being promoted was cp -al'd from this one, the two share their blocks and that rm returns only the delta's old versions, so measure what any of this costs with df before and after, never du (du -sh reports every hardlink tree at full size, one tree per call, and 0 for the handle in a single call on both)"
 else
   say "there was no previous root at $WEBROOT, so there is no aside to remove"
 fi

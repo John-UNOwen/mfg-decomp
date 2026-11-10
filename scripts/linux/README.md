@@ -31,8 +31,12 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
 1. `transfer_build.sh --dry-run` -> review chunks/manifest; then real run (disk accounting: it refuses
    up front unless both its `STAGE_DIR` filesystem and `REMOTE_DIR`'s filesystem have the manifest
    total free — roughly the tree size, so a full-size promotion wants that much free beside the
-   staged webroot, `--skip-space-check` when you have measured the fit; and a `REMOTE_DIR` that does
-   not exist on the target is refused before anything is created — a first transfer to a fresh path
+   staged webroot, `--skip-space-check` when you have measured the fit, which means `df` and never
+   `du`: for a delta refresh into a `cp -al` staged tree the manifest total over-counts what lands,
+   because most of those bytes are already resident under `REMOTE_DIR` (see "Disk accounting:
+   account a hardlink handle with df before and after, never du" in the swap section); and a
+   `REMOTE_DIR` that does not exist on the target is refused before anything is created — a first
+   transfer to a fresh path
    takes `--create` / `CREATE_REMOTE_DIR=1`, which prints a loud `CREATION:` line naming the path
    it is about to make); then `verify_transfer.sh` until it reports agreement, and step 2 does not
    start before it has: agreement is the proof that closes a transfer, never an optional extra look -
@@ -70,7 +74,10 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
    earlier `--tunnel` run's `mfg-tunnel.service` after a plain run - is removed from the
    staging directory rather than left there installable and unnamed.
 7. Updating the webroot a live lane serves (a refresh, not a fresh install): stage the incoming
-   tree beside the live one, ship the delta into it with `transfer_build.sh`
+   tree beside the live one with `cp -al <live> <staged>` (3 s and 0 bytes on the VPS box: the copy
+   shares every inode with the live root and grows only by what the delta rewrites), budget that
+   handle with df before and after, never du - `du -sh` says a full tree for it, and the swap
+   section's disk accounting has the numbers - then ship the delta into it with `transfer_build.sh`
    (`REMOTE_DIR=<staged>`), `verify_transfer.sh` it to agreement (exit 0; `swap_webroot.sh` re-runs
    this count against the staged tree itself and refuses the swap on any `MISSING`, size mismatch or
    `EXTRA`), then `WEBROOT=... STAMP=<stamp> swap_webroot.sh` - see the next section. The live root is
@@ -140,7 +147,7 @@ exit 143 to show for it. `SIGKILL` - an OOM kill - is still uncatchable: the las
 |---|---|---|
 | `WEBROOT` | required | the live root the front serves. Absolute; refused when it normalises to `/` or to/inside a system directory, because the first rename moves whatever stands there |
 | `STAMP` | required | the stamp the staged tree must carry, and the answer the front must give afterwards |
-| `STAGED` | `<WEBROOT>.new-<STAMP>` | the tree to promote; refused when it is or nests inside `WEBROOT` |
+| `STAGED` | `<WEBROOT>.new-<STAMP>` | the tree to promote; refused when it is or nests inside `WEBROOT`. The refresh flow leaves it a `cp -al` handle of the live root, which costs the delta, not a tree - what it costs is a `df` question, never a `du` one (see Disk accounting below) |
 | `SERVICES` | `mfg-gate` | space-separated units to stop before the renames and start after them (`'mfg-gate mfg-lane'` when the core is a unit too). Empty = the front is stopped some other way, and the HTTP proof is then the only net |
 | `CHOWN_TO` | `mfg:mfg` | `owner:group` the incoming tree is `chown -R`'d to **before the stop** - an `-R` over 58,809 files is work the gate does not need to be down for. Empty = skip |
 | `BOOKKEEPING_DIR` | `$HOME/mfgtmp/transfer_stage` | where the bookkeeping of the transfer run that shipped this tree lives **on this box**: `transfer_build.sh`'s `STAGE_DIR`, holding the local `manifest.tsv`. Same name as the transfer scripts' remote bookkeeping dir (see the note above); this one is local and sits outside every webroot on purpose |
@@ -181,12 +188,39 @@ newline, so a line-oriented read never sees it). The one-off promotion printed
 line printed with an empty value - nothing in its output could tell "the new root answers" from
 "the gate is down and nothing answered".
 
-**Disk accounting.** The swap costs no space: two renames inside one directory on one filesystem,
-which is why it renames instead of extracting - a 30 GB box with ~9 GB free cannot hold a second
-untarred webroot, and `tar -xf` would re-write every member and destroy the `cp -al` hardlinks a
-staged tree relies on. While the aside stands, though, the tree holds two roots. This script
-never deletes it - it is the undo handle until the new root has passed smoke - and the success
-line prints its path with the `rm -rf` to run once it has.
+**Disk accounting: account a hardlink handle with df before and after, never du.** The swap costs no
+space: two renames inside one directory on one filesystem, which is why it renames instead of
+extracting - a 30 GB box with ~9 GB free cannot hold a second untarred webroot, and `tar -xf` would
+re-write every member and destroy the `cp -al` hardlinks a staged tree relies on. What costs space is
+the tree standing at `STAGED` before the swap, and the two shapes of it are an order of magnitude
+apart. A freshly extracted tree costs one full tree of free space (8.6 GB on the VPS box). A tree
+staged with `cp -al <live> <staged>` costs roughly the delta size: the copy shares every inode with
+the live root and takes nothing but directory entries, and each file the delta ships becomes the
+handle's own bytes when extraction replaces it (`cp -al /srv/mfg/webroot /srv/mfg/webroot.new`
+measured 3 s and 0 bytes on that box, and the 515 MB delta that followed is what the tree grew by).
+
+`du` cannot read either shape, and it is the tool the free-space call usually gets made from.
+Measured offline (`tmp/linux_fix/diskacct_repro.sh`: a 50 MB tree, `cp -al` of it, a 1 MB delta
+written into the copy, `df -B1 --output=avail` read before each step): the `cp -al` cost 0 bytes and
+the delta cost 1,048,576 - the handle costs the delta, which is the whole reason to stage this way.
+`du` gets the same tree from two directions and gets it wrong either way: one tree per call it says
+51 MB and 51 MB ("the handle is a second full tree"), both trees in one call it says 51 MB and 0
+("the handle is free"), because it folds hardlinks within one invocation only. The figure follows the
+command line, not the disk. On the way out it repeats: `rm -rf` of that handle returned 40 KB on that
+run and 0 B on an earlier one, against the 51 MB `du` had priced it at - every block the live tree
+also links stays put.
+
+That is the 2026-11-10 misread, and the aside is the same kind of handle: `rm -rf` on it returns only
+the blocks no other tree links - the old versions of the files this build changed, roughly the delta -
+and not the tree, and keeping it costs the same. Budget it that way and read the answer off `df`. The
+box's own record of that promotion is `/srv/mfg-staging` carried at `du` 9.2 GB beside an 8.6 GB live
+webroot on a 30 GB box, ~9 GB free before the swap and 4.1 GB after, with
+`find <tree> -type f -links +1` coming back 0 for the live root against 11,393 for the handle - the
+one `du`-family number that says a tree shares blocks, and it says nothing about how many.
+
+While the aside stands there are two roots in the tree, most of their blocks the same blocks. This
+script never deletes it - it is the undo handle until the new root has passed smoke - and the success
+line prints its path with the `rm -rf` to run once it has, and the same accounting note.
 
 ## What the box must have
 
@@ -416,6 +450,14 @@ ports 8083/8090/8091/8095 were never targeted):
   refused before a single transport command runs (the echo transport logs zero commands), in both scripts,
   with the default path named in the refusal. `--create` behind the move still ships the whole tree: the
   `CREATION:` line, its own `mkdir` for the destination, bookkeeping in the new tree's own sibling.
+- Hardlink-handle disk accounting (2026-11-10, fixture case C88, offline, no transport): the rule - price
+  a `cp -al` handle with `df` before and after, never `du` - is in the step 1 capacity note, the step 7
+  refresh flow, the swap section, `swap_webroot.sh`'s header and `transfer_build.sh`'s capacity-gate block
+  and `SKIP_SPACE_CHECK` doc; the swap's aside line carries it too, on a run whose staged tree was built with
+  `cp -al` (RC=0, proven stamp, aside still named with its `rm -rf`). Against the numbers: a 50 MB tree plus a
+  1 MB delta, `cp -al` - `du` says 51 MB and 51 MB one tree per call and 51 MB and 0 in one call, while `df`
+  says the `cp -al` cost 0 bytes, the delta cost 1,048,576, and `rm -rf` of the handle returned 40 KB (0 bytes
+  on an earlier run) instead of the 51 MB `du` had attached to it.
 
 On the real box (Ubuntu 24.04 LTS, the owner's VPS lane, 2026-11-05): the shipped copies
 matched the repo by sha256 with zero CR bytes and `bash -n` clean; `lane_up.sh` started core

@@ -65,6 +65,13 @@
 # skipped chunks and gzip make the real figure smaller, but a premature refusal is one rerun while a half-written
 # promotion is a corrupt destination. --skip-space-check / SKIP_SPACE_CHECK=1 opts out for the operator who measured the
 # fit by hand (the honest case: a converged rerun that sends 0 bytes over a nearly-full target fs).
+# One thing that denominator cannot see is hardlinks. A delta refresh ships into a tree staged as `cp -al` of the tree
+# already on the box, so most of the manifest's bytes are resident under REMOTE_DIR before a byte moves and the gate
+# refuses a run whose real cost is the delta. The measurement that settles it is df before and after, never du: 'du -sh'
+# on the live tree and on the handle, one tree per call, reports two full trees (it folds hardlinks only within one
+# invocation) and 0 for the handle in a single call naming both, so the figure it prints follows the command line, not
+# the disk - 'df -B1 --output=avail' before the cp -al and after the delta lands is the answer. That measured fit is
+# the --skip-space-check case; the README's swap section carries the rule with the numbers.
 #
 # And the bookkeeping itself must not sit inside the served tree. The location this replaces put manifest.tsv and the
 # chunk_hashes ledger at $REMOTE_DIR/.lane_transfer/ - $REMOTE_DIR is the document root the front serves, so that was
@@ -199,7 +206,11 @@
 #                       with no REMOTE_DIR yet, that path's nearest existing ancestor) before the first byte
 #                       moves, and refuses naming both numbers when either holds less than the manifest's
 #                       total bytes (an upper bound: skipped chunks and gzip make what actually streams
-#                       smaller). Opt out only when you have measured the fit yourself.
+#                       smaller, and for a delta refresh into a `cp -al` staged tree the manifest total
+#                       over-counts what lands, because most of those bytes are already resident under
+#                       REMOTE_DIR). Opt out only when you have measured the fit yourself, with df before
+#                       and after, never du - `du -sh` prices a hardlink handle at the full tree, one tree
+#                       per call, and at 0 in a single call naming both.
 #   CREATE_REMOTE_DIR   1, or the --create flag: allow a real run to CREATE a REMOTE_DIR that does not
 #                       exist on the target yet. Without it, before anything is created or written there
 #                       the run asks the target whether REMOTE_DIR is a directory, and 'absent' (or an
@@ -763,7 +774,7 @@ else
     ''|*[!0-9]*) die "capacity: the free space of the filesystem holding REMOTE_DIR=$REMOTE_DIR could not be read ($TRANSFER_TRANSPORT answered '$_remote_avail', not a number) - refusing to stream up to $_mbytes bytes (manifest total) toward a capacity nobody read; pass --skip-space-check / SKIP_SPACE_CHECK=1 to run without the gate: nothing was staged beyond the manifest, no chunk was streamed, the destination is untouched" ;;
   esac
   if [ "$_remote_avail" -lt "$_mbytes" ]; then
-    die "capacity: the filesystem holding REMOTE_DIR=$REMOTE_DIR has only $_remote_avail bytes free and this build's manifest totals $_mbytes bytes - extraction would fill it mid-chunk and leave the destination a mix of this build's bytes and the half-extracted chunk it died in (2026-11-10: 1.2 GB free mid-promotion of a 9,038,740,287-byte build); free space on the target or pass --skip-space-check / SKIP_SPACE_CHECK=1 once you have measured the fit: nothing was staged beyond the manifest, no chunk was streamed, the destination is untouched"
+    die "capacity: the filesystem holding REMOTE_DIR=$REMOTE_DIR has only $_remote_avail bytes free and this build's manifest totals $_mbytes bytes - extraction would fill it mid-chunk and leave the destination a mix of this build's bytes and the half-extracted chunk it died in (2026-11-10: 1.2 GB free mid-promotion of a 9,038,740,287-byte build); if this is a delta refresh into a tree staged as cp -al of the one already there, most of those $_mbytes bytes are resident under REMOTE_DIR before a byte moves and what this run costs is the delta - measure that with df before and after, never du ('du -sh' reports every hardlink tree at full size, one tree per call, so it cannot price a handle), and act on the df answer, not on a du one; free space on the target or pass --skip-space-check / SKIP_SPACE_CHECK=1 once you have measured the fit: nothing was staged beyond the manifest, no chunk was streamed, the destination is untouched"
   fi
   say "space: gate passed - tree $_mbytes bytes (manifest total, an upper bound: skips and gzip make what streams smaller); local free on the STAGE_DIR=$STAGE_DIR filesystem $_local_avail bytes; remote free on the filesystem holding REMOTE_DIR=$REMOTE_DIR $_remote_avail bytes"
 fi

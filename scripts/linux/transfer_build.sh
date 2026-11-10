@@ -48,13 +48,29 @@
 # above), but they are no longer invisible in this script's own output - the count is its share of
 # verify_transfer.sh's EXTRA, and a converged rerun over a tree still holding a dropped name now says so.
 #
+# And the run has to know both ends can hold the tree BEFORE it streams. 'df' appeared nowhere in this script, so a real
+# run's first capacity observation was the write that fails - mid-chunk, after every chunk before it had landed: the
+# 2026-11-10 promotion hit 1.2 GB free on the filesystem the gate serves (the same one the staged tree sits beside; the
+# documented full-transfer path no longer fits its 4 GB-free box with a 9,038,740,287-byte build), and a tar extraction
+# that fills the filesystem is not transactional - it leaves the destination a mix of this build's bytes and whatever
+# the half-extracted chunk left behind, which only a full re-send un-mixes. The manifest already totals the tree
+# ($_mbytes); the gate compares that total against the free space read from both ends before the first byte moves -
+# STAGE_DIR's filesystem locally ('df -B1 --output=avail', the one the chunk tars stage on) and REMOTE_DIR's on the
+# target (the same probe through $TRANSFER_TRANSPORT; a first transfer has no REMOTE_DIR yet, so the far side walks up
+# to the nearest existing ancestor - same filesystem, an operand df accepts). Either answer below the total is a refusal
+# naming both numbers; either answer unreadable or not-a-number is a refusal too - guessing at capacity is what filled
+# the disk. The threshold is deliberately the uncompressed manifest total rather than what this run will probably send:
+# skipped chunks and gzip make the real figure smaller, but a premature refusal is one rerun while a half-written
+# promotion is a corrupt destination. --skip-space-check / SKIP_SPACE_CHECK=1 opts out for the operator who measured the
+# fit by hand (the honest case: a converged rerun that sends 0 bytes over a nearly-full target fs).
+#
 # The script never deletes anything remote. It issues no rm/unlink/truncate outside
 # its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR
 # values outright.
 #
 # Usage
 # -----
-#   scripts/linux/transfer_build.sh [--dry-run] [--keep-tars] [-h|--help]
+#   scripts/linux/transfer_build.sh [--dry-run] [--keep-tars] [--skip-space-check] [-h|--help]
 #
 #   SSH_TARGET          ssh target, e.g. deploy@vps.example.com. Required for real runs.
 #   REMOTE_DIR          destination tree on the target. Required, absolute, and guarded on its
@@ -90,6 +106,13 @@
 #   KEEP_TARS           1, or the --keep-tars flag: delete no chunk tar - neither after a confirmed send
 #                       nor at the end-of-run sweep. Forensics by request: this puts the second full copy
 #                       of the tree back on disk, and the output says so on every send and at the close.
+#   SKIP_SPACE_CHECK    1, or the --skip-space-check flag: stream without the up-front capacity gate. A real
+#                       run otherwise reads the free space of both filesystems ('df -B1 --output=avail':
+#                       the one holding STAGE_DIR, and the one holding REMOTE_DIR - or, on a first transfer
+#                       with no REMOTE_DIR yet, that path's nearest existing ancestor) before the first byte
+#                       moves, and refuses naming both numbers when either holds less than the manifest's
+#                       total bytes (an upper bound: skipped chunks and gzip make what actually streams
+#                       smaller). Opt out only when you have measured the fit yourself.
 #   COMPRESS            gzip | none | zstd.      default: gzip
 #                       gzip = tar -z (gzip is nearly everywhere), zstd = tar --zstd
 #                       (needs the zstd binary), none = plain tar (fastest CPU).
@@ -124,6 +147,7 @@ COMPRESS=${COMPRESS:-'gzip'}
 TRANSFER_TRANSPORT=${TRANSFER_TRANSPORT:-'ssh'}
 MANIFEST_LIMIT=${MANIFEST_LIMIT:-20}
 KEEP_TARS=${KEEP_TARS:-0}
+SKIP_SPACE_CHECK=${SKIP_SPACE_CHECK:-0}
 DRY_RUN=0
 
 SCRIPT_PATH=${BASH_SOURCE[0]}
@@ -139,6 +163,7 @@ while [ $# -gt 0 ]; do
   case $1 in
     --dry-run)   DRY_RUN=1 ;;
     --keep-tars) KEEP_TARS=1 ;;
+    --skip-space-check) SKIP_SPACE_CHECK=1 ;;
     -h|--help)   usage; exit 0 ;;
     *)           die "unknown argument: $1" ;;
   esac
@@ -394,6 +419,20 @@ obs_require() {                            # chunk, lines-file -> strip this run
   sed '$d' "$2" > "$2.obs_stripped" && mv -f -- "$2.obs_stripped" "$2"
 }
 
+# The far side of the up-front capacity gate. Read-only: a lexical walk plus df. The walk happens there because the
+# path lives there: on a first transfer REMOTE_DIR does not exist yet and 'df' refuses a missing operand - walking the
+# path up to its nearest existing ancestor asks the same filesystem (the one the build will be extracted onto) with an
+# operand df accepts. '-B1 --output=avail': bytes, one header, one number, no unit columns to misread. 'set -o
+# pipefail' for the same reason the listings carry it: without it a failing df rides through behind an awk that happily
+# printed nothing. The digits are re-checked at the call site before anything is compared, so an unreadable answer
+# refuses there rather than comparing empty against a number.
+remote_avail_command() {                     # -> the EXACT far-side free-space probe a real run uses (--dry-run prints this)
+  _inner="set -o pipefail; _d='$REMOTE_DIR'; while [ ! -e \"\$_d\" ] && [ \"\$_d\" != / ]; do _d=\${_d%/*}; if [ -z \"\$_d\" ]; then _d=/; fi; done; df -B1 --output=avail -- \"\$_d\" | LC_ALL=C awk 'NR==2 { print \$1 }'"
+  # Same single-quote reassembly as remote_obs_command: the guard above is what makes the embedded
+  # single quotes around REMOTE_DIR safe to nest inside the outer single-quoted bash -c argument.
+  printf "bash -c '%s'" "${_inner//\'/\'\\\'\'}"
+}
+
 # ---------------------------- dry-run: show the plan and exit ----------------------------
 if [ $DRY_RUN = 1 ]; then
   printf '%s\n' \
@@ -412,6 +451,14 @@ if [ $DRY_RUN = 1 ]; then
   done < <(chunk_names)
   [ $CHUNK_LIST_ROOT = 1 ] || printf '    (no top-level loose files -> no _root_files_ chunk)\n'
   printf '  chunks enumerated: %s (a real run states this total in its done line and refuses to close having looked at fewer)\n' "$_expected_chunks"
+  printf '%s\n' \
+    '' \
+    '  capacity gate (real run, before the first byte moves; --skip-space-check / SKIP_SPACE_CHECK=1 skips it):' \
+    "    refuses when either filesystem holds less than the manifest total ($_mbytes bytes), both numbers printed:" \
+    "      local:  df -B1 --output=avail -- '$STAGE_DIR'   (the filesystem the chunk tars stage on)" \
+    "      remote: ${SSH_TARGET:-<SSH_TARGET unset - would be required>}: $(remote_avail_command)" \
+    '        (REMOTE_DIR not existing yet is normal - the walk goes to its nearest existing ancestor,' \
+    '         the same filesystem; an unreadable or not-a-number answer is a refusal too)' ;
   printf '%s\n' \
     '' \
     '  per chunk, a real run does:' \
@@ -447,6 +494,34 @@ fi
 
 # ---------------------------- real run ----------------------------
 say "target: $SSH_TARGET:$REMOTE_DIR (transport: $TRANSFER_TRANSPORT, compress: $COMPRESS)"
+
+# ---------------------------- capacity gate ----------------------------
+# Header paragraph + SKIP_SPACE_CHECK carry the why; this is the where: both answers are read BEFORE the first
+# transport write, the threshold is the manifest total, and either refusal line carries both numbers. This sits
+# ahead of even the .lane_transfer mkdir, so a capacity refusal leaves no trace on the target beyond the read-only
+# probe that produced it - the destination is exactly what it was, which is the whole value of refusing up front.
+if [ "$SKIP_SPACE_CHECK" = 1 ]; then
+  say "space: gate skipped by request (--skip-space-check / SKIP_SPACE_CHECK=1) - streaming up to $_mbytes bytes (manifest total) without asking either filesystem how much room it has"
+else
+  _local_avail=$(df -B1 --output=avail -- "$STAGE_DIR" | LC_ALL=C awk 'NR==2 { print $1 }') || \
+    die "capacity: the free space of the filesystem holding STAGE_DIR=$STAGE_DIR could not be read ('df -B1 --output=avail' answered failure) - refusing to stream up to $_mbytes bytes (manifest total) toward a capacity nobody read; pass --skip-space-check / SKIP_SPACE_CHECK=1 to run without the gate: nothing was staged beyond the manifest, no transport command ran, the destination is untouched"
+  case $_local_avail in
+    ''|*[!0-9]*) die "capacity: the free space of the filesystem holding STAGE_DIR=$STAGE_DIR could not be read ('df -B1 --output=avail' answered '$_local_avail', not a number) - refusing to stream up to $_mbytes bytes (manifest total) toward a capacity nobody read; pass --skip-space-check / SKIP_SPACE_CHECK=1 to run without the gate: nothing was staged beyond the manifest, no transport command ran, the destination is untouched" ;;
+  esac
+  if [ "$_local_avail" -lt "$_mbytes" ]; then
+    die "capacity: the filesystem holding STAGE_DIR=$STAGE_DIR has $_local_avail bytes free and this build's manifest totals $_mbytes bytes - the chunk tars staged there could fill it mid-stream (the peak is one chunk, but --keep-tars and a rerun after a failed send can hold the whole tree); free space or pass --skip-space-check / SKIP_SPACE_CHECK=1 once you have measured the fit: nothing was staged beyond the manifest, no transport command ran, the destination is untouched"
+  fi
+  _remote_avail=$(run_remote "$(remote_avail_command)" </dev/null) || \
+    die "capacity: the free space of the filesystem holding REMOTE_DIR=$REMOTE_DIR could not be read ($TRANSFER_TRANSPORT answered failure; its own error above names the reason) - refusing to stream up to $_mbytes bytes (manifest total) toward a capacity nobody read; pass --skip-space-check / SKIP_SPACE_CHECK=1 to run without the gate: nothing was staged beyond the manifest, no chunk was streamed, the destination is untouched"
+  case $_remote_avail in
+    ''|*[!0-9]*) die "capacity: the free space of the filesystem holding REMOTE_DIR=$REMOTE_DIR could not be read ($TRANSFER_TRANSPORT answered '$_remote_avail', not a number) - refusing to stream up to $_mbytes bytes (manifest total) toward a capacity nobody read; pass --skip-space-check / SKIP_SPACE_CHECK=1 to run without the gate: nothing was staged beyond the manifest, no chunk was streamed, the destination is untouched" ;;
+  esac
+  if [ "$_remote_avail" -lt "$_mbytes" ]; then
+    die "capacity: the filesystem holding REMOTE_DIR=$REMOTE_DIR has only $_remote_avail bytes free and this build's manifest totals $_mbytes bytes - extraction would fill it mid-chunk and leave the destination a mix of this build's bytes and the half-extracted chunk it died in (2026-11-10: 1.2 GB free mid-promotion of a 9,038,740,287-byte build); free space on the target or pass --skip-space-check / SKIP_SPACE_CHECK=1 once you have measured the fit: nothing was staged beyond the manifest, no chunk was streamed, the destination is untouched"
+  fi
+  say "space: gate passed - tree $_mbytes bytes (manifest total, an upper bound: skips and gzip make what streams smaller); local free on the STAGE_DIR=$STAGE_DIR filesystem $_local_avail bytes; remote free on the filesystem holding REMOTE_DIR=$REMOTE_DIR $_remote_avail bytes"
+fi
+
 run_remote "mkdir -p '$REMOTE_DIR/.lane_transfer'" || die "remote mkdir -p '$REMOTE_DIR/.lane_transfer' failed"
 : > "$CHUNK_HASHES"
 

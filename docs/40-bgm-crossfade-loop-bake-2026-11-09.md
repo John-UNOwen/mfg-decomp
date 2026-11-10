@@ -52,8 +52,26 @@ BGM_TITLE, BGM_G07_REACH_7, BGM_THUMB_G13_REACH_3 (t34).
    native wrap `ct 15.849->0.380 loop=Y` = 16.0 s period, level trace continuous across the boundary,
    residual `zeroRunMs=32.0` sitting inside the crossfade (was a mid-note 0.975 hard cut in docs/37).
 
+## Post-fix residual: the media-element wrap gap is audible - buffer-path allowlist shipped
+Owner retest on `9652C6377D4C`: double onset gone, "a little pause when the loop happens" remains.
+That pause is the media-element wrap itself: ~12 ms Chrome loop-restart silence + ~8 ms AAC priming
+= lane-measured `zeroRunMs=32.0` every cycle - real silence in continuous music, audible no matter
+what the content does around it (my "lands harmlessly inside the crossfade" call was wrong).
+Only the buffer path (`decodeAudioData` -> `AudioBufferSourceNode.loop`) wraps with no gap.
+The docs/37 force-ALL experiment died because ~353 MB of AAC decodes to ~7 GB of PCM: a memory
+event, not the logic event it was recorded as. The surgical version shipped the same day:
+assemble step `-L105Baked16` patches the glue needle to
+`if(length<131072||[13 exact served-AAC sizes].indexOf(length)>=0)decompress=1;` - only the 16
+baked clips join the buffer path (~130 MB PCM, all sizes collision-checked against the docs/38
+census via `t35_sizes.py`, list in `C:\mfgtmp\baked16_sizes.json`).
+Verified on staging `D759A911DF0C` (smoke 17/0/3): boot fine (fps 94 at 176 s), CASTING plays as
+`BufferSource start dur=15.9985 loop=true` (no media-element tap for it at all anymore), and the
+MPSEAM zero-run detector - which logged the 32 ms gap on the media path - logged ZERO sustained
+zero runs across ~4 loop cycles; heap 188-265 MB as budgeted. Harness gained a `kind=buf` tap
+(parallel worklet tap attached in the `AudioBufferSourceNode.start` hook).
+
 ## Follow-ups
 - `BGM_G16_REACH_BM3_1` / `BGM_G07_REACH_BM3_1` / `BGM_RESULT1`: double onset remains (original
   behavior preserved deliberately); need hand-checked resume points (tail runs past the head copy).
-- Owner ear on the live waiting room (staging 9652C6377D4C) is the acceptance gate.
-- If more tracks are ever re-rendered upstream, rerun the t30+t31+t32 pipeline; the CSV audit drives it.
+- If more tracks are ever re-rendered upstream, rerun the t30+t31+t32 pipeline; the CSV audit drives
+  it, and regenerate `baked16_sizes.json` (t35) before assembling with `-L105Baked16`.

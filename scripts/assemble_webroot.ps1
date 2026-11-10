@@ -33,6 +33,13 @@ param(
     # tried 2026-11-09, Unity wedges the boot loop ~6 s in (no error, raf stops, C# mid-Boot) -
     # the streaming-class clips do not survive the forced buffer branch. Audit trail docs/37.
     [switch]$L105BufferLoop,
+    # Force the decodeAudioData buffer path ONLY for the 16 skip-head-baked crossfade loops
+    # (docs/40), matched by their exact served AAC sizes. Their media-element wrap keeps a ~32 ms
+    # silence gap every cycle (Chrome loop restart + AAC priming) that the owner hears as a small
+    # pause; AudioBufferSourceNode loops are gapless. The all-clips variant died because ~350 MB of
+    # AAC decoding to ~7 GB of PCM is a memory event, not a logic one - a 16-clip allowlist (~130 MB)
+    # is bounded. Sizes are read from the built bundles at patch time (bake_report_all.csv).
+    [switch]$L105Baked16,
     [string]$Build = 'C:\mfg\build\unity-project\out\webgl',
     [string]$Webroot = 'C:\mfgtmp\webroot',
     [string]$Upstream = 'http://127.0.0.1:8080',
@@ -443,7 +450,23 @@ if (Test-Path $fw) {
 # the unpatched root on the same machine/harness runs 120 fps. Do not re-arm without changing the
 # approach (the streaming-class clips do not survive the forced decompress=1 branch).
 if (Test-Path $fw) {
-    if (-not $L105BufferLoop) { 'L105 buffer-loop patch skipped (default; boot-wedge 2026-11-09)' }
+    if ($L105BufferLoop -and $L105Baked16) { Fail '-L105BufferLoop and -L105Baked16 are mutually exclusive patch variants of the same needle' }
+    if ($L105Baked16) {
+        $fwL = Get-Content $fw -Raw
+        if ($fwL -match 'MFG-L105B16') { 'framework.js already L105 baked-16 buffer patch' }
+        else {
+            $needle = 'if(length<131072)decompress=1;'
+            if (-not $fwL.Contains($needle)) { Fail 'L105 needle if(length<131072)decompress=1; not found in webgl.framework.js: the Unity sound glue changed, audit _JS_Sound_Load before shipping loops' }
+            $sizesPath = 'C:\mfgtmp\baked16_sizes.json'
+            if (-not (Test-Path -LiteralPath $sizesPath)) { Fail "-L105Baked16 needs $sizesPath (t35_sizes.py writes it from the built bundles)" }
+            $sizesB16 = ((Get-Content -LiteralPath $sizesPath -Raw) | ConvertFrom-Json) -join ','
+            $patched = 'if(length<131072||[' + $sizesB16 + '].indexOf(length)>=0)decompress=1;/*MFG-L105B16: buffer-path loop for the 16 skip-head-baked crossfade clips only (docs/40)*/'
+            $fwL = $fwL.Replace($needle, $patched)
+            Set-Content $fw $fwL -Encoding UTF8 -NoNewline
+            'patched framework.js L105 baked-16 allowlist (' + ((ConvertFrom-Json (Get-Content -LiteralPath $sizesPath -Raw)).Count) + ' sizes -> decodeAudioData buffer loop)'
+        }
+    }
+    elseif (-not $L105BufferLoop) { 'L105 buffer-loop patch skipped (default; boot-wedge 2026-11-09)' }
     else {
         $fwL = Get-Content $fw -Raw
         if ($fwL -match 'MFG-L105') { 'framework.js already L105 buffer-loop patched' }

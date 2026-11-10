@@ -27,6 +27,18 @@
 # the real-run block for the guard this replaced). A chunked tar cannot resume a partial
 # chunk; it can only skip ones whose bytes it just looked at.
 #
+# And a chunk name has to mean one part of the tree. The top-level-files chunk is named by the reserved
+# string '_root_files_', and every per-chunk helper resolves a chunk by that string, so a real top-level
+# DIRECTORY of that name would BE that chunk: the loop would ask for the loose files twice and never for
+# the directory, its files would enter no chunk, no tar and no send, the manifest this run publishes would
+# still list them as part of the build, and the done line would state a chunk count that adds up - the
+# denominator guard cannot see it, because the colliding name is enumerated AND iterated (2026-11-10
+# checkup: '_root_files_/payload.bin' never reached the remote, 'transfer done: 3 chunk(s) sent ... 4 of 4
+# chunk(s) enumerated, every one of them looked at', exit 0; verify_transfer.sh's 'MISSING' was the only
+# thing that said otherwise, on a tree the swap goes on to promote). The name is refused at the chunk list,
+# in --dry-run as well, before a chunk is staged or a transport command runs: rename the directory or move
+# it out of the tree's top level.
+#
 # And the look has to have happened. Every remote observation is a shell pipeline, and ssh answers
 # with the exit status of its LAST stage - before, a far-side find error or a killed sha256sum came
 # back exit 0 with a short or empty listing (the live promotion log carries an unattributed
@@ -479,6 +491,15 @@ if [ "$_mfiles" -eq 0 ]; then
 fi
 
 # ---------------------------- chunk list ----------------------------
+# The name of the top-level-files chunk is RESERVED (header, 'a chunk name has to mean one part of the
+# tree'). The collision this closes: a real top-level DIRECTORY named '_root_files_' enumerates as that
+# same chunk name, and every per-chunk helper resolves a chunk by the string - so the directory's files
+# entered no chunk, no tar and no send while the manifest this run publishes still listed them, and the
+# denominator guard could not see it because the colliding name is enumerated AND iterated (twice, when
+# the tree also holds loose files). Hence a refusal here, at the enumeration, before a chunk is staged or
+# a single transport command runs - in --dry-run as well, since the plan printed must be the plan a real
+# run can execute.
+ROOT_CHUNK='_root_files_'
 (
   cd "$LOCAL_BUILD_DIR"
   find . -maxdepth 1 -mindepth 1 -type d | LC_ALL=C sort
@@ -489,6 +510,17 @@ _rootfiles=$STAGE_DIR/_rootfiles.txt
   find . -maxdepth 1 -mindepth 1 -type f | LC_ALL=C sort
 ) > "$_rootfiles"
 [ -s "$_rootfiles" ] && CHUNK_LIST_ROOT=1 || CHUNK_LIST_ROOT=0
+
+# The reservation, enforced where the names come from: CHUNK_LIST holds exactly the tree's top-level
+# directories as './<name>', and 'cut -c3-' is what chunk_names turns each into a chunk name, so
+# stripping the same leading './' here and comparing against $ROOT_CHUNK asks the question the
+# enumeration will answer one line later. A quoted pattern: the comparison is byte-for-byte, never a
+# glob match against the name.
+while IFS= read -r _cd; do
+  case ${_cd#./} in
+    "$ROOT_CHUNK") die "a top-level directory of LOCAL_BUILD_DIR=$LOCAL_BUILD_DIR is named $ROOT_CHUNK - refused: that name is this script's reserved chunk name for the tree's top-level loose files, so the directory and that chunk would be the same chunk name and the directory's files would be resolved as the loose files - entering no chunk, never staged, never sent, while this run's manifest still lists them as part of the build (the done line and its chunk count would say every chunk was looked at; verify_transfer.sh is what finds the file missing afterwards, on a tree being served). Rename the directory, or move it out of the tree's top level, then re-run: nothing was staged beyond the manifest, no transport command ran, the destination is untouched" ;;
+  esac
+done < "$CHUNK_LIST"
 
 # Every chunk path now appears inside a single-quoted remote command (the tree observation below), so
 # REMOTE_DIR's quoting rule applies to it too: a name holding a single quote would end that quoting
@@ -502,7 +534,7 @@ done < <(cat "$CHUNK_LIST" "$_rootfiles")
 
 chunk_names() {
   cut -c3- "$CHUNK_LIST"                  # strip the leading './'
-  [ $CHUNK_LIST_ROOT = 1 ] && printf '%s\n' '_root_files_'
+  [ $CHUNK_LIST_ROOT = 1 ] && printf '%s\n' "$ROOT_CHUNK"
 }
 
 # The denominator of every claim made at the close of a run: exactly how many chunk names the enumeration
@@ -512,7 +544,7 @@ chunk_names() {
 _expected_chunks=$(chunk_names | awk 'END { print NR+0 }')
 
 chunk_members() {                          # chunk name -> member paths ('./name')
-  if [ "$1" = '_root_files_' ]; then
+  if [ "$1" = "$ROOT_CHUNK" ]; then
     cat "$_rootfiles"
   else
     printf './%s\n' "$1"
@@ -521,7 +553,7 @@ chunk_members() {                          # chunk name -> member paths ('./name
 
 chunk_stats() {                            # chunk name -> files bytes  (from the manifest)
   _cn=$1
-  if [ "$_cn" = '_root_files_' ]; then
+  if [ "$_cn" = "$ROOT_CHUNK" ]; then
     awk -F'\t' '
       NR==FNR { want[$0] = 1; next }
       ($3 in want) { n++; b += $2 }
@@ -572,7 +604,7 @@ _RUN_TAG=$(date -u '+%Y%m%dT%H%M%SZ' 2>/dev/null || true)
 [ -n "$_RUN_TAG" ] || _RUN_TAG="run$$-${RANDOM:-0}${RANDOM:-0}"
 
 remote_obs_command() {                     # chunk -> the EXACT far-side command run for it (--dry-run prints this)
-  if [ "$1" = '_root_files_' ]; then
+  if [ "$1" = "$ROOT_CHUNK" ]; then
     _paths=''
     while IFS= read -r _rf; do _paths="$_paths '$_rf'"; done < "$_rootfiles"
   else
@@ -671,7 +703,7 @@ if [ $DRY_RUN = 1 ]; then
     printf '    %-24s files=%-6s bytes=%-12s tar=%s\n' "$_cn" "$1" "$2" "$_tn"
     shown=$((shown+1))
   done < <(chunk_names)
-  [ $CHUNK_LIST_ROOT = 1 ] || printf '    (no top-level loose files -> no _root_files_ chunk)\n'
+  [ $CHUNK_LIST_ROOT = 1 ] || printf '    (no top-level loose files -> no %s chunk)\n' "$ROOT_CHUNK"
   printf '  chunks enumerated: %s (a real run states this total in its done line and refuses to close having looked at fewer)\n' "$_expected_chunks"
   printf '%s\n' \
     '' \
@@ -861,7 +893,7 @@ fi
 # disk - cheaper than streaming it over ssh again, and the price of the claim.
 
 payload_lines_build() {                     # chunk -> this build's lines for it: "file-sha256  ./path", path order
-  if [ "$1" = '_root_files_' ]; then
+  if [ "$1" = "$ROOT_CHUNK" ]; then
     awk -F'\t' '
       NR==FNR { want[$0] = 1; next }
       ($3 in want) { printf "%s  %s\n", $1, $3 }

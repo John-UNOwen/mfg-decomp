@@ -96,9 +96,19 @@
 # interrupted run is truncated by the next upload; nothing reads it, and verify_transfer.sh's tree scan already
 # excludes .lane_transfer.
 #
-# The script never deletes anything remote. It issues no rm/unlink/truncate outside
-# its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR
-# values outright.
+# The script never deletes anything remote - but it does overwrite, and overwriting needs no
+# delete to destroy bytes: every chunk lands as 'tar -xf - -C REMOTE_DIR', replacing each file
+# the stream reaches as it arrives. A run that completes is a convergence - every file this
+# build's manifest lists ends up holding exactly this build's bytes. A run that dies mid-chunk
+# is NOT a no-op: REMOTE_DIR is then a MIXED tree - the members reached hold this build's bytes
+# and the bytes they held are gone, the member being written is left partial, everything not
+# yet reached still holds the previous tree's bytes - and if that path is being served, the mix
+# is what is being served (2026-11-10 lab: died mid chunk-2, game.js new / blob truncated 999424
+# of 2000000 / index.html old). The two recoveries are completing a full transfer into the same
+# REMOTE_DIR or restoring the operator's aside (the swapped-out old tree); the failure line at
+# the send site carries the same statement. Beyond that: the script issues no rm/unlink/truncate
+# outside its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR values
+# outright.
 #
 # Usage
 # -----
@@ -559,6 +569,10 @@ if [ $DRY_RUN = 1 ]; then
     "  manifest written for this dry run: $MANIFEST ($_mfiles files, $_mbytes bytes)" \
     '  NOTE: an interrupted chunk is NOT resumable mid-tar; the next run re-sends' \
     '        that whole chunk. A chunk is skipped only after the remote files behind it are hashed.' \
+    '        Extraction replaces each file it reaches as the stream arrives, so a run that dies' \
+    '        mid-chunk leaves REMOTE_DIR a MIXED tree (reached members = this build'"'"'s bytes,' \
+    '        the member being written = truncated, the rest = the previous tree) until a full' \
+    '        transfer completes over it or an operator restores an aside of the previous tree.' \
     '  NOTE: that observation re-reads the tree on the VPS every run - minutes for a full-size' \
     '        build of local disk, still cheaper than streaming it over ssh again, and the only' \
     '        way the skip line rests on a look at the tree instead of on what this script remembers.' \
@@ -706,7 +720,13 @@ while IFS= read -r _cn; do
   set -- $(chunk_stats "$_cn")
   say "send  $_cn: files=$1 bytes=$2 tar=$_tn sha256=$_hash (of the $_cnfiles files this chunk's manifest lists the remote holds $_rseen, $_rdiff of them with other bytes -> payload fold $_rh differs from build payload $_ph; a file the build no longer lists is not counted here - this script never deletes remote files, and verify_transfer.sh reports those as EXTRA)"
   if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "tar $TAR_FLAG -xf - -C '$REMOTE_DIR'" < "$STAGE_DIR/$_tn"; then
-    die "chunk '$_cn' failed mid-transfer. A partial chunk cannot be resumed: the next run re-sends it whole. Its staged tar is kept at $STAGE_DIR/$_tn (the rerun re-stages over it; --keep-tars also keeps the tars of the chunks that did send). Nothing was deleted remote."
+    # The line this replaces closed with 'Nothing was deleted remote', true in the narrow sense and
+    # false in every sense the operator acts on: extraction had ALREADY replaced the members it had
+    # reached, destroying their previous bytes (2026-11-10 lab: died mid chunk-2 - game.js held this
+    # build's bytes with the old ones gone, blob truncated at 999424 of 2000000, index.html still
+    # the previous tree's bytes; verify_transfer.sh then read 1 ok, 1 extra, 2 size-mismatch). A
+    # mixed tree under a live path is being served while the operator is told nothing happened.
+    die "chunk '$_cn' failed mid-transfer. A partial chunk cannot be resumed: the next run re-sends it whole. Its staged tar is kept at $STAGE_DIR/$_tn (the rerun re-stages over it; --keep-tars also keeps the tars of the chunks that did send). REMOTE_DIR=$REMOTE_DIR is NOT left as it was: extraction replaces each file it reaches as the stream arrives, so the destination is now a MIXED tree - the members this run reached hold this build's bytes and the bytes they held before are gone, the member that was being written is left truncated, and everything not yet reached still holds the previous tree's bytes. This script deleted nothing and needed no delete for that: overwriting is what 'tar -xf' does. If this path is being served, the mix is being served now. There are exactly two recoveries: (1) complete a full transfer into this same REMOTE_DIR - the rerun re-observes every chunk and re-sends every one whose bytes do not match this build, un-mixing the tree file by file - or (2) restore the operator's aside (the swapped-out copy of the previous tree, if one was made before this run). verify_transfer.sh will report the mix until one of them finishes."
   fi
   if ! printf '%s\t%s\n' "$_hash" "$_tn" | run_remote "cat >> '$REMOTE_DIR/.lane_transfer/chunk_hashes'"; then
     die "chunk '$_cn' landed on the remote, but its sent-ledger line could not be appended: the bytes are there (the next run will observe them and skip), only the what-was-sent record is missing"

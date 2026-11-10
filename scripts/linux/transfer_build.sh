@@ -270,7 +270,11 @@
 #                       Offline test hook: point it at a local shim that runs the
 #                       command string in a local bash - used by the scratch tests,
 #                       never in production.
-#   MANIFEST_LIMIT      report cap for dry-run listings. default: 20 (0 = show all)
+#   MANIFEST_LIMIT      report cap for the --dry-run chunk listing (the one line printed per chunk).
+#                       default: 20 (0 = show all). --dry-run prints at most this many chunk lines, then
+#                       a line naming how many more were left out; the enumerated total the plan states
+#                       below the listing is always the full count, and a real transfer is not capped
+#                       (the limit is a display knob for the plan, never a limit on what ships).
 #
 #   --dry-run  computes the manifest locally (reads every file - a 5.47 GB build will
 #              take minutes to hash), stages nothing, runs no transport command, and
@@ -332,6 +336,15 @@ done
 # ---------------------------- validation ----------------------------
 [ -d "$LOCAL_BUILD_DIR" ] || die "no build tree at LOCAL_BUILD_DIR=$LOCAL_BUILD_DIR"
 [ -n "$REMOTE_DIR" ] || die "REMOTE_DIR is required"
+
+# MANIFEST_LIMIT is the --dry-run chunk-listing cap (0 = show all). It is compared with -eq / -gt / -lt in
+# the dry-run block, so a non-number would either error those tests partway through the plan or - a bare
+# '' being ${MANIFEST_LIMIT:-20}-unsettable - be read as 0 and silently lift the cap. Refuse it here, at
+# the top of validation, before the manifest has read every file: for a 5.47 GB build that hashing is
+# minutes an operator would spend only to die when the plan prints. Digits only, empty refused.
+case $MANIFEST_LIMIT in
+  ''|*[!0-9]*) die "MANIFEST_LIMIT=$MANIFEST_LIMIT is not a non-negative integer (the --dry-run chunk-listing cap; 0 = show all) - refused, nothing staged or sent" ;;
+esac
 
 # The guard decides on the value the remote will actually act on, and that is not the string typed.
 # The block this replaces (transfer_build.sh:83-88 before the fix) tested '/' on the raw value,
@@ -754,10 +767,17 @@ if [ $DRY_RUN = 1 ]; then
   while IFS= read -r _cn; do
     set -- $(chunk_stats "$_cn")
     _tn=$(tar_name "$_cn")
-    printf '    %-24s files=%-6s bytes=%-12s tar=%s\n' "$_cn" "$1" "$2" "$_tn"
+    # MANIFEST_LIMIT is the plan's display cap (0 = every chunk line); it decides which chunk lines print,
+    # nothing about what a real run would stage or send - the enumerated total below stays the full count.
+    if [ "$MANIFEST_LIMIT" -eq 0 ] || [ "$shown" -lt "$MANIFEST_LIMIT" ]; then
+      printf '    %-24s files=%-6s bytes=%-12s tar=%s\n' "$_cn" "$1" "$2" "$_tn"
+    fi
     shown=$((shown+1))
   done < <(chunk_names)
   [ $CHUNK_LIST_ROOT = 1 ] || printf '    (no top-level loose files -> no %s chunk)\n' "$ROOT_CHUNK"
+  if [ "$MANIFEST_LIMIT" -ne 0 ] && [ "$_expected_chunks" -gt "$MANIFEST_LIMIT" ]; then
+    printf '    ... %s more chunk(s) above left out (dry-run chunk listing capped at MANIFEST_LIMIT=%s; the enumerated total below is the full count, and MANIFEST_LIMIT=0 prints every chunk line)\n' "$((_expected_chunks-MANIFEST_LIMIT))" "$MANIFEST_LIMIT"
+  fi
   printf '  chunks enumerated: %s (a real run states this total in its done line and refuses to close having looked at fewer)\n' "$_expected_chunks"
   if [ "$_empty_count" -gt 0 ]; then
     printf '  empty top-level directories (%s): a top-level directory whose manifest lists 0 files is a chunk the loop can\n' "$_empty_count"

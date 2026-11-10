@@ -20,7 +20,7 @@
 # two folds unequal forever: the same digest pair on every rerun, that chunk re-sent from
 # the top every run, and nothing in the kit able to converge it (2026-11-08 re-check of
 # the remote-observation fix below, which folded the whole subtree instead of the chunk).
-# The skip is an observation of the tree, never a reading of .lane_transfer/chunk_hashes:
+# The skip is an observation of the tree, never a reading of the remote sent-ledger (chunk_hashes):
 # that ledger is append-only history of what was SENT, and a chunk whose bytes were
 # later replaced on the remote read its old ledger line back forever and was reported
 # complete while the tree held another build (2026-11-08 checkup, problem 20/48 - see
@@ -66,16 +66,31 @@
 # promotion is a corrupt destination. --skip-space-check / SKIP_SPACE_CHECK=1 opts out for the operator who measured the
 # fit by hand (the honest case: a converged rerun that sends 0 bytes over a nearly-full target fs).
 #
-# And the destination has to be the tree the operator meant, not one this run invented. The .lane_transfer bookkeeping
-# mkdir is 'mkdir -p', which creates every missing parent - so a REMOTE_DIR typo one letter off the real path passed
+# And the bookkeeping itself must not sit inside the served tree. The location this replaces put manifest.tsv and the
+# chunk_hashes ledger at $REMOTE_DIR/.lane_transfer/ - $REMOTE_DIR is the document root the front serves, so that was
+# two public files inside it: a GET of /.lane_transfer/manifest.tsv on the live lane answered 200 with 13,126,733
+# bytes, the full 58,809-path asset inventory of the production tree (hashes included), until the directory was moved
+# off the live tree by hand. The path is now a knob, $BOOKKEEPING_DIR, defaulted OUTSIDE REMOTE_DIR as a leading-dot
+# sibling (/srv/mfg/webroot -> /srv/mfg/.webroot.lane_transfer), and any value that resolves to REMOTE_DIR or under it
+# - the old location included - is refused before anything is staged or sent. The dot-name is not the protection:
+# webfront's ServeStatic (webfront/Program.cs:1041) confines opens to the root but never rejects a path segment
+# starting with '.', so a bookkeeping dir NAMED '.lane_transfer' under the root is served exactly like any other file
+# (see the README follow-up). Being outside the served tree is the protection. verify_transfer.sh takes the same
+# $BOOKKEEPING_DIR with the same default and the same refusal, so neither script ever works a location the other
+# would not.
+#
+# And the destination has to be the tree the operator meant, not one this run invented. The bookkeeping mkdir is
+# 'mkdir -p', which creates every missing parent - while the bookkeeping sat under REMOTE_DIR, that single command
+# created REMOTE_DIR too, so a REMOTE_DIR typo one letter off the real path passed
 # every guard (it is absolute, it is not a system directory, it reads plausible), was SILENTLY CREATED by the run meant
 # to fill the real tree, shipped every chunk into it, closed with a clean done line, and verify_transfer.sh then agreed
 # about a tree that had existed for ninety seconds: the two-fold comparison compares manifest against whatever is at
 # REMOTE_DIR, so agreement about the run's own typo is guaranteed, and no line in the log said the destination had
 # been made (2026-11-10 checkup). A real run now asks the target 'is $REMOTE_DIR a directory' - one read-only,
 # stdin-shut transport call before the first write - and 'absent' is a refusal naming the path and the way to mean it:
-# --create / CREATE_REMOTE_DIR=1, under which the same mkdir runs but a loud CREATION line names the created path
-# first, so the promotion log states that the destination tree was built by this run. An answer the transport cannot
+# --create / CREATE_REMOTE_DIR=1, under which the destination gets its own loud CREATION line and its own mkdir
+# (separate from the bookkeeping mkdir, which since the move above can no longer reach REMOTE_DIR at all).
+# An answer the transport cannot
 # give at all (a dead link) is its own refusal: an existence this script cannot read is an existence it will not
 # write into. --dry-run dispatches nothing and prints the probe instead.
 #
@@ -93,7 +108,7 @@
 # tag as its first field, '<UTC-stamp>\t<tar-sha256>\t<tar-name>', so runs stack up as one history instead of the last run
 # replacing them. The file must stay history-only: no decision in this script reads it, and none may start to.
 #
-# And what a run leaves in the bookkeeping dir has to be whole. $REMOTE_DIR/.lane_transfer/manifest.tsv is the file the
+# And what a run leaves in the bookkeeping dir has to be whole. $BOOKKEEPING_DIR/manifest.tsv is the file the
 # readers after this run treat as truth: the KB delta procedure diffs against it and verify_transfer.sh agrees with
 # whatever sits at that path. The form this replaces shipped it with 'cat >' straight onto that path - a write that
 # TRUNCATES the file on the far side before a single byte arrives, streams into it, and leaves the local side watching
@@ -105,11 +120,11 @@
 # pipefail': wc -c and sha256sum; the answer is re-read HERE and compared against the local file this script wrote -
 # the expected numbers never leave this machine, so a short or mangled answer lands on the refusal side wherever it
 # was cut), and only a byte-for-byte AND hash-equal tmp is renamed onto the manifest path. A rename inside
-# .lane_transfer is atomic, so a reader ever sees the previous whole manifest or this run's whole manifest, never a
+# the bookkeeping dir is atomic, so a reader ever sees the previous whole manifest or this run's whole manifest, never a
 # half-written one, and a cut or corrupted stream can only ever refuse: the canonical path is not opened for writing
 # until a verified complete copy of this run's manifest already exists beside it. A stale manifest.tsv.tmp of an
 # interrupted run is truncated by the next upload; nothing reads it, and verify_transfer.sh's tree scan already
-# excludes .lane_transfer.
+# excludes the in-tree '.lane_transfer' leftovers of the trees this bookkeeping move replaced.
 #
 # The script never deletes anything remote - but it does overwrite, and overwriting needs no
 # delete to destroy bytes: every chunk lands as 'tar -xf - -C REMOTE_DIR', replacing each file
@@ -122,14 +137,14 @@
 # of 2000000 / index.html old). The two recoveries are completing a full transfer into the same
 # REMOTE_DIR or restoring the operator's aside (the swapped-out old tree); the failure line at
 # the send site carries the same statement. Beyond that: the script issues no rm/unlink/truncate
-# outside its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR values
+# outside its own bookkeeping dir, and refuses obviously dangerous REMOTE_DIR values
 # outright. And it refuses a REMOTE_DIR that does not EXIST on the target yet unless --create is
-# passed: the bookkeeping mkdir is mkdir -p, so before that gate a wrong-but-plausible path - a
-# typo one letter off passes every guard above - was silently CREATED by the run that meant to
-# fill the real tree, the chunk loop shipped into the typo, the done line and verify_transfer.sh
-# both agreed about a tree seconds old, and no line in the log ever said the destination had
-# been created. With --create the same mkdir creates it, but only after a loud CREATION line
-# naming the path, so the creation sits in the log that records the promotion.
+# passed: while the bookkeeping sat inside the tree, its mkdir -p silently CREATED whatever
+# REMOTE_DIR it was handed - a wrong-but-plausible path, a typo one letter off passes every guard
+# above - the run shipped the build into the seconds-old typo, the done line and verify_transfer.sh
+# both agreed about it, and no line in the log ever said the destination had
+# been created. With --create the run creates REMOTE_DIR itself (its own mkdir, behind a loud
+# CREATION line naming the path), so the creation sits in the log that records the promotion.
 #
 # Usage
 # -----
@@ -196,6 +211,20 @@
 #                       With --create the run prints a loud 'CREATION:' line naming the path right before
 #                       it creates it, so the creation sits in the promotion log. A rerun once the tree
 #                       exists needs no --create.
+#   BOOKKEEPING_DIR     remote dir for the manifest publish + the remote sent-ledger.  default:
+#                       REMOTE_DIR's leading-dot sibling - /srv/mfg/webroot -> /srv/mfg/.webroot.lane_transfer
+#                       Deliberately OUTSIDE REMOTE_DIR: REMOTE_DIR is the document root the front
+#                       serves, and the old fixed location under it ($REMOTE_DIR/.lane_transfer/) made
+#                       the two bookkeeping files public - a GET /.lane_transfer/manifest.tsv on the
+#                       live lane answered 200 with the whole 58,809-path production asset inventory
+#                       (13 MB), until the dir was moved off the live tree by hand. Any value that
+#                       normalises to REMOTE_DIR or a path inside it - the old location included - is
+#                       refused before anything is staged or sent, in the dry run as well; the same
+#                       absolute/quote/system-directory guard REMOTE_DIR gets applies here. The
+#                       dot-name hides the dir from listings, it does NOT protect it: the gate's
+#                       ServeStatic (webfront/Program.cs:1041) rejects nothing that starts with '.'
+#                       (README follow-up) - being outside the served tree is the protection.
+#                       verify_transfer.sh takes the same name, the same default and the same refusal.
 #   COMPRESS            gzip | none | zstd.      default: gzip
 #                       gzip = tar -z (gzip is nearly everywhere), zstd = tar --zstd
 #                       (needs the zstd binary), none = plain tar (fastest CPU).
@@ -215,10 +244,13 @@
 #   $STAGE_DIR/chunk_hashes.tsv    run <TAB> chunk-tar-sha256 <TAB> chunk-tar-name   (what was SENT, across runs; a line
 #                       is appended only after that chunk's tar streamed to the end and the remote ledger append of the
 #                       same line succeeded, and the file is never truncated - local record of the remote ledger below)
-#   $REMOTE_DIR/.lane_transfer/    manifest published there (uploaded to manifest.tsv.tmp, measured on the
-#                                  target, and renamed onto manifest.tsv only when bytes+sha256 match the
-#                                  local manifest) + sent-ledger appended, both by this script;
-#                                  the remote ledger is what-was-sent history and never decides a skip
+#   $BOOKKEEPING_DIR/              manifest published there (uploaded to manifest.tsv.tmp, measured on the
+#                       target, and renamed onto manifest.tsv only when bytes+sha256 match the
+#                       local manifest) + remote sent-ledger appended, both by this script;
+#                       the remote ledger is what-was-sent history and never decides a skip.
+#                       Default: REMOTE_DIR's leading-dot sibling, OUTSIDE the served tree
+#                       (the old $REMOTE_DIR/.lane_transfer/ location put both files in the document
+#                       root - see BOOKKEEPING_DIR above; verify_transfer.sh reads the same location)
 #
 # Assumptions: build file names contain no newlines (Unity output satisfies this).
 
@@ -236,6 +268,7 @@ MANIFEST_LIMIT=${MANIFEST_LIMIT:-20}
 KEEP_TARS=${KEEP_TARS:-0}
 SKIP_SPACE_CHECK=${SKIP_SPACE_CHECK:-0}
 CREATE_REMOTE_DIR=${CREATE_REMOTE_DIR:-0}
+BOOKKEEPING_DIR=${BOOKKEEPING_DIR:-''}
 DRY_RUN=0
 
 SCRIPT_PATH=${BASH_SOURCE[0]}
@@ -317,6 +350,52 @@ for _sys in bin boot dev etc lib proc root sbin sys usr var; do
     "$REMOTE_DIR"/*) die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to $REMOTE_DIR, which contains the system directory $_sys - refused, nothing extracted" ;;
   esac
 done
+
+# The remote bookkeeping dir: manifest publish + remote sent-ledger live here, and the whole point of the variable is
+# that they do NOT live inside REMOTE_DIR (header: the GET of /.lane_transfer/manifest.tsv that served 13 MB of asset
+# inventory out of the served root). Default: a leading-dot SIBLING of REMOTE_DIR (/srv/mfg/webroot ->
+# /srv/mfg/.webroot.lane_transfer) - outside the document root, hidden from plain listings. Guarded with the same
+# rules as REMOTE_DIR because the same remote commands single-quote it, and refused whenever it normalises to
+# REMOTE_DIR or under it - the old in-tree location included: a value under the served tree is a value being served.
+_BK_PARENT=${REMOTE_DIR%/*}          # '' when REMOTE_DIR is one component under / (the default below then roots at /)
+_BK_BASE=${REMOTE_DIR##*/}
+_BK_DEFAULT="$_BK_PARENT/.${_BK_BASE}.lane_transfer"
+if [ -z "$BOOKKEEPING_DIR" ]; then
+  BOOKKEEPING_DIR=$_BK_DEFAULT
+fi
+case $BOOKKEEPING_DIR in
+  /*) ;;
+  *) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR is not an absolute path - refused, nothing staged or sent (like REMOTE_DIR it names a path on the far side: a relative value resolves against the ssh login cwd, which this script cannot see, and a leading ~ is never expanded inside the single-quoted remote commands, so it would make a directory literally named '~')" ;;
+esac
+case $BOOKKEEPING_DIR in
+  *\'*) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR contains a single quote - refused, nothing staged or sent (every remote command wraps this path in single quotes, so a quote inside the value ends that quoting early: this guard would compare one string while the remote shell acted on another)" ;;
+esac
+BOOKKEEPING_DIR_RAW=$BOOKKEEPING_DIR
+BOOKKEEPING_DIR=$(_norm_remote_dir "$BOOKKEEPING_DIR") || die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW could not be normalised - refused, nothing staged or sent"
+if [ "$BOOKKEEPING_DIR" != "$BOOKKEEPING_DIR_RAW" ]; then
+  say "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalised to $BOOKKEEPING_DIR - the guard and every remote command use the normalised value"
+fi
+case $BOOKKEEPING_DIR in
+  /) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to '/' - refused, nothing staged or sent (the manifest publish and sent-ledger would sit directly on the filesystem root, next to /etc and /bin)" ;;
+esac
+for _sys in bin boot dev etc lib proc root sbin sys usr var; do
+  _sys=/$_sys
+  case $BOOKKEEPING_DIR in
+    "$_sys")   die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $_sys - refused, nothing staged or sent ($_sys is a system directory)" ;;
+    "$_sys"/*) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $BOOKKEEPING_DIR, inside the system directory $_sys - refused, nothing staged or sent" ;;
+  esac
+  case $_sys in
+    "$BOOKKEEPING_DIR"/*) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $BOOKKEEPING_DIR, which contains the system directory $_sys - refused, nothing staged or sent" ;;
+  esac
+done
+case $BOOKKEEPING_DIR in
+  "$REMOTE_DIR")
+    die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to REMOTE_DIR=$REMOTE_DIR itself - refused, nothing staged or sent: the manifest publish and the remote sent-ledger would land INSIDE the tree the front serves. That is the leak this variable closes - manifest.tsv of the whole build (58,809 asset paths + sha256 on the live lane) and chunk_hashes under the document root were public files, and a GET /.lane_transfer/manifest.tsv answered 200/13 MB. Leave BOOKKEEPING_DIR unset for the default outside the tree ($_BK_DEFAULT), or point it at another path outside it" ;;
+  "$REMOTE_DIR"/*)
+    die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $BOOKKEEPING_DIR, inside REMOTE_DIR=$REMOTE_DIR - refused, nothing staged or sent: REMOTE_DIR is the served tree, so whatever the publish puts under it is served (the old $REMOTE_DIR/.lane_transfer/ location, published exactly that way, answered GET /.lane_transfer/manifest.tsv with 200/13 MB - 58,809 production asset paths - until it was moved off the live tree by hand). The dot-name would not have protected it either: the gate's ServeStatic (webfront/Program.cs:1041) confines opens to the root but never rejects a segment starting with '.' (README follow-up). Leave BOOKKEEPING_DIR unset for the default outside the tree ($_BK_DEFAULT), or point it at another path outside it" ;;
+esac
+say "bookkeeping: $BOOKKEEPING_DIR - manifest publish + remote sent-ledger live there, OUTSIDE REMOTE_DIR=$REMOTE_DIR (the served tree; BOOKKEEPING_DIR= moves it, values inside the tree are refused; verify_transfer.sh must be given the same value)"
+
 case $COMPRESS in
   gzip) TAR_FLAG='-z' SUFFIX='.tar.gz' ;;
   none) TAR_FLAG=''   SUFFIX='.tar'   ;;
@@ -337,9 +416,12 @@ CHUNK_LIST=$STAGE_DIR/chunks.txt
 # The two remote bookkeeping paths the manifest publish touches, defined once: the upload opens ONLY the tmp for
 # writing, and the manifest path - the file the KB delta procedure and verify_transfer.sh read as truth - is reached
 # by exactly one rename of a verified-complete tmp (header 'what a run leaves in the bookkeeping dir has to be whole').
-# Both are embedded in single-quoted remote commands, which the REMOTE_DIR quote guard above is what makes safe.
-MANIFEST_TMP_REMOTE=$REMOTE_DIR/.lane_transfer/manifest.tsv.tmp
-MANIFEST_DST_REMOTE=$REMOTE_DIR/.lane_transfer/manifest.tsv
+# Both live under $BOOKKEEPING_DIR, which the guard block above has already forced outside REMOTE_DIR (the old
+# hardcoded $REMOTE_DIR/.lane_transfer put exactly these two files inside the served root - header paragraph 6).
+# All three paths are embedded in single-quoted remote commands, which the REMOTE_DIR and BOOKKEEPING_DIR quote
+# guards above are what makes safe.
+MANIFEST_TMP_REMOTE=$BOOKKEEPING_DIR/manifest.tsv.tmp
+MANIFEST_DST_REMOTE=$BOOKKEEPING_DIR/manifest.tsv
 
 # ---------------------------- manifest: every file, sha256 + size ----------------------------
 say "building manifest from $LOCAL_BUILD_DIR (reads every file)"
@@ -566,6 +648,8 @@ if [ $DRY_RUN = 1 ]; then
     'transfer_build --dry-run: no ssh, no staging writes beyond manifests:' \
     "  source      $LOCAL_BUILD_DIR" \
     "  target      ${SSH_TARGET:-<SSH_TARGET unset - would be required>}:$REMOTE_DIR" \
+    "  bookkeeping $BOOKKEEPING_DIR (manifest publish + remote sent-ledger - outside REMOTE_DIR;" \
+    "    BOOKKEEPING_DIR= moves it, values inside the served tree are refused; default: its leading-dot sibling $_BK_DEFAULT)" \
     "  compression $COMPRESS (tar $TAR_FLAG), chunk tars in $STAGE_DIR" \
     '' \
     '  chunk list (one per top-level directory, then the top-level files):'
@@ -588,7 +672,8 @@ if [ $DRY_RUN = 1 ]; then
     '         existing ancestor, the same filesystem; an unreadable or not-a-number answer is a refusal too)' ;
   printf '%s\n' \
     '' \
-    '  existence gate (real run, after the capacity gate, BEFORE the bookkeeping mkdir - the first write):' \
+    '  existence gate (real run, after the capacity gate, BEFORE any mkdir - the first write is a mkdir, the first' \
+    '    remote command after the gate is the destination/bookkeeping mkdir):' \
     "    probe:  ${SSH_TARGET:-<SSH_TARGET unset - would be required>}: if test -d '$REMOTE_DIR'; then printf existing; else printf absent; fi" \
     '      (read-only, stdin held shut; the if/else answers in words so a transport that could not run the test at' \
     '       all leaves no answer and is refused as its own case - an existence this script cannot read is an' \
@@ -596,12 +681,14 @@ if [ $DRY_RUN = 1 ]; then
     "    'absent' + no --create: REFUSED - NOTHING created on the target, no chunk streamed. The mkdir is mkdir -p," \
     '      so the form this gate replaces CREATED whatever path it was handed: a wrong-but-plausible typo passes' \
     '      every path guard, the build ships into the tree the run made out of the typo, the done line closes, and' \
-    '      verify_transfer.sh agrees about a destination seconds old - the only tell was a line saying it had been' \
+    "      verify_transfer.sh agrees about a destination seconds old - the only tell was a line saying it had been" \
     '      created, and that line did not exist'
   if [ "$CREATE_REMOTE_DIR" = 1 ]; then
     printf '%s\n' \
-      "    'absent' + --create given (this invocation): CREATION line naming $REMOTE_DIR, then the mkdir creates it" \
-      '      and this run ships the tree into it - the creation is in the log beside the sends'
+      "    'absent' + --create given (this invocation): CREATION line naming $REMOTE_DIR, then its own mkdir -p" \
+      '      creates it and this run ships the tree into it - the creation is in the log beside the sends' \
+      '      (the bookkeeping mkdir is a separate command and cannot create REMOTE_DIR: it only makes' \
+      "       $BOOKKEEPING_DIR, outside the served tree)"
   else
     printf '%s\n' \
       "    'absent' + --create / CREATE_REMOTE_DIR=1: CREATION line naming the path, then the mkdir creates it -" \
@@ -623,7 +710,7 @@ if [ $DRY_RUN = 1 ]; then
     '         never a reading of the sent-ledger, so bytes replaced by another build or a pruned directory re-send' \
     "    ( cd '$LOCAL_BUILD_DIR' && tar $TAR_FLAG -cf '$STAGE_DIR/<tar>' -- <members> )" \
     "    ssh \"\$SSH_TARGET\" \"tar $TAR_FLAG -xf - -C '$REMOTE_DIR'\" < '$STAGE_DIR/<tar>'" \
-    "    printf '<tar-sha256>\\t<tar>\\n' | ssh \"\$SSH_TARGET\" \"cat >> '$REMOTE_DIR/.lane_transfer/chunk_hashes'\"  # records what was SENT; never decides a skip" \
+    "    printf '<tar-sha256>\\t<tar>\\n' | ssh \"\$SSH_TARGET\" \"cat >> '$BOOKKEEPING_DIR/chunk_hashes'\"  # records what was SENT; never decides a skip" \
     "    printf '$_RUN_TAG\\t<tar-sha256>\\t<tar>\\n' >> '$STAGE_DIR/chunk_hashes.tsv'   # only after both lines above succeeded: the local" \
     "      ledger never carries a chunk whose bytes did not land, and it is append-only history across runs (run tag first)" \
     "      - a rerun adds to it, it never truncates what earlier runs wrote" \
@@ -657,7 +744,7 @@ say "target: $SSH_TARGET:$REMOTE_DIR (transport: $TRANSFER_TRANSPORT, compress: 
 # ---------------------------- capacity gate ----------------------------
 # Header paragraph + SKIP_SPACE_CHECK carry the why; this is the where: both answers are read BEFORE the first
 # transport write, the threshold is the manifest total, and either refusal line carries both numbers. This sits
-# ahead of even the .lane_transfer mkdir, so a capacity refusal leaves no trace on the target beyond the read-only
+# ahead of even the bookkeeping mkdir, so a capacity refusal leaves no trace on the target beyond the read-only
 # probe that produced it - the destination is exactly what it was, which is the whole value of refusing up front.
 if [ "$SKIP_SPACE_CHECK" = 1 ]; then
   say "space: gate skipped by request (--skip-space-check / SKIP_SPACE_CHECK=1) - streaming up to $_mbytes bytes (manifest total) without asking either filesystem how much room it has"
@@ -700,6 +787,11 @@ case $_remote_state in
       die "REMOTE_DIR=$REMOTE_DIR does not exist on the target and --create was not given - refused: NOTHING was created on the target, no chunk was streamed, no bookkeeping dir was made. The mkdir below is mkdir -p, so the form this gate replaces CREATED whatever path it was handed: a wrong-but-plausible typo passes every path guard above, the build ships into a tree this run made out of the typo, the convergence line closes, and verify_transfer.sh agrees about a destination seconds old - the only tell was a line saying it had been created, and no such line was ever printed. Point REMOTE_DIR at the tree that already exists (a rerun needs no --create), or pass --create / CREATE_REMOTE_DIR=1 only when this exact path is a first-transfer destination you have checked"
     fi
     say "CREATION: REMOTE_DIR=$REMOTE_DIR does NOT exist on the target - --create was given, so this run CREATES it now and ships into it: every byte of this build will land in a tree that did not exist until this line. Read the path above once more; a first transfer into a typoed path converges exactly as happily as one into the tree that was meant, and verify_transfer.sh agrees about the typo too - this line is the last moment the target is untouched"
+    # The destination gets its own mkdir, right here, right after the CREATION line that authorises it. While the
+    # bookkeeping sat inside the tree one 'mkdir -p $REMOTE_DIR/.lane_transfer' created both at once and named
+    # neither; since the move the bookkeeping mkdir cannot reach REMOTE_DIR at all, so this command IS the
+    # --create path's creation - after the CREATION line, before the first write. Read-only stdin rule as always.
+    run_remote "mkdir -p '$REMOTE_DIR'" </dev/null || die "creating REMOTE_DIR=$REMOTE_DIR after the CREATION line failed ($TRANSFER_TRANSPORT answered failure) - nothing was streamed and the destination is exactly as the existence test found it"
     ;;
   *) die "the target's answer about REMOTE_DIR=$REMOTE_DIR was unreadable ('$_remote_state' - want exactly 'existing' or 'absent') - an existence this script cannot read is an existence it will not write into, so nothing was created on the target, no chunk was streamed, the destination is exactly as it was" ;;
 esac
@@ -707,9 +799,11 @@ esac
 # Read-only, so its stdin is shut under the rule stated at run_remote: this call sits in the
 # script body, where the caller's stdin may be a wrapper's work list, and a transport that
 # forwards stdin eats that list on the way to the far side (9761a3b). The mkdir itself needs
-# no input. Past the existence gate above it creates at most the .lane_transfer bookkeeping dir;
-# with --create it creates REMOTE_DIR too, and the CREATION line already said so in the log.
-run_remote "mkdir -p '$REMOTE_DIR/.lane_transfer'" </dev/null || die "remote mkdir -p '$REMOTE_DIR/.lane_transfer' failed"
+# no input. It creates ONLY the bookkeeping dir - the guard block above proved that dir is
+# outside REMOTE_DIR, so this command can no longer create, widen or touch the served tree
+# (the creation of a missing REMOTE_DIR is the separate mkdir in the --create branch above,
+# behind its CREATION line).
+run_remote "mkdir -p '$BOOKKEEPING_DIR'" </dev/null || die "remote mkdir -p '$BOOKKEEPING_DIR' failed - the bookkeeping dir for the manifest publish and the remote sent-ledger could not be made (REMOTE_DIR was NOT created or changed by this command)"
 
 # The sent-ledger is opened here and nothing else: the line this replaces (': > "$CHUNK_HASHES"' at this spot before
 # the fix) truncated the file at run start, which destroyed the record of earlier runs before this run had sent a byte
@@ -827,7 +921,7 @@ while IFS= read -r _cn; do
     # mixed tree under a live path is being served while the operator is told nothing happened.
     die "chunk '$_cn' failed mid-transfer. A partial chunk cannot be resumed: the next run re-sends it whole. Its staged tar is kept at $STAGE_DIR/$_tn (the rerun re-stages over it; --keep-tars also keeps the tars of the chunks that did send). REMOTE_DIR=$REMOTE_DIR is NOT left as it was: extraction replaces each file it reaches as the stream arrives, so the destination is now a MIXED tree - the members this run reached hold this build's bytes and the bytes they held before are gone, the member that was being written is left truncated, and everything not yet reached still holds the previous tree's bytes. This script deleted nothing and needed no delete for that: overwriting is what 'tar -xf' does. If this path is being served, the mix is being served now. There are exactly two recoveries: (1) complete a full transfer into this same REMOTE_DIR - the rerun re-observes every chunk and re-sends every one whose bytes do not match this build, un-mixing the tree file by file - or (2) restore the operator's aside (the swapped-out copy of the previous tree, if one was made before this run). verify_transfer.sh will report the mix until one of them finishes."
   fi
-  if ! printf '%s\t%s\n' "$_hash" "$_tn" | run_remote "cat >> '$REMOTE_DIR/.lane_transfer/chunk_hashes'"; then
+  if ! printf '%s\t%s\n' "$_hash" "$_tn" | run_remote "cat >> '$BOOKKEEPING_DIR/chunk_hashes'"; then
     die "chunk '$_cn' landed on the remote, but its sent-ledger line could not be appended: the bytes are there (the next run will observe them and skip), only the what-was-sent record is missing"
   fi
   # The local sent-ledger line comes last, after both facts it records: the tar streamed to the end and the remote

@@ -35,6 +35,19 @@
 # REMOTE_DIR can never turn this into a /proc walk, a cd into the invisible ssh login cwd, or an
 # 'agree' about a tree the shipping script would never have written. The normalised value is the one
 # both listing commands use.
+#
+# BOOKKEEPING_DIR - the remote dir holding the manifest publish and the remote sent-ledger,
+# transfer_build.sh's other location knob - is taken here with the SAME default (REMOTE_DIR's
+# leading-dot sibling, /srv/mfg/webroot -> /srv/mfg/.webroot.lane_transfer) and the SAME refusals
+# (absolute, no single quote, no '/', no system directory, and never REMOTE_DIR itself or a path
+# inside it: REMOTE_DIR is the served tree, and the leak that moved the bookkeeping out - a GET of
+# /.lane_transfer/manifest.tsv answering 200/13 MB of asset inventory out of the document root -
+# lives and dies with values under the served path). Both scripts working the same location is the
+# contract: a tree transfer_build.sh would refuse to ship is a tree verify_transfer.sh refuses to
+# verify, and an operator who set BOOKKEEPING_DIR for one script sees the same value honoured by the
+# other. Nothing under it is listed as EXTRA either way: with the default it sits outside the
+# listings' root, and the in-tree '.lane_transfer' leftovers of trees shipped before the move stay
+# excluded from both listings, exactly as the swap_webroot.sh pre-check excludes them.
 
 set -euo pipefail
 export LC_ALL=C
@@ -43,6 +56,7 @@ export LC_ALL=C
 SSH_TARGET=${SSH_TARGET:-''}
 REMOTE_DIR=${REMOTE_DIR:-''}
 STAGE_DIR=${STAGE_DIR:-"$HOME/mfgtmp/transfer_stage"}
+BOOKKEEPING_DIR=${BOOKKEEPING_DIR:-''}
 MANIFEST=${MANIFEST:-"$STAGE_DIR/manifest.tsv"}
 VERIFY_TRANSPORT=${VERIFY_TRANSPORT:-'ssh'}
 REPORT_MAX=${REPORT_MAX:-40}
@@ -125,6 +139,49 @@ for _sys in bin boot dev etc lib proc root sbin sys usr var; do
   esac
 done
 
+# BOOKKEEPING_DIR: same name, same default, same guard as transfer_build.sh (header) - the two scripts must
+# work the same location for the manifest publish and the remote sent-ledger, or a run can be verified against
+# a bookkeeping state its twin would never have written. Default: REMOTE_DIR's leading-dot sibling, outside
+# the served tree; REMOTE_DIR itself or anything under it is refused.
+_BK_PARENT=${REMOTE_DIR%/*}          # '' when REMOTE_DIR is one component under / (the default below then roots at /)
+_BK_BASE=${REMOTE_DIR##*/}
+_BK_DEFAULT="$_BK_PARENT/.${_BK_BASE}.lane_transfer"
+if [ -z "$BOOKKEEPING_DIR" ]; then
+  BOOKKEEPING_DIR=$_BK_DEFAULT
+fi
+case $BOOKKEEPING_DIR in
+  /*) ;;
+  *) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR is not an absolute path - refused, no listing is run (like REMOTE_DIR it names a path on the far side: a relative value resolves against the ssh login cwd, which this script cannot see, and a leading ~ is never expanded inside the single-quoted remote commands, so it would make a directory literally named '~')" ;;
+esac
+case $BOOKKEEPING_DIR in
+  *\'*) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR contains a single quote - refused, no listing is run (every remote command wraps this path in single quotes, so a quote inside the value ends that quoting early: this guard would compare one string while the remote shell acted on another)" ;;
+esac
+BOOKKEEPING_DIR_RAW=$BOOKKEEPING_DIR
+BOOKKEEPING_DIR=$(_norm_remote_dir "$BOOKKEEPING_DIR") || die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW could not be normalised - refused, no listing is run"
+if [ "$BOOKKEEPING_DIR" != "$BOOKKEEPING_DIR_RAW" ]; then
+  say "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalised to $BOOKKEEPING_DIR - the guard and every remote command use the normalised value"
+fi
+case $BOOKKEEPING_DIR in
+  /) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to '/' - refused, no listing is run (that is the filesystem root: the manifest publish and sent-ledger of every transfer would sit next to /etc and /bin)" ;;
+esac
+for _sys in bin boot dev etc lib proc root sbin sys usr var; do
+  _sys=/$_sys
+  case $BOOKKEEPING_DIR in
+    "$_sys")   die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $_sys - refused, no listing is run ($_sys is a system directory)" ;;
+    "$_sys"/*) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $BOOKKEEPING_DIR, inside the system directory $_sys - refused, no listing is run" ;;
+  esac
+  case $_sys in
+    "$BOOKKEEPING_DIR"/*) die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $BOOKKEEPING_DIR, which contains the system directory $_sys - refused, no listing is run" ;;
+  esac
+done
+case $BOOKKEEPING_DIR in
+  "$REMOTE_DIR")
+    die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to REMOTE_DIR=$REMOTE_DIR itself - refused, no listing is run: that is the served tree, and the bookkeeping it holds (the manifest publish + the remote sent-ledger) is exactly what must NOT live under a document root (GET /.lane_transfer/manifest.tsv once answered 200/13 MB of the production asset inventory out of the served tree). Leave BOOKKEEPING_DIR unset for the default outside it ($_BK_DEFAULT), or point it at another path outside it" ;;
+  "$REMOTE_DIR"/*)
+    die "BOOKKEEPING_DIR=$BOOKKEEPING_DIR_RAW normalises to $BOOKKEEPING_DIR, inside REMOTE_DIR=$REMOTE_DIR - refused, no listing is run: REMOTE_DIR is the served tree, so bookkeeping under it is served, which is the leak transfer_build.sh refuses to publish into and this script refuses to read from. Leave BOOKKEEPING_DIR unset for the default outside the tree ($_BK_DEFAULT), or point it at another path outside it" ;;
+esac
+say "bookkeeping: $BOOKKEEPING_DIR - manifest publish + remote sent-ledger live there, outside REMOTE_DIR=$REMOTE_DIR (same default and same refusals as transfer_build.sh; the in-tree '.lane_transfer' leftovers of older trees stay excluded from the listings below)"
+
 [ -f "$MANIFEST" ] || die "no manifest at $MANIFEST (run transfer_build.sh first, or set MANIFEST=)"
 # A manifest with no lines is not one side of a comparison. Refuse here, where the message can name the
 # file, rather than let the comparison run over zero entries and report agreement.
@@ -174,6 +231,9 @@ mkdir -p -- "$STAGE_DIR"
 #   sha256 <TAB> bytes <TAB> ./path
 # Remote size list: bytes <TAB> ./path    (find -printf, relative to REMOTE_DIR)
 # Remote hash list:  sha256sum output, "64-hex  ./path"
+# Both listings exclude '.lane_transfer': the BOOKKEEPING_DIR default now sits OUTSIDE REMOTE_DIR (guard above),
+# so the exclusion only ever hides the in-tree leftovers of trees shipped before that move - removing it would
+# turn a legacy bookkeeping dir into a wall of EXTRA on trees that are otherwise in agreement.
 say "reading remote tree via $VERIFY_TRANSPORT $SSH_TARGET (cat/find/sha256sum only)"
 _orc=0
 run_remote_obs "$_sizes" "cd '$REMOTE_DIR' && find . -type f -not -path './.lane_transfer/*' -printf '%s\t%p\n' | LC_ALL=C sort -t$'\t' -k2" || _orc=$?

@@ -20,7 +20,7 @@ Already verified earlier: `assemble_webroot.sh` (the bash port of
 | `mfg-lane.service`, `mfg-gate.service`, `mfg-tunnel.service` | systemd unit **templates** (`@PLACEHOLDER@` tokens) with `WorkingDirectory`, `EnvironmentFile`, `Restart`, `TimeoutStopSec`, `NoNewPrivileges`, `ProtectSystem=strict` and `ReadWritePaths` lines, each annotated where its path requirement comes from. |
 | `install_systemd.sh` | Substitutes real paths/user into the unit templates, stages the results plus a non-secret `lane.env` into a staging directory, and prints the exact `sudo` commands a human runs. It never invokes sudo itself. Before staging anything it proves on this box every path those units start from (the `ExecStart` binaries, `<core-dir>/dist/AsphyxiaCore.js`, `<webfront-dir>/bin/Release/net8.0/WebFront.dll`, `<webroot>/index.html`, `<sec-dir>/presenter.secret`) and refuses with every missing one named - the printed list ends in `systemctl enable --now`, and a half-populated host cannot start the units it would enable. |
 | `lane_smoke.sh` | Read-only curl acceptance suite against a base URL: COOP/COEP headers, brotli sidecar rule, immutable-vs-TTL caching, `index.html` no-store, FoxNET login page, `/static` assets, anonymous session rejection, `/aog` reaching the core handler, play page `-AUTOSERVE`, and an optional login/logout section (`SMOKE_USER`/`SMOKE_PASS`). Prints PASS/FAIL/SKIP with evidence and a summary count; non-zero exit on any FAIL. |
-| `transfer_build.sh` | Ships the WebGL build over ssh in chunked tars (no rsync), one chunk per top-level directory, resumable only in the "skip complete chunks by sha256" sense, with a manifest and a hard refusal to delete anything remote. Every remote observation runs under `bash -c` with `set -o pipefail` and must close with a per-run observation-proof trailer line: a far-side `find`/`sha256sum` failure, or a missing/misplaced/duplicated trailer, refuses the chunk - it is no longer hidden behind a successful `sort`/`sed` and never answers as a skip or send. `--dry-run` shows the plan + manifest, including the exact wrapped far-side command. |
+| `transfer_build.sh` | Ships the WebGL build over ssh in chunked tars (no rsync), one chunk per top-level directory, resumable only in the "skip complete chunks by sha256" sense, with a manifest and a hard refusal to delete anything remote. Every remote observation runs under `bash -c` with `set -o pipefail` and must close with a per-run observation-proof trailer line: a far-side `find`/`sha256sum` failure, or a missing/misplaced/duplicated trailer, refuses the chunk - it is no longer hidden behind a successful `sort`/`sed` and never answers as a skip or send. The done line states its denominator - `… = sent + skipped = N of total chunk(s) enumerated` - and a run that looked at fewer chunks than the enumerated list is a nonzero exit with no done line and no manifest upload (a `1 skipped` truncated run can no longer be read as a converged rerun, the 2026-11-09 promotion-log defect); the done output also always states the surplus - remote files under the observed chunk paths that the manifest does not list, which never block a skip but are `verify_transfer.sh`'s `EXTRA`, so a converged rerun over a tree still holding a dropped name says so. `--dry-run` shows the plan + manifest, including the enumerated chunk total and the exact wrapped far-side command. |
 | `verify_transfer.sh` | Compares the manifest against the remote tree: missing / extra / size-or-hash mismatched files plus file and byte totals, so a 5.47 GB transfer is confirmed, not assumed. Both remote listings use the same `bash -c` + `set -o pipefail` + trailer wrapping as `transfer_build.sh`: a failed or unproven observation is a refusal, never a `MISSING`/`HASH` verdict computed from a half-read tree. |
 | `swap_webroot.sh` | Promotes a staged webroot over the live one with two renames, but only after the whole staged tree has been counted against the manifest of the transfer that shipped it (file count + per-file size: `MISSING`, size-mismatch, `EXTRA`, both totals printed). `chown` runs while the gate is still up; `SERVICES` (default `mfg-gate`) are stopped only for the renames; the new root is then proven by polling `/build_stamp.txt` for the expected stamp, and any failure after the first rename puts the renames back and restarts the services. The previous root is kept as the undo handle and never deleted. `--dry-run` runs the verification and prints the plan. |
 
@@ -111,8 +111,9 @@ against, and a bookkeeping dir inside the live root is carried off by the first 
 a refusal prints would no longer hold the file that refusal was based on, and the tree's
 `.lane_transfer/` (manifest + `chunk_hashes`) travels with the old root. A `MANIFEST` that
 resolves inside `WEBROOT` is refused for that reason. `transfer_build.sh` tolerates leftover names
-in the remote tree because it issues no deletions and reports them to `verify_transfer.sh` as
-`EXTRA`; the swap refuses them in the tree it is about to promote.
+in the remote tree because it issues no deletions - it states the surplus count it observed in its
+own done output (`surplus: N remote file(s) …`) and the names themselves go to
+`verify_transfer.sh` as `EXTRA`; the swap refuses them in the tree it is about to promote.
 
 **Proof, not a curl that prints nothing.** The answer is compared with `STAMP` over a bounded
 poll, the same raw-socket probe `assemble_webroot.sh` uses (`build_stamp.txt` has no trailing
@@ -292,6 +293,15 @@ ports 8083/8090/8091/8095 were never targeted):
   each is a refusal with a named reason in both `transfer_build.sh` and `verify_transfer.sh`, no
   `send`/`skip`/`transfer done` line and no verdict is printed for an errored observation, while the
   same trees observed cleanly still skip all chunks and still report agreement.
+- Promotion denominator (2026-11-10, fixture cases C60-C62, transport shims only): the done line states
+  `sent + skipped = N of total chunk(s) enumerated` on the first run and on the converged rerun, and the
+  `--dry-run` plan prints the same enumerated total; a run that passes a chunk through the loop without
+  looking at it (a byte-for-byte copy of the script with one chunk bypassed) is refused with both counts
+  named, no `transfer done` line and no manifest upload - the truncated-loop `0 sent, 1 skipped` shape can
+  no longer be mistaken for a converged rerun; and a remote still holding `./Build/webgl.oldname.wasm`,
+  a name the build dropped, still skips every chunk (surplus must not block the skip) while the done
+  output states `surplus: 1 remote file(s)` - the same tree reads `EXTRA` + MISMATCH, exit 1, from
+  `verify_transfer.sh`.
 
 On the real box (Ubuntu 24.04 LTS, the owner's VPS lane, 2026-11-05): the shipped copies
 matched the repo by sha256 with zero CR bytes and `bash -n` clean; `lane_up.sh` started core

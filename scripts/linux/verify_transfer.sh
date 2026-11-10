@@ -7,6 +7,14 @@
 # file count and total byte count on both sides. Read-only against the remote: the
 # only commands it runs there are cat/find/sha256sum.
 #
+# Both listings run on the far side under 'bash -c' with 'set -o pipefail' and must end with this
+# run's observation-proof trailer line. Every listing is a shell pipeline, and the transport only
+# ever reports the LAST stage's status - a far-side find error or killed sha256sum used to arrive as
+# exit 0 with a short or empty listing, and the script would then report MISSING/HASH verdicts (or
+# empty-tree refusals) for an observation that had errored rather than refuse the errored
+# observation itself. A failed far-side stage now ends the listing; a missing, misplaced, or
+# duplicated trailer refuses the comparison (2026-11-10 checkup, dead remote guards).
+#
 # The three inputs are taken by ARGUMENT POSITION - manifest, remote size list, remote hash list - and
 # each is then checked against the role it was handed, never by matching the file name. It refuses,
 # rather than agreeing, when the manifest resolves to zero entries, when a line of $MANIFEST is not a
@@ -54,6 +62,28 @@ run_remote() {
   "$VERIFY_TRANSPORT" "$SSH_TARGET" "$1"
 }
 
+# Per-run observation-proof token (same scheme as transfer_build.sh): a listing line starts with 64
+# hex, this starts with letters, and the 40 hex bytes are drawn per run, so the trailer can never
+# collide with listing data by accident and can never be replayed from another run.
+_OBS_OK="MFG_OBS_OK_$( { printf '%s %s %s %s %s' "$$" "$PPID" "$RANDOM" "$RANDOM" "$(date +%s 2>/dev/null || echo 0)"; } | sha256sum | cut -c1-40 )"
+
+run_remote_obs() {   # <out file> <listing command>; 0 ok (trailer stripped), 1 far-side/transport failure,
+                     # 2 trailer found inside the listing data, 3 trailer missing or not the last line
+  # 'set -o pipefail' inside the far-side bash is the part that makes ssh's exit status mean
+  # "the listing happened": without it the transport reports the last pipeline stage's status, and a
+  # failing find/sort upstream of a content sort cannot change that status - the guard becomes dead
+  # code. The trailer is the second layer: proof the stream arrived whole, from a transport that
+  # already promised exit 0. Inner single quotes are re-quoted as the standard '\'' for the outer
+  # bash -c argument; REMOTE_DIR is guard-checked to contain no single quote.
+  _or_inner="set -o pipefail; $2 && printf '%s\\n' '$_OBS_OK'"
+  run_remote "bash -c '${_or_inner//\'/\'\\\'\'}'" > "$1" || return 1
+  _or_n=$(grep -Fxc -- "$_OBS_OK" "$1" 2>/dev/null || true)
+  _or_n=${_or_n:-0}
+  if [ "$_or_n" -gt 1 ]; then return 2; fi
+  if [ "$_or_n" -eq 0 ] || [ "$(tail -n 1 -- "$1")" != "$_OBS_OK" ]; then return 3; fi
+  sed '$d' "$1" > "$1.obs_stripped" && mv -f -- "$1.obs_stripped" "$1"
+}
+
 _sizes=$STAGE_DIR/_verify_sizes_remote.tsv
 _hashes=$STAGE_DIR/_verify_hashes_remote.txt
 mkdir -p -- "$STAGE_DIR"
@@ -63,8 +93,17 @@ mkdir -p -- "$STAGE_DIR"
 # Remote size list: bytes <TAB> ./path    (find -printf, relative to REMOTE_DIR)
 # Remote hash list:  sha256sum output, "64-hex  ./path"
 say "reading remote tree via $VERIFY_TRANSPORT $SSH_TARGET (cat/find/sha256sum only)"
-run_remote "cd '$REMOTE_DIR' && find . -type f -not -path './.lane_transfer/*' -printf '%s\t%p\n' | LC_ALL=C sort -t$'\t' -k2" > "$_sizes" || \
-  die "remote size listing failed (is REMOTE_DIR=$REMOTE_DIR there?)"
+_orc=0
+run_remote_obs "$_sizes" "cd '$REMOTE_DIR' && find . -type f -not -path './.lane_transfer/*' -printf '%s\t%p\n' | LC_ALL=C sort -t$'\t' -k2" || _orc=$?
+if [ "$_orc" -eq 1 ]; then
+  die "remote size listing failed (is REMOTE_DIR=$REMOTE_DIR there?) - a far-side cd/find/sort failure now ends the listing instead of hiding behind a successful sort"
+fi
+if [ "$_orc" -eq 2 ]; then
+  die "the remote size listing carries this run's observation-proof trailer ($_OBS_OK) more than once - proof and listing data cannot be told apart, so the comparison is refused rather than guessed"
+fi
+if [ "$_orc" -ne 0 ]; then
+  die "the remote size listing arrived without this run's observation-proof trailer ($_OBS_OK) as its last line - a listing that cannot prove it arrived whole is not a tree state: refusing to compare"
+fi
 # Both sides must hold something before anything may be called an agreement. Without these guards a
 # fresh or wiped REMOTE_DIR against an empty manifest produced 'totals manifest: 0 files, 0 bytes /
 # totals remote: 0 files, 0 bytes / result: 0 ok, 0 missing ...' and then the agree line: the one check
@@ -75,8 +114,17 @@ if [ ! -s "$_sizes" ]; then
   rm -f -- "$_sizes"
   die "the remote tree at $SSH_TARGET:$REMOTE_DIR has 0 files outside .lane_transfer - refusing: an empty remote tree is not an agreement with a manifest (is the transfer finished?)"
 fi
-run_remote "cd '$REMOTE_DIR' && find . -type f -not -path './.lane_transfer/*' -print0 | LC_ALL=C sort -z | xargs -0 sha256sum" > "$_hashes" || \
-  die "remote sha256 listing failed"
+_orc=0
+run_remote_obs "$_hashes" "cd '$REMOTE_DIR' && find . -type f -not -path './.lane_transfer/*' -print0 | LC_ALL=C sort -z | xargs -0 sha256sum" || _orc=$?
+if [ "$_orc" -eq 1 ]; then
+  die "remote sha256 listing failed - a far-side cd/find/sort/xargs/sha256sum failure now ends the listing instead of hiding behind the last stage's exit status"
+fi
+if [ "$_orc" -eq 2 ]; then
+  die "the remote sha256 listing carries this run's observation-proof trailer ($_OBS_OK) more than once - proof and listing data cannot be told apart, so the comparison is refused rather than guessed"
+fi
+if [ "$_orc" -ne 0 ]; then
+  die "the remote sha256 listing arrived without this run's observation-proof trailer ($_OBS_OK) as its last line - a listing that cannot prove it arrived whole is not a tree state: refusing to compare"
+fi
 if [ ! -s "$_hashes" ]; then
   rm -f -- "$_sizes" "$_hashes"
   die "the remote sha256 listing of $SSH_TARGET:$REMOTE_DIR came back empty while its size list was not - refusing to compare sizes against no hashes"

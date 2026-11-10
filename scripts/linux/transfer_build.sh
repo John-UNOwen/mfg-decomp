@@ -27,6 +27,16 @@
 # the real-run block for the guard this replaced). A chunked tar cannot resume a partial
 # chunk; it can only skip ones whose bytes it just looked at.
 #
+# And the look has to have happened. Every remote observation is a shell pipeline, and ssh answers
+# with the exit status of its LAST stage - before, a far-side find error or a killed sha256sum came
+# back exit 0 with a short or empty listing (the live promotion log carries an unattributed
+# 'find: ./Build: No such file or directory' between send lines over a clean exit), the
+# 'refusing to claim' guard could not fire, and send/skip lines quoted counts for an observation
+# that had errored. Each listing therefore now runs on the far side under 'bash -c' with
+# 'set -o pipefail', and a listing that completes closes with a per-run observation-proof trailer
+# line; a far-side failure or a missing/misplaced/duplicated trailer refuses the chunk instead of
+# claiming a tree state it never saw (2026-11-10 checkup, dead remote guards).
+#
 # The script never deletes anything remote. It issues no rm/unlink/truncate outside
 # its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR
 # values outright.
@@ -292,6 +302,67 @@ run_remote() {                             # run a command string on the remote 
   "$TRANSFER_TRANSPORT" "$SSH_TARGET" "$1"
 }
 
+# Per-run observation-proof token. A listing line is '<64hex>  <path>', so the first 64 bytes of any
+# real listing data are hex; this token starts with letters, and its 40 hex bytes are drawn per run,
+# so a trailer inside listing data cannot be confused with a different build's or run's trailer, and
+# the guard below can tell 'listing complete' from 'listing cut short' without trusting the exit
+# status of a transport that just promised it was fine. Defined before --dry-run because the plan a
+# dry run prints must be the exact command a real run of this invocation would execute.
+_OBS_OK="MFG_OBS_OK_$( { printf '%s %s %s %s %s' "$$" "$PPID" "$RANDOM" "$RANDOM" "$(date +%s 2>/dev/null || echo 0)"; } | sha256sum | cut -c1-40 )"
+
+remote_obs_command() {                     # chunk -> the EXACT far-side command run for it (--dry-run prints this)
+  if [ "$1" = '_root_files_' ]; then
+    _paths=''
+    while IFS= read -r _rf; do _paths="$_paths '$_rf'"; done < "$_rootfiles"
+  else
+    _paths="'./$1'"
+  fi
+  # Read-only: cd/test/printf/find/sort/xargs/sed/sha256sum - no deletion, no write. And deliberately
+  # NOT folded on the far side: the set to compare is the manifest's, not the subtree's, so the fold
+  # has to wait for the scope step below. 'xargs -0 -r' because a pruned chunk must list NOTHING, not
+  # hang: bare 'xargs -0 sha256sum' runs sha256sum with no operands on an empty list and it sits
+  # reading the ssh session's stdin (the verify_transfer.sh empty-tree hang class, checkup problem
+  # 53/64). The sed rewrites the two bytes after each hash to "  " so a sha256sum that marks its
+  # lines binary ("hash *path", Git-for-Windows) and one that leaves them text ("hash  path", Ubuntu)
+  # return the same lines - the comparison must not depend on which box hashed the files.
+  # A chunk the remote tree does not hold yet is not an error: it is the normal first-transfer state,
+  # and it must answer 'nothing here, send it'. So each chunk path is tested for existence on the far
+  # side FIRST and only the paths that exist are handed to find; an absent operand lists empty
+  # (exactly as the masked old form answered, but without find's stderr error line riding through the
+  # log unattributed). What still fails the listing - and after pipefail, fails it LOUDLY, where
+  # before a successful last stage hid it - is a path that exists and then breaks the walk: cd,
+  # find, sort, xargs, sha256sum or sed failing mid-observation on bytes they were asked to read.
+  # '-I{}' is what puts each path BEFORE find's expression - xargs appends its operands at the END
+  # of the command line by default, and GNU find refuses 'find -type f -print0 ./Build'.
+  # The whole listing runs under 'bash -c' with 'set -o pipefail': ssh (or the shim) reports the
+  # wrapper's status, and pipefail makes that status the first failed stage's instead of sed's -
+  # without it, a far-side find error or killed sha256sum answers exit 0 behind a happy sed and the
+  # guard at the call site is dead code. A listing that completes appends this run's trailer line as
+  # its LAST line; a far-side failure never prints it, and obs_require below refuses a listing whose
+  # trailer is missing, misplaced, or present inside the listing data.
+  _inner="set -o pipefail; cd '$REMOTE_DIR' && for _p in $_paths; do if [ -e \"\$_p\" ]; then printf '%s\\0' \"\$_p\"; fi; \
+done | xargs -0 -r -I{} find {} -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /' && printf '%s\\n' '$_OBS_OK'"
+  # Re-quote every single quote in the inner command as the standard '\'' so the outer single-quoted
+  # bash -c argument reassembles it byte for byte at the remote (or shim) shell - the path guard above
+  # is what makes the inner command's own single quotes safe to nest.
+  printf "bash -c '%s'" "${_inner//\'/\'\\\'\'}"
+}
+
+obs_require() {                            # chunk, lines-file -> strip this run's trailer line, or refuse the observation
+  _or_n=$(grep -Fxc -- "$_OBS_OK" "$2" 2>/dev/null || true)
+  _or_n=${_or_n:-0}
+  if [ "$_or_n" -eq 0 ]; then
+    die "cannot observe the remote copy of chunk '$1': the listing arrived without this run's observation-proof trailer ($_OBS_OK) as its last line - the transport answered success but the line a completed far-side listing always appends never came, so this is an observation that cannot prove it finished: refusing to claim anything about the chunk (a chunk is skipped only when its bytes on the remote were actually looked at)"
+  fi
+  if [ "$_or_n" -gt 1 ]; then
+    die "cannot observe the remote copy of chunk '$1': this run's observation-proof trailer ($_OBS_OK) appears $_or_n times in the listing - a trailer inside the listing data means the stream is not a listing this script can tell apart from corruption, so the observation is refused rather than guessed at"
+  fi
+  if [ "$(tail -n 1 -- "$2")" != "$_OBS_OK" ]; then
+    die "cannot observe the remote copy of chunk '$1': the observation-proof trailer is present but is not the LAST line of the listing - bytes were cut or inserted after it, so the listing cannot be trusted as an observation of the remote tree"
+  fi
+  sed '$d' "$2" > "$2.obs_stripped" && mv -f -- "$2.obs_stripped" "$2"
+}
+
 # ---------------------------- dry-run: show the plan and exit ----------------------------
 if [ $DRY_RUN = 1 ]; then
   printf '%s\n' \
@@ -313,8 +384,12 @@ if [ $DRY_RUN = 1 ]; then
     '' \
     '  per chunk, a real run does:' \
     "    payload digest = sha256 over this chunk's manifest lines written as '<file-sha256>  <./path>' (path order)" \
-    "    ssh \"\$SSH_TARGET\" \"cd '$REMOTE_DIR' && find ./<chunk> -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /'\"  > per-file lines the remote tree holds under ./<chunk>" \
-    '      -> the remote lists each file behind ./<chunk> as one "<sha256>  ./<path>" line (read-only: cd/find/sort/xargs/sed/sha256sum)' \
+    "    ssh \"\$SSH_TARGET\" \"$(remote_obs_command '<chunk>')\"  > per-file lines the remote tree holds under ./<chunk>" \
+    '      -> the remote lists each file behind ./<chunk> as one "<sha256>  ./<path>" line (read-only: cd/test/find/sort/xargs/sed/sha256sum),' \
+    "         under 'bash -c' with set -o pipefail so a far-side cd/find/sort/xargs/sed failure IS the listing's exit status (ssh only ever" \
+    "         reports the LAST pipeline stage's, and that stage cannot fail just because find did), and closed by this run's observation-proof" \
+    "         trailer '$_OBS_OK' as the last line: a failed far-side pipeline never prints it, and a listing without it - or with it inside the" \
+    '         listing data - is refused, never read as a tree state' \
     "      -> local side keeps only the lines for files this build's manifest lists for this chunk, then sha256s that set;" \
     '         a surplus remote file under ./<chunk> is not in the manifest set, so it stays out of the fold and the skip' \
     "      -> if that equals this build's payload digest: SKIP the chunk, 0 bytes sent - an observation of the tree," \
@@ -382,27 +457,12 @@ payload_lines_build() {                     # chunk -> this build's lines for it
 }
 
 remote_chunk_lines() {                      # chunk -> "file-sha256  ./path" for every file the remote has behind it
-  if [ "$1" = '_root_files_' ]; then
-    _paths=''
-    while IFS= read -r _rf; do _paths="$_paths '$_rf'"; done < "$_rootfiles"
-  else
-    _paths="'./$1'"
-  fi
-  # Read-only: cd/find/sort/xargs/sed/sha256sum - no deletion, no write. And deliberately NOT folded on
-  # the far side: the set to compare is the manifest's, not the subtree's, so the fold has to wait for
-  # the scope step below. 'xargs -0 -r' because a pruned chunk must list NOTHING, not hang: bare
-  # 'xargs -0 sha256sum' runs sha256sum with no operands on an empty list and it sits reading the ssh
-  # session's stdin (the verify_transfer.sh empty-tree hang class, checkup problem 53/64). The sed
-  # rewrites the two bytes after each hash to "  " so a sha256sum that marks its lines binary
-  # ("hash *path", Git-for-Windows) and one that leaves them text ("hash  path", Ubuntu) return the same
-  # lines - the comparison must not depend on which box hashed the files.
   # The transport call runs INSIDE the chunk loop, whose stdin is the chunk list: an ssh with an
   # inherited stdin reads that list to the end and closes it, so the loop died after the first
   # chunk and every real run shipped 1 of 4 chunks under a clean 'transfer done' (observed
   # 2026-11-09 promoting D759A911DF0C; the ssh-shim fixtures never caught it - a bash shim
   # doesn't consume stdin the way ssh does). Hold the transport's stdin shut.
-  run_remote "cd '$REMOTE_DIR' && find $_paths -type f -print0 | LC_ALL=C sort -z | \
-xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /'" </dev/null
+  run_remote "$(remote_obs_command "$1")" </dev/null
 }
 
 chunk_scope() {                             # build-lines file, remote-lines file -> "seen differ"; scoped lines -> $3
@@ -430,6 +490,7 @@ while IFS= read -r _cn; do
   _ph=$(sha256sum < "$_build_lines" | cut -d' ' -f1)
   remote_chunk_lines "$_cn" > "$_remote_lines" || \
     die "cannot observe the remote copy of chunk '$_cn' via $TRANSFER_TRANSPORT: refusing to claim anything about it - a chunk is skipped only when its bytes on the remote were actually looked at"
+  obs_require "$_cn" "$_remote_lines"
   : > "$_scoped_lines"
   _scope=$(chunk_scope "$_build_lines" "$_remote_lines" "$_scoped_lines") || \
     die "could not scope the remote listing of chunk '$_cn' against this build's manifest - refusing to guess: a chunk is skipped only when its bytes on the remote were actually looked at"

@@ -159,6 +159,28 @@
 # interrupted run is truncated by the next upload; nothing reads it, and verify_transfer.sh's tree scan already
 # excludes the in-tree '.lane_transfer' leftovers of the trees this bookkeeping move replaced.
 #
+# And the tree that ships has to be the tree the manifest describes. A run reads its local tree five
+# separate times - manifest hashes, manifest sizes, the chunk directory list, the top-level file list, and
+# the per-chunk tars staged one by one inside the loop - and every one of those reads sees whatever the
+# tree holds at that instant. When the tree is a finished build that is the same tree every time; when a
+# build job is still writing, it is not, and what ships is a mix of generations under a manifest describing
+# neither: the repro (2026-11-10 checkup) rewrote Build/l.js after that chunk's tar had staged, and the run
+# closed 'transfer done' with the pre-change manifest published - every tar held bytes from one generation,
+# the manifest from another. The only drift guard this replaces was the zero-chunk refusal after the loop:
+# it catches the one case where the tree changed enough to break the chunk enumeration, and nothing else -
+# a content rewrite leaves the enumeration intact, so sent + skipped still equals the enumerated count, the
+# denominator guard agrees, and a mixed run closes clean. So the shape of the tree is now captured where
+# the manifest is final - one sha256 per top-level entry over the sorted '<type> <bytes> <mtime> <path>'
+# metadata of every entry under it (a metadata walk: find + sort + sha256sum, never a second hashing of
+# file contents) - and re-captured after the loop, immediately before the manifest upload: any entry whose
+# fingerprint differs, appears, or disappears is drift, and the run dies naming the entries instead of
+# publishing a manifest the tree has already outgrown. What this refuses is a build still writing during
+# its own transfer - size, mtime or the path set moving is the signature - and the same-size
+# same-mtime-different-bytes rewrite sits outside what any metadata walk can see; this is the guard's
+# stated limit, the honest one for a machine racing its own transfer. The fingerprint files live in
+# STAGE_DIR (_tree_fp.txt / _tree_fp.check.txt), are deleted on a clean re-check, and stay behind (like
+# every other refusal) for the run that dies, where the two files are the diff evidence.
+#
 # The script never deletes anything remote - but it does overwrite, and overwriting needs no
 # delete to destroy bytes: every chunk lands as 'tar -xf - -C REMOTE_DIR', replacing each file
 # the stream reaches as it arrives. A run that completes is a convergence - every file this
@@ -515,6 +537,34 @@ say "manifest: $_mfiles files, $_mbytes bytes -> $MANIFEST"
 # or a single transport command runs, so a refusal stages nothing and sends nothing.
 if [ "$_mfiles" -eq 0 ]; then
   die "no build files under LOCAL_BUILD_DIR=$LOCAL_BUILD_DIR (0 files) - refused: nothing staged, nothing sent, no manifest uploaded (the directory exists, and that is all [ -d ] can prove; an empty tree is a build cleaned out of this path or renamed away from it, not a build to ship - re-run with LOCAL_BUILD_DIR at the tree holding index.html, Build/, StreamingAssets/ and TemplateData/)"
+fi
+
+# ---------------------------- mid-run drift fingerprints ----------------------------
+# Header ('the tree that ships has to be the tree the manifest describes') carries the why; this is the
+# where and the what. Captured here - the moment the manifest is final - and re-checked after the chunk
+# loop, immediately before the manifest upload. One fingerprint per top-level entry of the tree: the sha256
+# over that entry's sorted '<type>\t<bytes>\t<mtime>\t<path>' metadata walk (the entry itself plus every
+# entry under it). A metadata walk, never a second hashing of file contents: what this guards is a build
+# job still writing while its own transfer runs, and writes move sizes, mtimes and the path set - that is
+# what the fingerprint sees, for a whole-tree find pass, not another read of every byte.
+# '-mindepth 1' on the enumeration so a '.' self-entry can never fold into a fingerprint; the operand of
+# the subtree walk is printed as './<name>' and its paths print as './<name>/...', so the same bytes hash
+# however the invocation was spelled. The name printed is the entry with './' stripped, which is also the
+# name the drift report uses.
+_tree_fp=$STAGE_DIR/_tree_fp.txt
+tree_fingerprints() {                     # LOCAL_BUILD_DIR -> '<entry>\t<sha256>' per top-level entry
+  (
+    cd "$LOCAL_BUILD_DIR"
+    find . -mindepth 1 -maxdepth 1 | LC_ALL=C sort | while IFS= read -r _e; do
+      _fp=$(find "$_e" -printf '%y\t%s\t%T@\t%p\n' | LC_ALL=C sort | sha256sum | cut -d' ' -f1) || return 1
+      printf '%s\t%s\n' "${_e#./}" "$_fp"
+    done
+  )
+}
+# Real runs only: a --dry-run stages nothing, sends nothing and publishes no manifest, so there is no
+# upload to re-check against and the walk would cost every dry run a full extra tree scan for nothing.
+if [ $DRY_RUN = 0 ]; then
+  tree_fingerprints > "$_tree_fp" || die "the local tree fingerprint snapshot could not be taken under LOCAL_BUILD_DIR=$LOCAL_BUILD_DIR - refusing to start a transfer whose drift it could not later prove against: nothing was staged beyond the manifest, no transport command ran, the destination is untouched"
 fi
 
 # ---------------------------- chunk list ----------------------------
@@ -1106,6 +1156,29 @@ fi
 if [ $((sent + skipped)) -ne "$_expected_chunks" ]; then
   die "looked at $((sent + skipped)) of $_expected_chunks chunks - refused, no 'transfer done' line and no manifest upload: the chunk list enumerated $_expected_chunks chunk(s) and this run sent $sent + skipped $skipped = $((sent + skipped)) of them, so it ended before every chunk had been looked at; a truncated run is neither a transfer nor a convergence (find why the run ended early, then re-run it - the next run re-observes every chunk from the tree)"
 fi
+
+# The mid-run drift re-check (header 'the tree that ships has to be the tree the manifest describes'):
+# the last look at the local tree before its manifest becomes the truth path. The chunk loop just spent
+# minutes observing the remote and streaming tars; a build job that kept writing through any of that
+# produced a tree the manifest - hashed at the top of this run, and every tar staged mid-loop from the
+# live tree - no longer describes. Drift here therefore refuses the PUBLISH and the done line: the remote
+# tree holds what this run sent (a rerun re-observes and re-sends whatever differs from the new build),
+# and $MANIFEST_DST_REMOTE keeps the manifest of the tree that is actually there - the one lie this guard
+# forecloses is a manifest for generation A over a remote holding generation B's bytes.
+_tree_fp_check=$STAGE_DIR/_tree_fp.check.txt
+tree_fingerprints > "$_tree_fp_check" || \
+  die "the local tree fingerprint could not be re-taken under LOCAL_BUILD_DIR=$LOCAL_BUILD_DIR - an unfinished tree is being read while its own transfer ends, so this run refuses to publish what it cannot prove matches: no 'transfer done' line, no manifest upload; $MANIFEST_DST_REMOTE still holds the previous manifest (nothing on it yet, on a first transfer)"
+if ! cmp -s -- "$_tree_fp" "$_tree_fp_check"; then
+  _drifted=$(awk -F'\t' '
+    NR==FNR { snap[$1] = $2; next }
+    { if (!($1 in snap)) { print $1 " (appeared)"; next }
+      if (snap[$1] != $2) print $1 " (changed)"
+      delete snap[$1] }
+    END { for (e in snap) print e " (gone)" }
+  ' "$_tree_fp" "$_tree_fp_check" | LC_ALL=C sort | head -n 12 | tr '\n' ';' | sed 's/;$//')
+  die "the build tree changed mid-run - the manifest this run published would describe bytes the tree no longer holds (entries: $_drifted): no 'transfer done' line and no manifest upload, $MANIFEST_DST_REMOTE still holds the previous manifest (nothing on it yet, on a first transfer); the chunks already sent stay on the target (the next run re-observes every one and re-sends whatever the finished build changes) - wait for the build to finish, then re-run; the two fingerprint files ($STAGE_DIR/_tree_fp.txt vs $STAGE_DIR/_tree_fp.check.txt) show the before/after"
+fi
+rm -f -- "$_tree_fp" "$_tree_fp_check"
 
 # STAGE_DIR must not become a second copy of the tree. Every tar this loop staged for a SEND is already
 # gone (deleted above, at the confirmed send), so anything still matching the chunk-tar namespace here

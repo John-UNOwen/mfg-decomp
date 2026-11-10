@@ -64,6 +64,20 @@
 # promotion is a corrupt destination. --skip-space-check / SKIP_SPACE_CHECK=1 opts out for the operator who measured the
 # fit by hand (the honest case: a converged rerun that sends 0 bytes over a nearly-full target fs).
 #
+# And what a run writes down about its own sends has to be true. $STAGE_DIR/chunk_hashes.tsv is history of what was
+# SENT, and it is read by nothing: the skip decision is an observation of the remote tree (above), and verify_transfer.sh
+# and swap_webroot.sh read manifest.tsv only. Two things made it lie. Its line was appended BEFORE the transport call, at
+# the moment of intent, so a chunk whose stream died was recorded as sent on the machine that staged the tar - a mid-tar
+# death closed exit 1 with a local ledger naming the dead chunk's tar, a remote ledger that never saw that line, and a
+# tree holding only the chunks that had actually landed. And the file was truncated at run start (': > "$CHUNK_HASHES"'
+# where the ledger is opened now), so the history it exists to be was destroyed by every rerun before that rerun had sent
+# a byte: the run that finally shipped the interrupted chunk wiped the honest record of the chunks that HAD landed, and
+# the local and remote ledgers were left permanently disagreeing about what shipped. So the local line is appended only
+# after the tar streamed to the end AND the remote acknowledged its copy of the line - the two ledgers can then only agree
+# or be missing the same line, never claim different ones - and nothing truncates the file: every line carries a per-run
+# tag as its first field, '<UTC-stamp>\t<tar-sha256>\t<tar-name>', so runs stack up as one history instead of the last run
+# replacing them. The file must stay history-only: no decision in this script reads it, and none may start to.
+#
 # The script never deletes anything remote. It issues no rm/unlink/truncate outside
 # its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR
 # values outright.
@@ -101,8 +115,9 @@
 #                       after the rename, so nothing ever removed it: every promotion left a second full
 #                       copy of the tree in STAGE_DIR for an operator to delete by hand). The peak is
 #                       now one chunk, not the whole build. A send that died mid-transfer keeps its tar;
-#                       the documented rerun re-stages it anyway. manifest.tsv and chunk_hashes.tsv are
-#                       bookkeeping (verify_transfer.sh and swap_webroot.sh read them) and are never swept.
+#                       the documented rerun re-stages it anyway. manifest.tsv is bookkeeping
+#                       (verify_transfer.sh and swap_webroot.sh read it) and chunk_hashes.tsv is the
+#                       append-only history of confirmed sends (read by nothing); neither is ever swept.
 #   KEEP_TARS           1, or the --keep-tars flag: delete no chunk tar - neither after a confirmed send
 #                       nor at the end-of-run sweep. Forensics by request: this puts the second full copy
 #                       of the tree back on disk, and the output says so on every send and at the close.
@@ -129,7 +144,9 @@
 #
 # Manifests (format documented in verify_transfer.sh):
 #   $STAGE_DIR/manifest.tsv        sha256 <TAB> bytes <TAB> ./path    (local truth; also the source of the payload digests)
-#   $STAGE_DIR/chunk_hashes.tsv    sha256 <TAB> chunk-tar-name        (the chunk tars SENT this run, local record)
+#   $STAGE_DIR/chunk_hashes.tsv    run <TAB> chunk-tar-sha256 <TAB> chunk-tar-name   (what was SENT, across runs; a line
+#                       is appended only after that chunk's tar streamed to the end and the remote ledger append of the
+#                       same line succeeded, and the file is never truncated - local record of the remote ledger below)
 #   $REMOTE_DIR/.lane_transfer/    manifest uploaded + sent-ledger appended, both by this script;
 #                                  the remote ledger is what-was-sent history and never decides a skip
 #
@@ -366,6 +383,14 @@ run_remote() {                             # run a command string on the remote 
 # dry run prints must be the exact command a real run of this invocation would execute.
 _OBS_OK="MFG_OBS_OK_$( { printf '%s %s %s %s %s' "$$" "$PPID" "$RANDOM" "$RANDOM" "$(date +%s 2>/dev/null || echo 0)"; } | sha256sum | cut -c1-40 )"
 
+# Per-run ledger tag: the first field of every $CHUNK_HASHES line this run writes. The sent-ledger stacks runs up
+# instead of replacing them (header, 'what a run writes down'), so a line has to say which run it came from or the
+# history is unreadable. UTC to the second, because the ledger is read by a human comparing it against the remote
+# one; the fallback keeps the line valid on a box where 'date' is not there to be asked (same allowance the token
+# above makes). Defined before --dry-run so the plan prints the tag a real run of this invocation would write.
+_RUN_TAG=$(date -u '+%Y%m%dT%H%M%SZ' 2>/dev/null || true)
+[ -n "$_RUN_TAG" ] || _RUN_TAG="run$$-${RANDOM:-0}${RANDOM:-0}"
+
 remote_obs_command() {                     # chunk -> the EXACT far-side command run for it (--dry-run prints this)
   if [ "$1" = '_root_files_' ]; then
     _paths=''
@@ -476,6 +501,9 @@ if [ $DRY_RUN = 1 ]; then
     "    ( cd '$LOCAL_BUILD_DIR' && tar $TAR_FLAG -cf '$STAGE_DIR/<tar>' -- <members> )" \
     "    ssh \"\$SSH_TARGET\" \"tar $TAR_FLAG -xf - -C '$REMOTE_DIR'\" < '$STAGE_DIR/<tar>'" \
     "    printf '<tar-sha256>\\t<tar>\\n' | ssh \"\$SSH_TARGET\" \"cat >> '$REMOTE_DIR/.lane_transfer/chunk_hashes'\"  # records what was SENT; never decides a skip" \
+    "    printf '$_RUN_TAG\\t<tar-sha256>\\t<tar>\\n' >> '$STAGE_DIR/chunk_hashes.tsv'   # only after both lines above succeeded: the local" \
+    "      ledger never carries a chunk whose bytes did not land, and it is append-only history across runs (run tag first)" \
+    "      - a rerun adds to it, it never truncates what earlier runs wrote" \
     "    rm '$STAGE_DIR/<tar>'   # right after the send is confirmed, so STAGE_DIR never holds a second full copy of the tree" \
     "      (a failed send keeps its tar for the rerun; --keep-tars / KEEP_TARS=1 keeps every tar for forensics;" \
     "       a run that completes also sweeps chunk__*.tar* leftovers of earlier runs - a chunk that now skips" \
@@ -523,14 +551,26 @@ else
 fi
 
 run_remote "mkdir -p '$REMOTE_DIR/.lane_transfer'" || die "remote mkdir -p '$REMOTE_DIR/.lane_transfer' failed"
-: > "$CHUNK_HASHES"
+
+# The sent-ledger is opened here and nothing else: the line this replaces (': > "$CHUNK_HASHES"' at this spot before
+# the fix) truncated the file at run start, which destroyed the record of earlier runs before this run had sent a byte
+# - and destroyed it even when the run then skipped everything or died, so one wrong LOCAL_BUILD_DIR cost the operator
+# the only local history of what had shipped. The file is append-only history across runs (header), its first field is
+# this run's tag, and a line appears only at that chunk's confirmed send below. So a run that sends nothing now leaves
+# the history exactly as it found it, and the file itself is created by the first confirmed send.
+if [ -s "$CHUNK_HASHES" ]; then
+  say "sent-ledger: $CHUNK_HASHES keeps $(awk 'END { print NR+0 }' "$CHUNK_HASHES") line(s) of history from earlier runs - this run appends to it, never truncates it, and writes a line only for a chunk whose tar finished streaming AND whose remote ledger append succeeded"
+else
+  say "sent-ledger: no history in $CHUNK_HASHES yet - this run creates it at the first confirmed send (a line is written only after that chunk's tar finished streaming and its remote ledger append succeeded)"
+fi
 
 # A chunk may be skipped only on what the remote tree holds NOW - an observation - never on what a
 # past run of this script wrote down. The block this replaces (transfer_build.sh:284-299 before the
 # fix) read $REMOTE_DIR/.lane_transfer/chunk_hashes and grepped it for "<tar-sha256>\t<name>". That
 # ledger is append-only history: the line proves a tar was streamed here once, never that its files
-# survived there afterwards, and nothing in the kit ever rewrites or prunes it (the only truncation
-# is the LOCAL copy's ': > "$CHUNK_HASHES"' above). Rebuild to B, transfer, revert the build to A
+# survived there afterwards, and nothing in the kit ever rewrites or prunes it (the LOCAL copy used to
+# be truncated at every run start; it is append-only history with a per-run tag now, so neither ledger
+# is ever opened for writing over what the previous run left). Rebuild to B, transfer, revert the build to A
 # (or share one STAGE_DIR across two builds): the run for A read A's old line out of the history,
 # printed "already complete on the remote", sent 0 bytes, and left B's bytes in the tree the lane
 # would serve - the exact 2026-11-08 checkup problem 20/48, and checkup hypothesis (e) of 2026-11-06
@@ -617,7 +657,6 @@ while IFS= read -r _cn; do
   fi
   stage_chunk "$_cn"
   _hash=$(sha256sum "$STAGE_DIR/$_tn" | cut -d' ' -f1)
-  printf '%s\t%s\n' "$_hash" "$_tn" >> "$CHUNK_HASHES"
   set -- $(chunk_stats "$_cn")
   say "send  $_cn: files=$1 bytes=$2 tar=$_tn sha256=$_hash (of the $_cnfiles files this chunk's manifest lists the remote holds $_rseen, $_rdiff of them with other bytes -> payload fold $_rh differs from build payload $_ph; a file the build no longer lists is not counted here - this script never deletes remote files, and verify_transfer.sh reports those as EXTRA)"
   if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "tar $TAR_FLAG -xf - -C '$REMOTE_DIR'" < "$STAGE_DIR/$_tn"; then
@@ -625,6 +664,15 @@ while IFS= read -r _cn; do
   fi
   if ! printf '%s\t%s\n' "$_hash" "$_tn" | run_remote "cat >> '$REMOTE_DIR/.lane_transfer/chunk_hashes'"; then
     die "chunk '$_cn' landed on the remote, but its sent-ledger line could not be appended: the bytes are there (the next run will observe them and skip), only the what-was-sent record is missing"
+  fi
+  # The local sent-ledger line comes last, after both facts it records: the tar streamed to the end and the remote
+  # acknowledged its copy of this line. Where it sat before the fix - ahead of the transport call, written at the moment
+  # of intent - a chunk whose stream died left this machine's ledger claiming bytes that never landed: mid-tar death,
+  # exit 1, a local line naming the dead chunk's tar, a remote ledger without it and a tree holding only the chunks that
+  # had actually arrived. The two files are now either in step or missing the same line. Nothing reads either to decide
+  # a skip (header), so the only thing a line here is worth is being true.
+  if ! printf '%s\t%s\t%s\n' "$_RUN_TAG" "$_hash" "$_tn" >> "$CHUNK_HASHES"; then
+    die "chunk '$_cn' landed on the remote and its remote sent-ledger line is written, but the local ledger line could not be appended to $CHUNK_HASHES: the transfer itself is fine (the next run will observe the bytes and skip) and only this machine's copy of that what-was-sent line is missing"
   fi
   # The send is confirmed (transport ok + ledger line appended): the local tar is now a duplicate of
   # bytes the remote tree holds, and no future skip can ever depend on it (the skip decision is an
@@ -686,7 +734,7 @@ else
     fi
   done < <(find "$STAGE_DIR" -maxdepth 1 -type f -name 'chunk__*' \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tar.zst' \) -printf '%s\t%p\0' 2>/dev/null)
   if [ "$_pruned" -gt 0 ]; then
-    say "stage: pruned $_pruned stale chunk tar(s) ($_pruned_bytes bytes) from $STAGE_DIR - leftovers of earlier runs: a chunk that now skips, or a chunk name the build renamed or dropped; this run's sent tars were already deleted at their confirmed sends, and manifest.tsv/chunk_hashes.tsv stay (verify_transfer.sh and swap_webroot.sh read them)"
+    say "stage: pruned $_pruned stale chunk tar(s) ($_pruned_bytes bytes) from $STAGE_DIR - leftovers of earlier runs: a chunk that now skips, or a chunk name the build renamed or dropped; this run's sent tars were already deleted at their confirmed sends, and manifest.tsv/chunk_hashes.tsv stay (verify_transfer.sh reads the manifest; the sent-ledger is what-was-sent history that decides nothing)"
   fi
 fi
 
@@ -709,4 +757,13 @@ if [ $sent -eq 0 ] && [ $skipped -gt 0 ]; then
   say "nothing was re-sent: 0 bytes went over the transport - every skipped chunk's payload was hashed on the remote this run and matched this build"
 fi
 say "local manifest: $_mfiles files, $_mbytes bytes (see $MANIFEST)"
+# The count is guarded rather than asked of a possibly-absent file: on an all-skip run nothing was written, so there is
+# no ledger to read, and how awk treats a missing input file (END run or not, exit status) is not something this line
+# should depend on.
+if [ -f "$CHUNK_HASHES" ]; then
+  _ledger_lines=$(awk 'END { print NR+0 }' "$CHUNK_HASHES")
+else
+  _ledger_lines=0
+fi
+say "sent-ledger: $CHUNK_HASHES now holds $_ledger_lines line(s), $sent of them written by this run at its confirmed sends - append-only history, never read to decide a skip"
 say "confirm it for real with: VERIFY_TRANSPORT=... scripts/linux/verify_transfer.sh"

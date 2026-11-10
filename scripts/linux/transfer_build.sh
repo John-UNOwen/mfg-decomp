@@ -78,6 +78,24 @@
 # tag as its first field, '<UTC-stamp>\t<tar-sha256>\t<tar-name>', so runs stack up as one history instead of the last run
 # replacing them. The file must stay history-only: no decision in this script reads it, and none may start to.
 #
+# And what a run leaves in the bookkeeping dir has to be whole. $REMOTE_DIR/.lane_transfer/manifest.tsv is the file the
+# readers after this run treat as truth: the KB delta procedure diffs against it and verify_transfer.sh agrees with
+# whatever sits at that path. The form this replaces shipped it with 'cat >' straight onto that path - a write that
+# TRUNCATES the file on the far side before a single byte arrives, streams into it, and leaves the local side watching
+# only the transport's exit status, a status that cannot see a cut stream (the same class the pipefail pass killed for
+# the listings, never once asked of this write): an offline repro cut the upload to 10 bytes of a 337-byte manifest,
+# the transport answered 0, 'transfer done:' printed, and the truth path held 10 bytes of one manifest line - which
+# verify_transfer.sh then agreed with, because agreement between two files says nothing about the bytes a third held.
+# So the upload now lands in manifest.tsv.tmp, the landed copy is measured ON the target ('bash -c' with 'set -o
+# pipefail': wc -c and sha256sum; the answer is re-read HERE and compared against the local file this script wrote -
+# the expected numbers never leave this machine, so a short or mangled answer lands on the refusal side wherever it
+# was cut), and only a byte-for-byte AND hash-equal tmp is renamed onto the manifest path. A rename inside
+# .lane_transfer is atomic, so a reader ever sees the previous whole manifest or this run's whole manifest, never a
+# half-written one, and a cut or corrupted stream can only ever refuse: the canonical path is not opened for writing
+# until a verified complete copy of this run's manifest already exists beside it. A stale manifest.tsv.tmp of an
+# interrupted run is truncated by the next upload; nothing reads it, and verify_transfer.sh's tree scan already
+# excludes .lane_transfer.
+#
 # The script never deletes anything remote. It issues no rm/unlink/truncate outside
 # its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR
 # values outright.
@@ -147,7 +165,9 @@
 #   $STAGE_DIR/chunk_hashes.tsv    run <TAB> chunk-tar-sha256 <TAB> chunk-tar-name   (what was SENT, across runs; a line
 #                       is appended only after that chunk's tar streamed to the end and the remote ledger append of the
 #                       same line succeeded, and the file is never truncated - local record of the remote ledger below)
-#   $REMOTE_DIR/.lane_transfer/    manifest uploaded + sent-ledger appended, both by this script;
+#   $REMOTE_DIR/.lane_transfer/    manifest published there (uploaded to manifest.tsv.tmp, measured on the
+#                                  target, and renamed onto manifest.tsv only when bytes+sha256 match the
+#                                  local manifest) + sent-ledger appended, both by this script;
 #                                  the remote ledger is what-was-sent history and never decides a skip
 #
 # Assumptions: build file names contain no newlines (Unity output satisfies this).
@@ -261,6 +281,13 @@ mkdir -p -- "$STAGE_DIR"
 MANIFEST=$STAGE_DIR/manifest.tsv
 CHUNK_HASHES=$STAGE_DIR/chunk_hashes.tsv
 CHUNK_LIST=$STAGE_DIR/chunks.txt
+
+# The two remote bookkeeping paths the manifest publish touches, defined once: the upload opens ONLY the tmp for
+# writing, and the manifest path - the file the KB delta procedure and verify_transfer.sh read as truth - is reached
+# by exactly one rename of a verified-complete tmp (header 'what a run leaves in the bookkeeping dir has to be whole').
+# Both are embedded in single-quoted remote commands, which the REMOTE_DIR quote guard above is what makes safe.
+MANIFEST_TMP_REMOTE=$REMOTE_DIR/.lane_transfer/manifest.tsv.tmp
+MANIFEST_DST_REMOTE=$REMOTE_DIR/.lane_transfer/manifest.tsv
 
 # ---------------------------- manifest: every file, sha256 + size ----------------------------
 say "building manifest from $LOCAL_BUILD_DIR (reads every file)"
@@ -458,6 +485,21 @@ remote_avail_command() {                     # -> the EXACT far-side free-space 
   printf "bash -c '%s'" "${_inner//\'/\'\\\'\'}"
 }
 
+# The far-side measure of the just-uploaded manifest tmp: '<bytes> <sha256>' on one line. 'bash -c' + 'set -o
+# pipefail' for the reason every other far-side call carries it - the transport reports the LAST stage's status, and
+# a failing wc/sha256sum must not ride through behind a happy printf. The number is stripped to [0-9] and the hash
+# cut to its first 64 bytes, so a sha256sum marking its line binary ("hash *path", Git-for-Windows) and one leaving
+# it text ("hash  path", Ubuntu) answer identically. NOTHING is compared on the far side: the expected bytes and
+# hash live in this script, which wrote the local file, and the comparison at the publish site refuses unless the
+# answer equals them exactly - so an answer that was cut, mangled, or measured a file that is not there can only
+# land on the refusal side.
+remote_manifest_probe_command() {              # -> the EXACT far-side tmp-measure command a real run uses
+  _inner="set -o pipefail; _f='$MANIFEST_TMP_REMOTE'; _n=\$(wc -c < \"\$_f\") || exit 1; _h=\$(sha256sum \"\$_f\") || exit 1; printf '%s %s\\n' \"\${_n//[!0-9]/}\" \"\${_h:0:64}\""
+  # Same single-quote reassembly as remote_obs_command: the quote guard is what makes the embedded
+  # single quotes around the remote path safe to nest inside the outer single-quoted bash -c argument.
+  printf "bash -c '%s'" "${_inner//\'/\'\\\'\'}"
+}
+
 # ---------------------------- dry-run: show the plan and exit ----------------------------
 if [ $DRY_RUN = 1 ]; then
   printf '%s\n' \
@@ -509,7 +551,11 @@ if [ $DRY_RUN = 1 ]; then
     "       a run that completes also sweeps chunk__*.tar* leftovers of earlier runs - a chunk that now skips" \
     "       or a chunk name the build renamed or dropped - and never touches manifest.tsv or chunk_hashes.tsv)" \
     '' \
-    "  finally: upload the manifest -> $REMOTE_DIR/.lane_transfer/manifest.tsv" \
+    "  finally, publish the manifest: upload it to $MANIFEST_TMP_REMOTE, measure it there" \
+    "    ($(remote_manifest_probe_command))," \
+    '    refuse unless bytes + sha256 equal this run'"'"'s local manifest, then mv -f it onto the manifest path' \
+    "    (same-dir rename, atomic: $MANIFEST_DST_REMOTE - the file the KB delta procedure reads as truth - is" \
+    '    never opened for writing until a verified whole copy of this run'"'"'s manifest already exists beside it)' \
     "  manifest written for this dry run: $MANIFEST ($_mfiles files, $_mbytes bytes)" \
     '  NOTE: an interrupted chunk is NOT resumable mid-tar; the next run re-sends' \
     '        that whole chunk. A chunk is skipped only after the remote files behind it are hashed.' \
@@ -738,9 +784,38 @@ else
   fi
 fi
 
-if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "cat > '$REMOTE_DIR/.lane_transfer/manifest.tsv'" < "$MANIFEST"; then
-  die "upload of manifest.tsv to the remote bookkeeping dir failed"
+# The manifest publish, ordered like a publish and not like a write (header 'what a run leaves in the bookkeeping dir
+# has to be whole'): land the bytes in the tmp, measure the landed copy ON the target, compare it HERE against the
+# local file this run wrote, and rename onto the manifest path only a proven-equal tmp. The canonical path is never
+# truncated or streamed into, so the KB delta procedure and verify_transfer.sh can only ever see a whole previous
+# manifest or this run's whole manifest - the repro's cut upload (10 landed bytes of a 337-byte manifest, transport
+# exit 0) now dies here naming both measurements, with the previous manifest still in place and this run's chunk
+# transfers untouched. Every refusal says what the reader still sees and what the documented rerun does.
+_manifest_bytes=$(wc -c < "$MANIFEST") || \
+  die "the local manifest $MANIFEST could not be measured (wc -c answered failure) - refusing to publish an unmeasurable manifest: nothing was uploaded, the remote bookkeeping dir is untouched"
+case $_manifest_bytes in
+  ''|*[!0-9]*) die "the local manifest $MANIFEST could not be measured (wc -c answered '$_manifest_bytes', not a number) - refusing to publish an unmeasurable manifest: nothing was uploaded, the remote bookkeeping dir is untouched" ;;
+esac
+_manifest_sha=$(sha256sum < "$MANIFEST" | cut -d' ' -f1)
+if [ ${#_manifest_sha} -ne 64 ]; then
+  die "the local manifest $MANIFEST could not be hashed (sha256sum answered '$_manifest_sha') - refusing to publish an unhashable manifest: nothing was uploaded, the remote bookkeeping dir is untouched"
 fi
+if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "cat > '$MANIFEST_TMP_REMOTE'" < "$MANIFEST"; then
+  die "upload of manifest.tsv to '$MANIFEST_TMP_REMOTE' failed - '$MANIFEST_DST_REMOTE' was NOT replaced and still holds the previous manifest (nothing there yet, on a first transfer); the documented rerun re-observes the chunks, re-uploads, and publishes when the upload lands whole"
+fi
+_landed=$(run_remote "$(remote_manifest_probe_command)" </dev/null) || \
+  die "the uploaded manifest at '$MANIFEST_TMP_REMOTE' could not be measured on the target ($TRANSFER_TRANSPORT answered failure) - it is therefore NOT published: '$MANIFEST_DST_REMOTE' still holds the previous manifest; the rerun re-uploads and re-measures"
+case $_landed in
+  ''|*[!0-9a-f[:space:]]*) die "the measurement of '$MANIFEST_TMP_REMOTE' came back unparseable ('$_landed', want '<bytes> <sha256>') - an answer this script cannot compare is treated as an upload it cannot prove, so the manifest is NOT published: '$MANIFEST_DST_REMOTE' still holds the previous manifest" ;;
+esac
+set -- $_landed
+if [ "$1" != "$_manifest_bytes" ] || [ "$2" != "$_manifest_sha" ]; then
+  die "the manifest that landed at '$MANIFEST_TMP_REMOTE' is not the manifest this run wrote: local $MANIFEST is $_manifest_bytes bytes / sha256 $_manifest_sha, the target measures '$1' bytes / sha256 $2 - the upload was cut or corrupted mid-stream and the publish is refused: '$MANIFEST_DST_REMOTE' still holds the previous manifest, this run's chunk transfers are unaffected, and the rerun re-observes them and re-uploads"
+fi
+if ! run_remote "mv -f -- '$MANIFEST_TMP_REMOTE' '$MANIFEST_DST_REMOTE'" </dev/null; then
+  die "renaming the verified manifest onto '$MANIFEST_DST_REMOTE' failed - the target kept the manifest it had (the rename is the only step that touches that path); the verified complete copy is left at '$MANIFEST_TMP_REMOTE' for inspection and the rerun re-uploads"
+fi
+say "manifest published: $MANIFEST_DST_REMOTE - the uploaded copy was measured on the target ($_manifest_bytes bytes, sha256 $_manifest_sha) and matched this run's local manifest before the atomic rename put it in place"
 
 say "transfer done: $sent chunk(s) sent ($bytes_sent payload bytes moved), $skipped chunk(s) skipped on an observation of the remote tree - $sent sent + $skipped skipped = $((sent + skipped)) of $_expected_chunks chunk(s) enumerated, every one of them looked at"
 # The second number the promotion proof needs beside the first: the skip fold scoped the remote listing to

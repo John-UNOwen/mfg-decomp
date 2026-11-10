@@ -19,9 +19,11 @@
 # of the transfer that shipped it - count and per-file size - BEFORE anything is stopped or
 # renamed. After the renames the swap proves the new root over HTTP (bounded poll, the answer
 # compared with the expected stamp, never just "a port answered"), and any failure after the
-# first rename puts the renames back and restarts the services. Nothing is ever deleted: the
-# previous root stays at <WEBROOT>.old-<UTC time>-<pid> as the undo handle and every failure
-# line prints it.
+# first rename puts the renames back and restarts the services - a signal included: a dropped
+# ssh session (SIGHUP) or a Ctrl-C/kill (SIGINT, SIGTERM) inside the down window is routed through
+# the same rollback rather than left to bash, which does not run an EXIT trap for an untrapped
+# SIGTERM or SIGHUP. Nothing is ever deleted: the previous root stays at
+# <WEBROOT>.old-<UTC time>-<pid> as the undo handle and every failure line prints it.
 #
 # Usage
 # -----
@@ -225,7 +227,12 @@ fi
 # with the refusal's own code. It starts what this run stopped and never stops anything else.
 _restore_services() {
   [ -n "$_stopped" ] || return 0
-  for _rs_u in $_stopped; do
+  _rs_list=$_stopped
+  # Consume the list: the rename-failure paths call this themselves and the exit trap then calls
+  # it again on the way out, and a unit restarted twice prints "restarted" twice - two lines about
+  # one action is how an operator starts wondering whether something crashed in between.
+  _stopped=''
+  for _rs_u in $_rs_list; do
     if ! _rs_why=$(systemctl start "$_rs_u" 2>&1); then
       printf 'swap_webroot: COULD NOT RESTART %s (%s) - start it yourself: systemctl start %s\n' "$_rs_u" "${_rs_why:-no output}" "$_rs_u" >&2
     else
@@ -281,6 +288,22 @@ on_exit() {
   exit $_oe_rc
 }
 trap on_exit EXIT
+
+# A fatal signal inside the down window is one of those failures, and the rollback must not depend
+# on how bash dies to get run: an EXIT trap is not sprung for an untrapped SIGTERM or SIGHUP.
+# Measured on bash 5.2.26 with the proof poll interrupted mid-window: SIGINT came back through
+# on_exit and restored both renames; SIGTERM and SIGHUP left the unproven tree in the live path,
+# the previous root parked at an aside no printed line named, and nothing but exit 143 / 129 to
+# show for it. So the signals exit into the trap, which is already idempotent (_rolled), and the
+# operator sees which one arrived. SIGKILL - an OOM kill - stays uncatchable: the last
+# "rename A -> B" line names the aside, and systemctl start <unit> names what to bring up.
+_by_signal() {   # <exit code 128+signum> <signal name>
+  printf 'swap_webroot: received SIG%s - the swap is a failure and is being rolled back\n' "$2" >&2
+  exit "$1"
+}
+trap '_by_signal 129 HUP'  HUP
+trap '_by_signal 130 INT'  INT
+trap '_by_signal 143 TERM' TERM
 
 # ---------------------------- pre-check 1: the stamp token ----------------------------
 # The precondition promote_swap.sh had is kept - it is cheap and it catches promoting a

@@ -37,6 +37,17 @@
 # line; a far-side failure or a missing/misplaced/duplicated trailer refuses the chunk instead of
 # claiming a tree state it never saw (2026-11-10 checkup, dead remote guards).
 #
+# And the run that looked at every chunk has to say what every chunk was. The enumeration that feeds the chunk
+# loop is counted once ($_expected_chunks) and the done line states sent + skipped against that total: a rerun
+# is convergence only when the two agree, because a loop cut short after 1 of 4 chunks closed with '0 sent, 1
+# skipped' and exit 0 - shape-identical to the converged '4 skipped' the promotion proof was waiting for (the
+# 2026-11-09 D759A911DF0C promotion log; the stdin closure in remote_chunk_lines removed that particular cut,
+# the count is what refuses ANY cut, and a mismatch exits nonzero with no done line and no manifest upload).
+# The same done output states the surplus the scoped fold collected: remote files under the observed chunk
+# paths that this build's manifest does not list stay out of the skip fold on purpose (the EXTRA paragraph
+# above), but they are no longer invisible in this script's own output - the count is its share of
+# verify_transfer.sh's EXTRA, and a converged rerun over a tree still holding a dropped name now says so.
+#
 # The script never deletes anything remote. It issues no rm/unlink/truncate outside
 # its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR
 # values outright.
@@ -266,6 +277,12 @@ chunk_names() {
   [ $CHUNK_LIST_ROOT = 1 ] && printf '%s\n' '_root_files_'
 }
 
+# The denominator of every claim made at the close of a run: exactly how many chunk names the enumeration
+# above feeds the chunk loop. Counted once here - at the enumeration itself - so the guard after the loop
+# weighs what was looked at against what there was to look at, and the done line can state both numbers:
+# '0 sent, 1 skipped' and '4 skipped' are only ever shapes until something prints how many there were.
+_expected_chunks=$(chunk_names | awk 'END { print NR+0 }')
+
 chunk_members() {                          # chunk name -> member paths ('./name')
   if [ "$1" = '_root_files_' ]; then
     cat "$_rootfiles"
@@ -380,6 +397,7 @@ if [ $DRY_RUN = 1 ]; then
     shown=$((shown+1))
   done < <(chunk_names)
   [ $CHUNK_LIST_ROOT = 1 ] || printf '    (no top-level loose files -> no _root_files_ chunk)\n'
+  printf '  chunks enumerated: %s (a real run states this total in its done line and refuses to close having looked at fewer)\n' "$_expected_chunks"
   printf '%s\n' \
     '' \
     '  per chunk, a real run does:' \
@@ -465,21 +483,21 @@ remote_chunk_lines() {                      # chunk -> "file-sha256  ./path" for
   run_remote "$(remote_obs_command "$1")" </dev/null
 }
 
-chunk_scope() {                             # build-lines file, remote-lines file -> "seen differ"; scoped lines -> $3
+chunk_scope() {                             # build-lines file, remote-lines file -> "seen differ surplus"; scoped lines -> $3
   awk -v out="$3" '
     NR==FNR { want[substr($0, 67)] = substr($0, 1, 64); next }
     {
       p = substr($0, 67)
-      if (!(p in want)) next     # not a file this build lists: not bytes of this chunk, so not comparable
+      if (!(p in want)) { surplus++; next }   # not a file this build lists: not bytes of this chunk, so not comparable for the fold - but it IS surplus, and the count is kept for the done output (this script shares the EXTRA of verify_transfer.sh)
       print > out
       seen++
       if (want[p] != substr($0, 1, 64)) differ++
     }
-    END { print seen+0, differ+0 }
+    END { print seen+0, differ+0, surplus+0 }
   ' "$1" "$2"
 }
 
-sent=0 skipped=0 bytes_sent=0
+sent=0 skipped=0 bytes_sent=0 _surplus_total=0
 _build_lines=$STAGE_DIR/_chunk_build_lines.txt
 _remote_lines=$STAGE_DIR/_chunk_remote_lines.txt
 _scoped_lines=$STAGE_DIR/_chunk_scoped_lines.txt
@@ -495,7 +513,8 @@ while IFS= read -r _cn; do
   _scope=$(chunk_scope "$_build_lines" "$_remote_lines" "$_scoped_lines") || \
     die "could not scope the remote listing of chunk '$_cn' against this build's manifest - refusing to guess: a chunk is skipped only when its bytes on the remote were actually looked at"
   set -- $_scope
-  _rseen=$1 _rdiff=$2
+  _rseen=$1 _rdiff=$2 _rsurp=${3:-0}
+  _surplus_total=$((_surplus_total + _rsurp))
   _rh=$(sha256sum < "$_scoped_lines" | cut -d' ' -f1)
   rm -f -- "$_build_lines" "$_remote_lines" "$_scoped_lines"
   if [ "$_ph" = "$_rh" ]; then
@@ -528,11 +547,34 @@ if [ $((sent + skipped)) -eq 0 ]; then
   die "looked at 0 chunks against a manifest of $_mfiles files - refused, no 'transfer done' line and no manifest upload: the build tree changed while this script was reading it (re-run it once the build is finished)"
 fi
 
+# The zero check above catches the run that looked at nothing; it cannot catch the run that looked at almost
+# everything. The 2026-11-09 D759A911DF0C promotion log is the shape: the chunk loop died after the first
+# chunk (its transport read the loop's stdin - see remote_chunk_lines) and the script closed with
+# 'transfer done: 0 chunk(s) sent ..., 1 chunk(s) skipped' and exit 0, indistinguishable by line shape from
+# the converged '4 chunk(s) skipped' the promotion proof was waiting for - the chunk list was enumerated,
+# but nothing had ever counted it against sent+skipped. The stdin closure removed that cut; this count
+# refuses ANY cut, whenever or however a future one appears: looked-at must equal the number of chunk names
+# the enumeration fed the loop. Like the zero check it sits before the manifest upload - a manifest closed
+# out by a run that did not look at every chunk is the same lie in a different file.
+if [ $((sent + skipped)) -ne "$_expected_chunks" ]; then
+  die "looked at $((sent + skipped)) of $_expected_chunks chunks - refused, no 'transfer done' line and no manifest upload: the chunk list enumerated $_expected_chunks chunk(s) and this run sent $sent + skipped $skipped = $((sent + skipped)) of them, so it ended before every chunk had been looked at; a truncated run is neither a transfer nor a convergence (find why the run ended early, then re-run it - the next run re-observes every chunk from the tree)"
+fi
+
 if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "cat > '$REMOTE_DIR/.lane_transfer/manifest.tsv'" < "$MANIFEST"; then
   die "upload of manifest.tsv to the remote bookkeeping dir failed"
 fi
 
-say "transfer done: $sent chunk(s) sent ($bytes_sent payload bytes moved), $skipped chunk(s) skipped on an observation of the remote tree"
+say "transfer done: $sent chunk(s) sent ($bytes_sent payload bytes moved), $skipped chunk(s) skipped on an observation of the remote tree - $sent sent + $skipped skipped = $((sent + skipped)) of $_expected_chunks chunk(s) enumerated, every one of them looked at"
+# The second number the promotion proof needs beside the first: the skip fold scoped the remote listing to
+# this build's manifest on purpose (header, EXTRA paragraph), so surplus remote bytes never block a skip -
+# but the fold was also THROWING the surplus count away, and a converged '0 sent, N skipped' printed exit 0
+# over a remote that still held ./Build/webgl.oldname.wasm, the name a previous build used: the promotion
+# said converged, only verify_transfer.sh's EXTRA said otherwise, on the same tree. chunk_scope's third
+# number now keeps the count the fold was already seeing; the statement prints on every done output - 0 is
+# the shape a converged tree has, nonzero names the condition only the tree maintainer (and
+# verify_transfer.sh's whole-tree scan, which also sees surplus the per-chunk observations never enumerate)
+# can clear, since this script issues no remote deletions.
+say "surplus: $_surplus_total remote file(s) under the observed chunk paths that this build's manifest does not list - verify_transfer.sh reports these as EXTRA; the skip ignores them by design and this script never deletes remote files, so a nonzero count is a name the build dropped that no rerun of this script will clear"
 if [ $sent -eq 0 ] && [ $skipped -gt 0 ]; then
   say "nothing was re-sent: 0 bytes went over the transport - every skipped chunk's payload was hashed on the remote this run and matched this build"
 fi

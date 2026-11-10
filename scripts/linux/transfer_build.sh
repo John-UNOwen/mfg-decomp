@@ -645,9 +645,21 @@ while IFS= read -r _p; do
   esac
 done < <(cat "$CHUNK_LIST" "$_rootfiles")
 
+# The function's exit status is load-bearing, not decoration: every real call sits in a pipeline
+# ('chunk_names | awk' for the denominator, '< <(chunk_names)' for the three loops) and this script
+# runs 'set -euo pipefail', so a non-zero return here dies mid-pipeline before any die() runs. The
+# last statement used to be '[ $CHUNK_LIST_ROOT = 1 ] && printf ...', which IS non-zero - 1 - exactly
+# when the tree has no top-level loose files, so such a tree ended the run at the denominator line
+# with a bare RC=1 and not one line of output after the manifest total: unattributable for a dry
+# run and for a real run alike (2026-11-12 checkup; the denominator commit introduced the consuming
+# call, this pass makes the enumeration return success for a tree shape that is not an error). A real 'if'
+# returns 0 when its condition is false, which is what the pipelines need: 'no root chunk' is a
+# shape of the tree, never an error.
 chunk_names() {
   cut -c3- "$CHUNK_LIST"                  # strip the leading './'
-  [ $CHUNK_LIST_ROOT = 1 ] && printf '%s\n' "$ROOT_CHUNK"
+  if [ $CHUNK_LIST_ROOT = 1 ]; then
+    printf '%s\n' "$ROOT_CHUNK"
+  fi
 }
 
 # The denominator of every claim made at the close of a run: exactly how many chunk names the enumeration

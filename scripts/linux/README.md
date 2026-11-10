@@ -22,6 +22,7 @@ Already verified earlier: `assemble_webroot.sh` (the bash port of
 | `lane_smoke.sh` | Read-only curl acceptance suite against a base URL: COOP/COEP headers, brotli sidecar rule, immutable-vs-TTL caching, `index.html` no-store, FoxNET login page, `/static` assets, anonymous session rejection, `/aog` reaching the core handler, play page `-AUTOSERVE`, and an optional login/logout section (`SMOKE_USER`/`SMOKE_PASS`). Prints PASS/FAIL/SKIP with evidence and a summary count; non-zero exit on any FAIL. |
 | `transfer_build.sh` | Ships the WebGL build over ssh in chunked tars (no rsync), one chunk per top-level directory, resumable only in the "skip complete chunks by sha256" sense, with a manifest and a hard refusal to delete anything remote. `--dry-run` shows the plan + manifest. |
 | `verify_transfer.sh` | Compares the manifest against the remote tree: missing / extra / size-or-hash mismatched files plus file and byte totals, so a 5.47 GB transfer is confirmed, not assumed. |
+| `swap_webroot.sh` | Promotes a staged webroot over the live one with two renames, but only after the whole staged tree has been counted against the manifest of the transfer that shipped it (file count + per-file size: `MISSING`, size-mismatch, `EXTRA`, both totals printed). `chown` runs while the gate is still up; `SERVICES` (default `mfg-gate`) are stopped only for the renames; the new root is then proven by polling `/build_stamp.txt` for the expected stamp, and any failure after the first rename puts the renames back and restarts the services. The previous root is kept as the undo handle and never deleted. `--dry-run` runs the verification and prints the plan. |
 
 ## Run order for a parallel install (Windows lane keeps serving)
 
@@ -58,6 +59,74 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
    with that run's paths and user, and the run says so; a unit that run does not stage - an
    earlier `--tunnel` run's `mfg-tunnel.service` after a plain run - is removed from the
    staging directory rather than left there installable and unnamed.
+7. Updating the webroot a live lane serves (a refresh, not a fresh install): stage the incoming
+   tree beside the live one, ship the delta into it with `transfer_build.sh`
+   (`REMOTE_DIR=<staged>`), `verify_transfer.sh` it, then
+   `WEBROOT=... STAMP=<stamp> swap_webroot.sh` - see the next section.
+
+## Promoting a staged webroot (`swap_webroot.sh`)
+
+The production webroot swap, productized out of the one-off script the 2026-11-10 promotion ran:
+two renames, with the checks that script did not have.
+
+```
+WEBROOT=/srv/mfg/webroot STAMP=D759A911DF0C scripts/linux/swap_webroot.sh [--dry-run]
+```
+
+Order, and why it is the order: verify the staged tree against the manifest -> `chown` the
+incoming tree -> stop `SERVICES` -> rename the live root aside -> rename the staged tree in ->
+start `SERVICES` -> ask the front for `/build_stamp.txt` until it answers `STAMP`. Everything
+left of the first rename is reversible by construction; right of it an exit trap puts the renames
+back and restarts what it stopped, and every line it prints says which path holds what.
+
+| Name | Default | What it is |
+|---|---|---|
+| `WEBROOT` | required | the live root the front serves. Absolute; refused when it normalises to `/` or to/inside a system directory, because the first rename moves whatever stands there |
+| `STAMP` | required | the stamp the staged tree must carry, and the answer the front must give afterwards |
+| `STAGED` | `<WEBROOT>.new-<STAMP>` | the tree to promote; refused when it is or nests inside `WEBROOT` |
+| `SERVICES` | `mfg-gate` | space-separated units to stop before the renames and start after them (`'mfg-gate mfg-lane'` when the core is a unit too). Empty = the front is stopped some other way, and the HTTP proof is then the only net |
+| `CHOWN_TO` | `mfg:mfg` | `owner:group` the incoming tree is `chown -R`'d to **before the stop** - an `-R` over 58,809 files is work the gate does not need to be down for. Empty = skip |
+| `BOOKKEEPING_DIR` | `$HOME/mfgtmp/transfer_stage` | where the bookkeeping of the transfer run that shipped this tree lives: `transfer_build.sh`'s `STAGE_DIR` |
+| `MANIFEST` | `$BOOKKEEPING_DIR/manifest.tsv` | the manifest the staged tree is counted against |
+| `GATE_PORT` / `PROOF_HOST` | `8090` / `127.0.0.1` | where the proof asks `/build_stamp.txt` |
+| `PROOF_TRIES` / `PROOF_SLEEP` | `60` / `0.5` | how long the proof polls; raise them when `SERVICES` names `mfg-lane` (the core needs ~20 s to bind) |
+| `REPORT_MAX` | `20` | how many `MISSING` / size-mismatch / `EXTRA` names to print per class (`0` = all) |
+| `STAGED_VERIFY_CMD` | empty | extra check, run as `bash -c "$cmd" swap_webroot <STAGED>` before the down window; a non-zero exit refuses the swap |
+
+**The pre-check is the whole tree, not the stamp.** Every file the manifest lists must be in the
+staged tree at the size it lists, and no file the manifest does not list may be there. Both
+totals print - they are the denominator, and "the stamp matches" says nothing about 58,809 files.
+`.lane_transfer/` is excluded, as in `verify_transfer.sh`: it is the bookkeeping the transfer
+itself wrote into the tree. A size mismatch is the half-shipped tree: the top-level-files chunk
+is a path-ordered tar, so `build_stamp.txt` is unpacked **before** `index.html`, and a transport
+that died inside it leaves a matching stamp over a truncated play page - the state the one-off
+promotion accepted, served, and exited 0 on. `EXTRA` is refused too: the delta flow says to
+delete the remote-only names from the staged tree before promoting, and a swap that promoted them
+instead serves files no catalog points at, wearing this build's stamp. Size rather than content
+because hashing 8.6 GB on the box is `verify_transfer.sh`'s job, and a file that changed at the
+same size is its report, not this one's - `STAGED_VERIFY_CMD` is where that pass plugs in.
+
+**`BOOKKEEPING_DIR` sits outside the webroot on purpose.** The manifest is what the swap verifies
+against, and a bookkeeping dir inside the live root is carried off by the first rename: the path
+a refusal prints would no longer hold the file that refusal was based on, and the tree's
+`.lane_transfer/` (manifest + `chunk_hashes`) travels with the old root. A `MANIFEST` that
+resolves inside `WEBROOT` is refused for that reason. `transfer_build.sh` tolerates leftover names
+in the remote tree because it issues no deletions and reports them to `verify_transfer.sh` as
+`EXTRA`; the swap refuses them in the tree it is about to promote.
+
+**Proof, not a curl that prints nothing.** The answer is compared with `STAMP` over a bounded
+poll, the same raw-socket probe `assemble_webroot.sh` uses (`build_stamp.txt` has no trailing
+newline, so a line-oriented read never sees it). The one-off promotion printed
+`stamp now: $(curl -sf ...)` under `set -e`, and a curl that could not connect still left that
+line printed with an empty value - nothing in its output could tell "the new root answers" from
+"the gate is down and nothing answered".
+
+**Disk accounting.** The swap costs no space: two renames inside one directory on one filesystem,
+which is why it renames instead of extracting - a 30 GB box with ~9 GB free cannot hold a second
+untarred webroot, and `tar -xf` would re-write every member and destroy the `cp -al` hardlinks a
+staged tree relies on. While the aside stands, though, the tree holds two roots. This script
+never deletes it - it is the undo handle until the new root has passed smoke - and the success
+line prints its path with the `rm -rf` to run once it has.
 
 ## What the box must have
 
@@ -232,5 +301,7 @@ Still unverified: the systemd units have never been loaded by a real systemd
 (`install_systemd.sh` only stages them and prints the commands), the `zstd` compression
 branch, `lane_up.sh`'s cloudflared path (`CLOUDFLARED=0` on the VPS lane, no tunnel
 configured there), and `assemble_webroot.sh` on Linux - the VPS webroot was shipped already
-assembled by the Windows script.
+assembled by the Windows script. And `swap_webroot.sh` on the live box: the swap it replaces was
+done by hand on 2026-11-10, and this script has only the fixture runs behind it - the first real
+run is a `--dry-run` against the staged tree hours before the window.
 

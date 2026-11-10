@@ -15,6 +15,12 @@
 # observation itself. A failed far-side stage now ends the listing; a missing, misplaced, or
 # duplicated trailer refuses the comparison (2026-11-10 checkup, dead remote guards).
 #
+# Both listing calls hold the transport's stdin shut ('</dev/null'): nothing in this script reads stdin - the
+# comparison is fed by the two listing files - and a transport that behaves like ssh reads its own stdin in
+# order to forward it, so a read-only call left holding the caller's stdin eats what the caller was reading:
+# a while-read wrapper around this script loses every iteration after the first, under exit 0 (the
+# transfer_build.sh chunk-loop incident, repo 9761a3b).
+#
 # The three inputs are taken by ARGUMENT POSITION - manifest, remote size list, remote hash list - and
 # each is then checked against the role it was handed, never by matching the file name. It refuses,
 # rather than agreeing, when the manifest resolves to zero entries, when a line of $MANIFEST is not a
@@ -125,6 +131,12 @@ done
 [ -s "$MANIFEST" ] || die "manifest at $MANIFEST has 0 entries - refusing: an empty manifest compared against any remote tree would print agreement without having compared a single file (run transfer_build.sh against a non-empty LOCAL_BUILD_DIR, or point MANIFEST= at a real manifest)"
 
 run_remote() {
+  # Stdin is INHERITED by this helper: it is the one place a payload could come from, and
+  # this script sends no payload - both listings run through run_remote_obs, which closes
+  # stdin. A transport that behaves like ssh reads its own stdin to forward it, so a
+  # read-only call holding the caller's stdin eats what the caller was reading: a while-read
+  # wrapper around this script loses every iteration after the first, under exit 0 (the
+  # transfer_build.sh chunk-loop incident, repo 9761a3b, from the other side).
   "$VERIFY_TRANSPORT" "$SSH_TARGET" "$1"
 }
 
@@ -142,7 +154,11 @@ run_remote_obs() {   # <out file> <listing command>; 0 ok (trailer stripped), 1 
   # already promised exit 0. Inner single quotes are re-quoted as the standard '\'' for the outer
   # bash -c argument; REMOTE_DIR is guard-checked to contain no single quote.
   _or_inner="set -o pipefail; $2 && printf '%s\\n' '$_OBS_OK'"
-  run_remote "bash -c '${_or_inner//\'/\'\\\'\'}'" > "$1" || return 1
+  # '</dev/null' on the listing call, for both listings: this runs in the script body, where
+  # the caller's stdin may be a wrapper's work list, and nothing in this script reads stdin
+  # (the comparison gets its data from the two files above), so the only thing an inherited
+  # stdin can do here is eat that list off under the caller (9761a3b class).
+  run_remote "bash -c '${_or_inner//\'/\'\\\'\'}'" </dev/null > "$1" || return 1
   _or_n=$(grep -Fxc -- "$_OBS_OK" "$1" 2>/dev/null || true)
   _or_n=${_or_n:-0}
   if [ "$_or_n" -gt 1 ]; then return 2; fi

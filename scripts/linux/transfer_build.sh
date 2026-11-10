@@ -41,8 +41,10 @@
 # loop is counted once ($_expected_chunks) and the done line states sent + skipped against that total: a rerun
 # is convergence only when the two agree, because a loop cut short after 1 of 4 chunks closed with '0 sent, 1
 # skipped' and exit 0 - shape-identical to the converged '4 skipped' the promotion proof was waiting for (the
-# 2026-11-09 D759A911DF0C promotion log; the stdin closure in remote_chunk_lines removed that particular cut,
-# the count is what refuses ANY cut, and a mismatch exits nonzero with no done line and no manifest upload).
+# 2026-11-09 D759A911DF0C promotion log; the stdin closure in remote_chunk_lines removed that particular cut -
+# every read-only transport call holds its stdin shut now (the mkdir, the observations, both probes, the manifest
+# rename) and only the three calls handed a payload keep it (the tar send, the sent-ledger and the manifest pipe)
+# - the count is what refuses ANY cut, and a mismatch exits nonzero with no done line and no manifest upload).
 # The same done output states the surplus the scoped fold collected: remote files under the observed chunk
 # paths that this build's manifest does not list stay out of the skip fold on purpose (the EXTRA paragraph
 # above), but they are no longer invisible in this script's own output - the count is its share of
@@ -409,6 +411,14 @@ stage_chunk() {                            # build the chunk tar locally
 }
 
 run_remote() {                             # run a command string on the remote side
+  # Stdin is INHERITED by this helper on purpose, and whose stdin it is matters: the calls
+  # that feed the transport a payload (the tar send, the sent-ledger and manifest pipes)
+  # need exactly that, while every read-only call has to close it with '</dev/null'. A
+  # transport that behaves like ssh reads its own stdin eagerly in order to forward it, so
+  # a read-only call holding the caller's stdin eats what the CALLER was reading: the chunk
+  # loop hit this first (repo 9761a3b - a while-read promotion wrapper lost every iteration
+  # after the first, under exit 0), and the same cut applies to any wrapper around this
+  # script, so the rule holds at every call site and not only inside the loop.
   "$TRANSFER_TRANSPORT" "$SSH_TARGET" "$1"
 }
 
@@ -610,7 +620,11 @@ else
   say "space: gate passed - tree $_mbytes bytes (manifest total, an upper bound: skips and gzip make what streams smaller); local free on the STAGE_DIR=$STAGE_DIR filesystem $_local_avail bytes; remote free on the filesystem holding REMOTE_DIR=$REMOTE_DIR $_remote_avail bytes"
 fi
 
-run_remote "mkdir -p '$REMOTE_DIR/.lane_transfer'" || die "remote mkdir -p '$REMOTE_DIR/.lane_transfer' failed"
+# Read-only, so its stdin is shut under the rule stated at run_remote: this call sits in the
+# script body, where the caller's stdin may be a wrapper's work list, and a transport that
+# forwards stdin eats that list on the way to the far side (9761a3b). The mkdir itself needs
+# no input.
+run_remote "mkdir -p '$REMOTE_DIR/.lane_transfer'" </dev/null || die "remote mkdir -p '$REMOTE_DIR/.lane_transfer' failed"
 
 # The sent-ledger is opened here and nothing else: the line this replaces (': > "$CHUNK_HASHES"' at this spot before
 # the fix) truncated the file at run start, which destroyed the record of earlier runs before this run had sent a byte

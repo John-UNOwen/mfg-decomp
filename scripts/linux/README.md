@@ -28,7 +28,9 @@ Already verified earlier: `assemble_webroot.sh` (the bash port of
 
 Do all of this **on the Linux box**; the Windows lane is not involved at any step.
 
-1. `transfer_build.sh --dry-run` -> review chunks/manifest; then real run (disk accounting: it refuses
+1. `transfer_build.sh --dry-run` -> review chunks/manifest (the plan is written under `.dry-run` names, so a
+   dry run never replaces `STAGE_DIR/manifest.tsv` - the record of what the last real run shipped, which
+   `verify_transfer.sh` and `swap_webroot.sh` read by default); then real run (disk accounting: it refuses
    up front unless both its `STAGE_DIR` filesystem and `REMOTE_DIR`'s filesystem have the manifest
    total free — roughly the tree size, so a full-size promotion wants that much free beside the
    staged webroot, `--skip-space-check` when you have measured the fit, which means `df` and never
@@ -117,6 +119,22 @@ so the first rename cannot carry the manifest away). On the box where both scrip
 readings coincide: the transfer publishes its manifest at `$BOOKKEEPING_DIR/manifest.tsv` and the
 swap reads its manifest from `$BOOKKEEPING_DIR/manifest.tsv`.
 
+### A `--dry-run` never overwrites the local record of what shipped
+
+`STAGE_DIR` holds the local side of that record, and three files in it belong to the last **real** run:
+`manifest.tsv` (what shipped), `chunks.txt` and `_rootfiles.txt` (the chunk lists it shipped in). Both readers
+after a transfer take `manifest.tsv` by default - `verify_transfer.sh` through `MANIFEST=$STAGE_DIR/manifest.tsv`,
+and `swap_webroot.sh` through `MANIFEST=$BOOKKEEPING_DIR/manifest.tsv` with `BOOKKEEPING_DIR` defaulting to that
+same `STAGE_DIR`. A `--dry-run` computes the very same manifest, so it writes its plan - manifest plus the two
+chunk lists - to those names with `.dry-run` appended (`manifest.tsv.dry-run`, `chunks.txt.dry-run`,
+`_rootfiles.txt.dry-run`) and says so in its own output; the three record files are not opened. Before that, one
+dry run between a transfer and a verification replaced the record with a plan of a tree nobody shipped, and the
+next default reader judged the served tree by bytes that had never gone over a wire: `MISSING ./Build/b2.js` +
+`MISMATCH` over a destination that still matched the published manifest exactly (fixture case C96, transport shims
+only - the same state, reading the shipped record again after the fix). The plan is still a real manifest:
+`MANIFEST=$STAGE_DIR/manifest.tsv.dry-run verify_transfer.sh` compares against it on purpose. Nothing reads the
+plan by itself, and a real run never writes it.
+
 ## Promoting a staged webroot (`swap_webroot.sh`)
 
 The production webroot swap, productized out of the one-off script the 2026-11-10 promotion ran:
@@ -151,7 +169,7 @@ exit 143 to show for it. `SIGKILL` - an OOM kill - is still uncatchable: the las
 | `SERVICES` | `mfg-gate` | space-separated units to stop before the renames and start after them (`'mfg-gate mfg-lane'` when the core is a unit too). Empty = the front is stopped some other way, and the HTTP proof is then the only net |
 | `CHOWN_TO` | `mfg:mfg` | `owner:group` the incoming tree is `chown -R`'d to **before the stop** - an `-R` over 58,809 files is work the gate does not need to be down for. Empty = skip |
 | `BOOKKEEPING_DIR` | `$HOME/mfgtmp/transfer_stage` | where the bookkeeping of the transfer run that shipped this tree lives **on this box**: `transfer_build.sh`'s `STAGE_DIR`, holding the local `manifest.tsv`. Same name as the transfer scripts' remote bookkeeping dir (see the note above); this one is local and sits outside every webroot on purpose |
-| `MANIFEST` | `$BOOKKEEPING_DIR/manifest.tsv` | the manifest the staged tree is counted against |
+| `MANIFEST` | `$BOOKKEEPING_DIR/manifest.tsv` | the manifest the staged tree is counted against (a `transfer_build.sh --dry-run` cannot overwrite it: its plan is written under `.dry-run` names) |
 | `GATE_PORT` / `PROOF_HOST` | `8090` / `127.0.0.1` | where the proof asks `/build_stamp.txt` |
 | `PROOF_TRIES` / `PROOF_SLEEP` | `60` / `0.5` | how long the proof polls; raise them when `SERVICES` names `mfg-lane` (the core needs ~20 s to bind) |
 | `REPORT_MAX` | `20` | how many `MISSING` / size-mismatch / `EXTRA` names to print per class (`0` = all) |
@@ -468,6 +486,20 @@ ports 8083/8090/8091/8095 were never targeted):
   `EMPTY-DIR` line each — the directory lands, the `skip EmptyDir` line and the `4 of 4` denominator stay intact,
   `verify_transfer.sh` still agrees (a directory is not a file, so it is neither MISSING nor EXTRA), and the
   convergence rerun no-ops on the directory that is now there.
+- A `--dry-run` leaves the record of what shipped alone (2026-11-10, fixture case C96, offline, transport shim
+   only): a real transfer's `STAGE_DIR/manifest.tsv`, `chunks.txt` and `_rootfiles.txt` are snapshotted, then a
+   `--dry-run` against a **second** tree runs over the same `STAGE_DIR`. On a copy of the kit with the plan-name
+   switch no-oped the dry run exits 0, prints `manifest written for this dry run: …/stage/manifest.tsv`, and
+   replaces all three files — so the next default `verify_transfer.sh` reads a manifest that never went over a
+   wire and answers `MISSING ./Build/b2.js` + `MISMATCH` over a destination that still equals the published
+   manifest. The kit instead writes `manifest.tsv.dry-run`, `chunks.txt.dry-run` and `_rootfiles.txt.dry-run`,
+   leaves the three record files byte-for-byte unchanged (and still equal to the published truth), states the
+   three plan paths plus `manifest.tsv was NOT written` in its own output, and still plans everything it planned
+   before (chunk list, the `chunks enumerated:` total, the per-chunk command shapes, the publish line) — after
+   which the same default `verify_transfer.sh` run agrees again (exit 0, no `MISSING`). Pointing `MANIFEST=` at
+   the plan still verifies against it (exit 1, the same `MISSING` name), and a following real run still owns the
+   record paths. Re-runnable repros: `tmp/linux_fix/c96_repro.sh` (the clobber, three `cmp` verdicts) and
+   `tmp/linux_fix/c96_case_check.sh` (the red/green pair above, plain shell instead of `chk`).
 
 On the real box (Ubuntu 24.04 LTS, the owner's VPS lane, 2026-11-05): the shipped copies
 matched the repo by sha256 with zero CR bytes and `bash -n` clean; `lane_up.sh` started core

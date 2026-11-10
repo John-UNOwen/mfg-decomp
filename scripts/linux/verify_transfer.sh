@@ -21,6 +21,14 @@
 # manifest line (so a file that is not the manifest cannot be mistaken for it), and when the remote tree
 # holds no files outside .lane_transfer. The agree line therefore means at least one file was compared
 # on both sides.
+#
+# REMOTE_DIR is required, absolute, and guarded exactly as in transfer_build.sh: the value is normalised
+# lexically first ('//' collapsed, './' and '../' resolved, trailing '/' removed; the raw and normalised
+# values are both printed when they differ) and then refused, before any listing is run, when it
+# normalises to '/', to a system directory, to or inside one, or holds a single quote - so a typoed
+# REMOTE_DIR can never turn this into a /proc walk, a cd into the invisible ssh login cwd, or an
+# 'agree' about a tree the shipping script would never have written. The normalised value is the one
+# both listing commands use.
 
 set -euo pipefail
 export LC_ALL=C
@@ -52,7 +60,65 @@ done
 
 [ -n "$SSH_TARGET" ] || die "SSH_TARGET is required"
 [ -n "$REMOTE_DIR" ] || die "REMOTE_DIR is required"
-REMOTE_DIR=${REMOTE_DIR%/}
+
+# The guard decides on the value the far side will actually act on, and that is not the string typed.
+# The form this replaces (verify_transfer.sh:53-55 before the port) tested non-empty, stripped exactly
+# ONE trailing slash and dispatched: 'REMOTE_DIR=/' became 'cd ''' - an empty operand is a successful
+# bash cd no-op, so the listings walked the ssh login cwd and the run could print 'agree' about a tree
+# nobody serves - while '//', '/usr//' and '/bin///' survived as live system directories (a procfs
+# walk, an xargs sha256sum sitting forever on /proc/kmsg) and a relative value resolved against a
+# login cwd this script cannot see. So: normalise, then decide, exactly as transfer_build.sh does -
+# readlink is not available for this job, the path lives on the far side of ssh and resolving it here
+# would resolve the wrong tree, so the normalisation is lexical and the value printed here is the
+# value every remote command in this script then uses. The list below is transfer_build.sh's list
+# on purpose: the two scripts must accept exactly the same REMOTE_DIR values, or verify can be made
+# to agree about (or refuse) a tree the shipping script would never have written.
+_norm_remote_dir() {                 # '//' -> '/', './' and '../' resolved, trailing '/' removed
+  _np=$1
+  case $_np in /*) ;; *) return 1 ;; esac
+  _np=${_np#/}
+  _out=''
+  while [ -n "$_np" ]; do
+    _c=${_np%%/*}
+    if [ "$_c" = "$_np" ]; then _np=''; else _np=${_np#*/}; fi
+    case $_c in
+      ''|.) continue ;;
+      ..)   _out=${_out%/*} ;;       # '..' at the root stays at the root, as realpath -m resolves it
+      *)    _out=$_out/$_c ;;
+    esac
+  done
+  printf '%s' "${_out:-/}"
+}
+case $REMOTE_DIR in
+  /*) ;;
+  *) die "REMOTE_DIR=$REMOTE_DIR is not an absolute path - refused, no listing is run (a relative value resolves against the ssh login cwd, which this script cannot see, and a leading ~ is never expanded inside the single-quoted remote commands, so it would make a directory literally named '~')" ;;
+esac
+case $REMOTE_DIR in
+  *\'*) die "REMOTE_DIR=$REMOTE_DIR contains a single quote - refused, no listing is run (every remote command wraps this path in single quotes, so a quote inside the value ends that quoting early: this guard would compare one string while the remote shell acted on another)" ;;
+esac
+REMOTE_DIR_RAW=$REMOTE_DIR
+REMOTE_DIR=$(_norm_remote_dir "$REMOTE_DIR") || die "REMOTE_DIR=$REMOTE_DIR_RAW could not be normalised - refused, no listing is run"
+if [ "$REMOTE_DIR" != "$REMOTE_DIR_RAW" ]; then
+  say "REMOTE_DIR=$REMOTE_DIR_RAW normalised to $REMOTE_DIR - the guard and every remote command use the normalised value"
+fi
+case $REMOTE_DIR in
+  /) die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to '/' - refused, no listing is run (that is the filesystem root: the listings would walk /proc and xargs sha256sum would sit forever on /proc/kmsg, and a full-tree comparison of the whole filesystem against one build manifest is not an answer about any served tree)" ;;
+esac
+# Equality is not containment, and read-only is not harmless: listing a system directory, a tree
+# inside one, or a tree that holds one compares the operating system's own files against a build
+# manifest - a wall of MISSING/EXTRA noise (and /proc, /sys, /dev under the walk) about a tree
+# this build never wrote. All three directions are compared against the normalised value.
+for _sys in bin boot dev etc lib proc root sbin sys usr var; do
+  _sys=/$_sys
+  case $REMOTE_DIR in
+    "$_sys")   die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to $_sys - refused, no listing is run ($_sys is a system directory)" ;;
+    "$_sys"/*) die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to $REMOTE_DIR, inside the system directory $_sys - refused, no listing is run" ;;
+  esac
+  case $_sys in
+    "$REMOTE_DIR"/*) die "REMOTE_DIR=$REMOTE_DIR_RAW normalises to $REMOTE_DIR, which contains the system directory $_sys - refused, no listing is run" ;;
+  esac
+done
+
 [ -f "$MANIFEST" ] || die "no manifest at $MANIFEST (run transfer_build.sh first, or set MANIFEST=)"
 # A manifest with no lines is not one side of a comparison. Refuse here, where the message can name the
 # file, rather than let the comparison run over zero entries and report agreement.

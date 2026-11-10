@@ -21,12 +21,14 @@
 # a while-read wrapper around this script loses every iteration after the first, under exit 0 (the
 # transfer_build.sh chunk-loop incident, repo 9761a3b).
 #
-# The three inputs are taken by ARGUMENT POSITION - manifest, remote size list, remote hash list - and
-# each is then checked against the role it was handed, never by matching the file name. It refuses,
+# The comparison reads three inputs - the manifest, the remote size list, the remote hash list - and their
+# ROLES are fixed by the ORDER the comparison reads them in (manifest first, size list second, hash list
+# third), each line then checked against the role it was handed, never by matching the file name. It refuses,
 # rather than agreeing, when the manifest resolves to zero entries, when a line of $MANIFEST is not a
 # manifest line (so a file that is not the manifest cannot be mistaken for it), and when the remote tree
 # holds no files outside .lane_transfer. The agree line therefore means at least one file was compared
-# on both sides.
+# on both sides. None of the three is a command-line argument: the invocation and the environment that
+# supplies those inputs are in the Usage block at the end of this header.
 #
 # REMOTE_DIR is required, absolute, and guarded exactly as in transfer_build.sh: the value is normalised
 # lexically first ('//' collapsed, './' and '../' resolved, trailing '/' removed; the raw and normalised
@@ -48,6 +50,36 @@
 # other. Nothing under it is listed as EXTRA either way: with the default it sits outside the
 # listings' root, and the in-tree '.lane_transfer' leftovers of trees shipped before the move stay
 # excluded from both listings, exactly as the swap_webroot.sh pre-check excludes them.
+#
+# Usage
+# -----
+#   scripts/linux/verify_transfer.sh [-h|--help]
+#
+#   NO POSITIONAL ARGUMENTS. The three comparison inputs named above are nothing a caller hands over: the
+#   manifest is read from MANIFEST (default below, written by transfer_build.sh), and both remote listings
+#   are fetched by this script itself into STAGE_DIR (_verify_sizes_remote.tsv, _verify_hashes_remote.txt),
+#   compared, and deleted. Anything else on the command line is refused ahead of every other check -
+#   'verify_transfer: unknown argument: <argument>' and exit 1, no listing dispatched - because a manifest
+#   or a listing passed in by hand can come from another tree, another run or another day, while this
+#   script's whole answer is about the tree as it stands on the target now.
+#
+#   SSH_TARGET          ssh target, e.g. deploy@vps.example.com. Required; an empty value is refused.
+#   REMOTE_DIR          the tree to verify on the target. Required, absolute, guarded as described above.
+#   STAGE_DIR           where the two fetched listings are written, and where the default manifest lives.
+#                       default: ~/mfgtmp/transfer_stage   (transfer_build.sh's default)
+#   MANIFEST            the manifest the remote tree is verified against.
+#                       default: $STAGE_DIR/manifest.tsv
+#   BOOKKEEPING_DIR     the remote bookkeeping dir, with the same default and the same refusals as
+#                       transfer_build.sh (above). Nothing under it is ever listed.
+#                       default: REMOTE_DIR's leading-dot sibling
+#   VERIFY_TRANSPORT    command used as: $VERIFY_TRANSPORT <target> <remote-command>
+#                       (each listing arrives on its stdout).  default: ssh
+#                       Offline test hook: point it at a local shim that runs the command string in a local
+#                       bash - used by the fixture harness, never in production.
+#   REPORT_MAX          cap on the verdict names printed per class (MISSING / SIZE / HASH / EXTRA).
+#                       default: 40   (0 prints every name)
+#
+# Assumptions: the manifest was written by transfer_build.sh for this REMOTE_DIR (format above).
 
 set -euo pipefail
 export LC_ALL=C
@@ -273,7 +305,9 @@ if [ ! -s "$_hashes" ]; then
 fi
 
 rc=0
-# Roles are the argument order, full stop: $1 manifest, $2 remote size list, $3 remote hash list. The
+# Roles are the argument order of THIS comparison call, full stop: awk $1 manifest, awk $2 remote size list,
+# awk $3 remote hash list - the three files this script assembled, never three paths a caller hands over:
+# the script itself takes no positional arguments at all, only -h/--help (Usage above). The
 # dispatch this replaced (verify_transfer.sh:68-73) asked each input what it was by matching FILENAME
 # against /manifest/ and /_sizes/, so MANIFEST= at a path without that word put a good manifest into the
 # sha256sum branch and left man_n at 0, while a STAGE_DIR merely named .../manifests/ mis-read both

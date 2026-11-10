@@ -269,8 +269,15 @@ on_exit() {
     fi
   fi
   _restore_services
+  # Name an aside only if the first rename actually made one: with nothing at WEBROOT beforehand
+  # that rename was skipped, the intended path was never created, and claiming it as the undo
+  # handle would send the operator looking for a directory that does not exist.
+  _rf_note=''
+  if [ $_live_moved -eq 1 ]; then
+    _rf_note=", previous root aside at '$_aside' (the undo handle - nothing was deleted)"
+  fi
   printf 'swap_webroot: rollback finished: live root %s, staged tree %s%s\n' \
-    "'$WEBROOT'" "'$STAGED'" "${_aside:+, previous root aside at '$_aside' (the undo handle - nothing was deleted)}" >&2
+    "'$WEBROOT'" "'$STAGED'" "$_rf_note" >&2
   exit $_oe_rc
 }
 trap on_exit EXIT
@@ -518,8 +525,12 @@ if [ "$_proved" != 1 ]; then
     "$_last" "$PROOF_HOST" "$GATE_PORT" "$STAMP" >&2
   if [ $_live_moved -eq 1 ]; then
     printf 'swap_webroot: the previous root is at %s and is being put back at %s now\n' "$_aside" "$WEBROOT" >&2
+    die "the swap is being rolled back: $WEBROOT ends up as the root that was serving before this run, the unproven tree stays at $STAGED, and the services were restarted. Nothing was deleted; the aside path is $_aside."
   fi
-  die "the swap is being rolled back: $WEBROOT ends up as the root that was serving before this run, the unproven tree stays at $STAGED, and the services were restarted. Nothing was deleted; the aside path is $_aside."
+  # Nothing stood at WEBROOT before this run: the rollback ends with the live path empty again,
+  # and there is no aside to name - rename 1 never happened, so this is not the sentence "the
+  # aside path is X", because X was never created.
+  die "the swap is being rolled back: nothing stood at $WEBROOT before this run, so the rollback ends with $WEBROOT empty again, the unproven tree goes back to $STAGED, and the services were restarted. Nothing was deleted; there is no aside, because nothing was moved aside."
 fi
 
 say "proof: $PROOF_HOST:$GATE_PORT answered /build_stamp.txt with $STAMP - the live root is this build"

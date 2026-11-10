@@ -396,8 +396,13 @@ remote_chunk_lines() {                      # chunk -> "file-sha256  ./path" for
   # rewrites the two bytes after each hash to "  " so a sha256sum that marks its lines binary
   # ("hash *path", Git-for-Windows) and one that leaves them text ("hash  path", Ubuntu) return the same
   # lines - the comparison must not depend on which box hashed the files.
+  # The transport call runs INSIDE the chunk loop, whose stdin is the chunk list: an ssh with an
+  # inherited stdin reads that list to the end and closes it, so the loop died after the first
+  # chunk and every real run shipped 1 of 4 chunks under a clean 'transfer done' (observed
+  # 2026-11-09 promoting D759A911DF0C; the ssh-shim fixtures never caught it - a bash shim
+  # doesn't consume stdin the way ssh does). Hold the transport's stdin shut.
   run_remote "cd '$REMOTE_DIR' && find $_paths -type f -print0 | LC_ALL=C sort -z | \
-xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /'"
+xargs -0 -r sha256sum | LC_ALL=C sed 's/^\\(.\\{64\\}\\)../\\1  /'" </dev/null
 }
 
 chunk_scope() {                             # build-lines file, remote-lines file -> "seen differ"; scoped lines -> $3

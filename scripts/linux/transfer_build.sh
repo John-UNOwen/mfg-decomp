@@ -39,6 +39,20 @@
 # in --dry-run as well, before a chunk is staged or a transport command runs: rename the directory or move
 # it out of the tree's top level.
 #
+# And a chunk whose part of the tree holds no files still has to land. A top-level DIRECTORY that holds no
+# files anywhere under it is a chunk the loop can only skip: its manifest lines are empty (the manifest is
+# built from 'find -type f', so a directory is not in it), the fold of that empty set is the empty-input
+# digest, and the remote observation of the path - absent on a first transfer, empty on a rerun - folds to
+# the same empty-input digest; equal, so it prints 'skip ... the remote holds all 0 files this chunk's
+# manifest lists' on every run, and the tar - the one command that would have carried the directory entry to
+# the target ('tar -cf -- ./<dir>' records the directory, 'tar -xf' recreates it) - never runs. verify_transfer.sh
+# compares files, so the shipped tree is left permanently without a directory the local tree has and neither
+# script's output ever says so (2026-11-10 checkup: an EmptyDir chunk skipped every run, absent on the remote,
+# verify_transfer.sh 'agree'). So one mkdir -p over the empty top-level directories runs on the target - after
+# the existence gate, before the chunk loop - and each prints an explicit EMPTY-DIR line: the directory is
+# created, the skip line stays true (the directory is there, holding its 0 files), and a files-only reader
+# finally sees the non-file this run shipped.
+#
 # And the look has to have happened. Every remote observation is a shell pipeline, and ssh answers
 # with the exit status of its LAST stage - before, a far-side find error or a killed sha256sum came
 # back exit 0 with a short or empty listing (the live promotion log carries an unattributed
@@ -564,6 +578,46 @@ chunk_stats() {                            # chunk name -> files bytes  (from th
   fi
 }
 
+# ---------------------------- empty top-level directories ----------------------------
+# A top-level DIRECTORY whose manifest lists no files anywhere under it is a chunk the loop can only skip
+# (header, 'a chunk whose part of the tree holds no files still has to land'): payload_lines_build finds no
+# lines for it, the fold of that empty set is the empty-input digest, and the remote observation of the path
+# - absent on a first transfer, empty on a rerun - folds to the same empty-input digest. Equal, so the run
+# prints 'skip ... the remote holds all 0 files' every time, and the tar that would have carried the
+# directory entry to the target never runs; a files-only manifest and verify_transfer.sh never show the gap.
+# Detected here from the manifest (a local computation: chunk_stats over each top-level directory chunk,
+# ROOT_CHUNK skipped because it is only enumerated when there are loose files to hold), so the same list
+# feeds the dry-run plan and the real run; the fix creates them on the target (create_empty_top_level_dirs).
+_empty_dirs=$STAGE_DIR/_empty_dirs.txt
+: > "$_empty_dirs"
+while IFS= read -r _cn; do
+  [ "$_cn" = "$ROOT_CHUNK" ] && continue
+  set -- $(chunk_stats "$_cn")
+  [ "$1" -eq 0 ] && printf '%s\n' "$_cn" >> "$_empty_dirs"
+done < <(chunk_names)
+_empty_count=$(awk 'END { print NR+0 }' "$_empty_dirs")
+_empty_noun='empty top-level directories'
+[ "$_empty_count" -eq 1 ] && _empty_noun='empty top-level directory'
+
+remote_mkdir_empty_command() {                     # -> the EXACT far-side command creating this run's empty top-level dirs (--dry-run prints this)
+  _paths=''
+  while IFS= read -r _ed; do _paths="$_paths '$REMOTE_DIR/$_ed'"; done < "$_empty_dirs"
+  # One 'mkdir -p' over the whole list, '-C'-style absolute operands under the guard-checked REMOTE_DIR - the
+  # same shape the tar extraction writes to ('tar -xf - -C REMOTE_DIR'). '--' before the operands because a
+  # top-level directory could in principle be named like a flag; the chunk-name guard already refused single
+  # quotes, so every operand is safe inside the single quotes built here, and REMOTE_DIR is the normalised,
+  # absolute, quote-free value every other remote command uses.
+  printf 'mkdir -p --%s' "$_paths"
+}
+
+create_empty_top_level_dirs() {                    # create every empty top-level dir on the target in one mkdir -p
+  while IFS= read -r _ed; do
+    say "empty-dir $_ed: the manifest lists 0 files under it, so this chunk can only skip - creating the directory itself on the target, else a files-only transfer would ship the tree without a top-level directory the local tree has (invisible to the manifest and to verify_transfer.sh)"
+  done < "$_empty_dirs"
+  run_remote "$(remote_mkdir_empty_command)" </dev/null || \
+    die "could not create the $_empty_noun on the target via $TRANSFER_TRANSPORT (its own error above names the reason) - the empty top-level directory could not be made, so the shipped tree would be missing a top-level directory the local tree has while the files-only manifest and verify_transfer.sh would never show the gap; this run changed nothing else beyond the state it had reached, and the rerun retries this mkdir"
+}
+
 tar_name() { printf 'chunk__%s%s' "$1" "$SUFFIX"; }
 
 stage_chunk() {                            # build the chunk tar locally
@@ -705,6 +759,16 @@ if [ $DRY_RUN = 1 ]; then
   done < <(chunk_names)
   [ $CHUNK_LIST_ROOT = 1 ] || printf '    (no top-level loose files -> no %s chunk)\n' "$ROOT_CHUNK"
   printf '  chunks enumerated: %s (a real run states this total in its done line and refuses to close having looked at fewer)\n' "$_expected_chunks"
+  if [ "$_empty_count" -gt 0 ]; then
+    printf '  empty top-level directories (%s): a top-level directory whose manifest lists 0 files is a chunk the loop can\n' "$_empty_count"
+    printf '    only skip (both folds are the empty-input digest), and the tar that would have created it remotely never\n'
+    printf '    runs - so a real run creates each one on the target with one mkdir -p and prints an EMPTY-DIR line, else\n'
+    printf '    the shipped tree lacks a directory the local tree has and the files-only manifest / verify_transfer.sh never show it:\n'
+    while IFS= read -r _ed; do
+      printf '    empty-dir %s -> create the directory itself on the target\n' "$_ed"
+    done < "$_empty_dirs"
+    printf '    the real run issues this one far-side call: %s\n' "$(remote_mkdir_empty_command)"
+  fi
   printf '%s\n' \
     '' \
     '  capacity gate (real run, before the first byte moves; --skip-space-check / SKIP_SPACE_CHECK=1 skips it):' \
@@ -925,6 +989,15 @@ chunk_scope() {                             # build-lines file, remote-lines fil
     END { print seen+0, differ+0, surplus+0 }
   ' "$1" "$2"
 }
+
+# Empty top-level directories: one mkdir -p creating each of them on the target (create_empty_top_level_dirs
+# and the detection block above carry the why). It runs after the existence gate - REMOTE_DIR stands there -
+# after the bookkeeping mkdir, and before the chunk loop, so each such directory's own observation finds it
+# standing empty and its skip line states a directory that is really there. mkdir -p is idempotent, so a
+# rerun no-ops on a directory the previous run made. Only guard-checked paths (REMOTE_DIR + no-quote names).
+if [ "$_empty_count" -gt 0 ]; then
+  create_empty_top_level_dirs
+fi
 
 sent=0 skipped=0 bytes_sent=0 _surplus_total=0
 _build_lines=$STAGE_DIR/_chunk_build_lines.txt

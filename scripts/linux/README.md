@@ -22,7 +22,7 @@ Already verified earlier: `assemble_webroot.sh` (the bash port of
 | `lane_smoke.sh` | Read-only curl acceptance suite against a base URL: COOP/COEP headers, brotli sidecar rule, immutable-vs-TTL caching, `index.html` no-store, FoxNET login page, `/static` assets, anonymous session rejection, `/aog` reaching the core handler, play page `-AUTOSERVE`, and an optional login/logout section (`SMOKE_USER`/`SMOKE_PASS`). Prints PASS/FAIL/SKIP with evidence and a summary count; non-zero exit on any FAIL. |
 | `transfer_build.sh` | Ships the WebGL build over ssh in chunked tars (no rsync), one chunk per top-level directory, resumable only in the "skip complete chunks by sha256" sense, with a manifest and a hard refusal to delete anything remote. Every remote observation runs under `bash -c` with `set -o pipefail` and must close with a per-run observation-proof trailer line: a far-side `find`/`sha256sum` failure, or a missing/misplaced/duplicated trailer, refuses the chunk - it is no longer hidden behind a successful `sort`/`sed` and never answers as a skip or send. The done line states its denominator - `… = sent + skipped = N of total chunk(s) enumerated` - and a run that looked at fewer chunks than the enumerated list is a nonzero exit with no done line and no manifest upload (a `1 skipped` truncated run can no longer be read as a converged rerun, the 2026-11-09 promotion-log defect); the done output also always states the surplus - remote files under the observed chunk paths that the manifest does not list, which never block a skip but are `verify_transfer.sh`'s `EXTRA`, so a converged rerun over a tree still holding a dropped name says so. `--dry-run` shows the plan + manifest, including the enumerated chunk total and the exact wrapped far-side command. |
 | `verify_transfer.sh` | Compares the manifest against the remote tree: missing / extra / size-or-hash mismatched files plus file and byte totals, so a 5.47 GB transfer is confirmed, not assumed. Both remote listings use the same `bash -c` + `set -o pipefail` + trailer wrapping as `transfer_build.sh`: a failed or unproven observation is a refusal, never a `MISSING`/`HASH` verdict computed from a half-read tree. |
-| `swap_webroot.sh` | Promotes a staged webroot over the live one with two renames, but only after the whole staged tree has been counted against the manifest of the transfer that shipped it (file count + per-file size: `MISSING`, size-mismatch, `EXTRA`, both totals printed). `chown` runs while the gate is still up; `SERVICES` (default `mfg-gate`) are stopped only for the renames; the new root is then proven by polling `/build_stamp.txt` for the expected stamp, and any failure after the first rename puts the renames back and restarts the services. The previous root is kept as the undo handle and never deleted. `--dry-run` runs the verification and prints the plan. |
+| `swap_webroot.sh` | Promotes a staged webroot over the live one with two renames, but only after the whole staged tree has been counted against the manifest of the transfer that shipped it (file count + per-file size: `MISSING`, size-mismatch, `EXTRA`, both totals printed). `chown` runs while the gate is still up; `SERVICES` (default `mfg-gate`) are stopped only for the renames; the new root is then proven by polling `/build_stamp.txt` for the expected stamp, and any failure after the first rename — a signal included — puts the renames back and restarts the services. The previous root is kept as the undo handle and never deleted. `--dry-run` runs the verification and prints the plan. |
 
 ## Run order for a parallel install (Windows lane keeps serving)
 
@@ -78,6 +78,15 @@ incoming tree -> stop `SERVICES` -> rename the live root aside -> rename the sta
 start `SERVICES` -> ask the front for `/build_stamp.txt` until it answers `STAMP`. Everything
 left of the first rename is reversible by construction; right of it an exit trap puts the renames
 back and restarts what it stopped, and every line it prints says which path holds what.
+
+**An interrupt is a failed swap.** Ctrl-C, `kill`, or a dropped ssh session (`SIGHUP`) inside the
+down window goes through the same rollback: the renames go back, the units come up, and the output
+names the signal that arrived (exit 130 / 143 / 129). Bash does not spring an `EXIT` trap for an
+untrapped `SIGTERM` or `SIGHUP`, so the script traps them into the rollback instead of letting the
+shell die mid-window - interrupted that way before the traps were wired, a swap left the unproven
+tree in the live path, the previous root parked at an aside path no printed line named, and only
+exit 143 to show for it. `SIGKILL` - an OOM kill - is still uncatchable: the last
+`rename A -> B` line names the aside, and `systemctl start <unit>` says what to bring up.
 
 | Name | Default | What it is |
 |---|---|---|

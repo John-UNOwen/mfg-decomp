@@ -70,6 +70,13 @@ MPSEAM zero-run detector - which logged the 32 ms gap on the media path - logged
 zero runs across ~4 loop cycles; heap 188-265 MB as budgeted. Harness gained a `kind=buf` tap
 (parallel worklet tap attached in the `AudioBufferSourceNode.start` hook).
 
+## Closure
+Owner on `D759A911DF0C`: "way better now, almost completely unnoticeable" - accepted, with a
+barely-noticeable wrap blip remaining. Two candidates if it is ever chased: the 1024-sm linear
+micro-crossfade fold at the baked seam (an equal-power ramp or a longer fold is one rebuild away),
+or Chrome resampling the decoded buffer 44.1→48 kHz (all buffers decode at 48k: samples=767929 =
+15.9985x48000), whose edge behavior at the loop point can click faintly. No further action.
+
 ## Follow-ups
 - `BGM_G16_REACH_BM3_1` / `BGM_G07_REACH_BM3_1` / `BGM_RESULT1`: double onset remains (original
   behavior preserved deliberately); need hand-checked resume points (tail runs past the head copy).

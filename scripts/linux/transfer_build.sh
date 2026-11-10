@@ -54,7 +54,7 @@
 #
 # Usage
 # -----
-#   scripts/linux/transfer_build.sh [--dry-run] [-h|--help]
+#   scripts/linux/transfer_build.sh [--dry-run] [--keep-tars] [-h|--help]
 #
 #   SSH_TARGET          ssh target, e.g. deploy@vps.example.com. Required for real runs.
 #   REMOTE_DIR          destination tree on the target. Required, absolute, and guarded on its
@@ -78,6 +78,18 @@
 #                       old name standing empty - leaves behind; shipping zero chunks used to close with
 #                       'transfer done: 0 chunk(s) sent' and exit 0 (2026-11-08 checkup, problem 38/68).
 #   STAGE_DIR           local staging for chunk tars + manifest. default: ~/mfgtmp/transfer_stage
+#                       A chunk tar lives here only while it is useful: a real run deletes each tar as
+#                       soon as its send is confirmed, and a run that completes sweeps the chunk tars
+#                       earlier runs left behind - the tar of a chunk that now skips, or of a top-level
+#                       name the build renamed or dropped (an old chunk__<name>.tar* was named by no run
+#                       after the rename, so nothing ever removed it: every promotion left a second full
+#                       copy of the tree in STAGE_DIR for an operator to delete by hand). The peak is
+#                       now one chunk, not the whole build. A send that died mid-transfer keeps its tar;
+#                       the documented rerun re-stages it anyway. manifest.tsv and chunk_hashes.tsv are
+#                       bookkeeping (verify_transfer.sh and swap_webroot.sh read them) and are never swept.
+#   KEEP_TARS           1, or the --keep-tars flag: delete no chunk tar - neither after a confirmed send
+#                       nor at the end-of-run sweep. Forensics by request: this puts the second full copy
+#                       of the tree back on disk, and the output says so on every send and at the close.
 #   COMPRESS            gzip | none | zstd.      default: gzip
 #                       gzip = tar -z (gzip is nearly everywhere), zstd = tar --zstd
 #                       (needs the zstd binary), none = plain tar (fastest CPU).
@@ -111,6 +123,7 @@ STAGE_DIR=${STAGE_DIR:-"$HOME/mfgtmp/transfer_stage"}
 COMPRESS=${COMPRESS:-'gzip'}
 TRANSFER_TRANSPORT=${TRANSFER_TRANSPORT:-'ssh'}
 MANIFEST_LIMIT=${MANIFEST_LIMIT:-20}
+KEEP_TARS=${KEEP_TARS:-0}
 DRY_RUN=0
 
 SCRIPT_PATH=${BASH_SOURCE[0]}
@@ -124,9 +137,10 @@ say() { printf 'transfer_build: %s\n' "$1"; }
 
 while [ $# -gt 0 ]; do
   case $1 in
-    --dry-run) DRY_RUN=1 ;;
-    -h|--help) usage; exit 0 ;;
-    *)         die "unknown argument: $1" ;;
+    --dry-run)   DRY_RUN=1 ;;
+    --keep-tars) KEEP_TARS=1 ;;
+    -h|--help)   usage; exit 0 ;;
+    *)           die "unknown argument: $1" ;;
   esac
   shift
 done
@@ -415,6 +429,10 @@ if [ $DRY_RUN = 1 ]; then
     "    ( cd '$LOCAL_BUILD_DIR' && tar $TAR_FLAG -cf '$STAGE_DIR/<tar>' -- <members> )" \
     "    ssh \"\$SSH_TARGET\" \"tar $TAR_FLAG -xf - -C '$REMOTE_DIR'\" < '$STAGE_DIR/<tar>'" \
     "    printf '<tar-sha256>\\t<tar>\\n' | ssh \"\$SSH_TARGET\" \"cat >> '$REMOTE_DIR/.lane_transfer/chunk_hashes'\"  # records what was SENT; never decides a skip" \
+    "    rm '$STAGE_DIR/<tar>'   # right after the send is confirmed, so STAGE_DIR never holds a second full copy of the tree" \
+    "      (a failed send keeps its tar for the rerun; --keep-tars / KEEP_TARS=1 keeps every tar for forensics;" \
+    "       a run that completes also sweeps chunk__*.tar* leftovers of earlier runs - a chunk that now skips" \
+    "       or a chunk name the build renamed or dropped - and never touches manifest.tsv or chunk_hashes.tsv)" \
     '' \
     "  finally: upload the manifest -> $REMOTE_DIR/.lane_transfer/manifest.tsv" \
     "  manifest written for this dry run: $MANIFEST ($_mfiles files, $_mbytes bytes)" \
@@ -528,10 +546,21 @@ while IFS= read -r _cn; do
   set -- $(chunk_stats "$_cn")
   say "send  $_cn: files=$1 bytes=$2 tar=$_tn sha256=$_hash (of the $_cnfiles files this chunk's manifest lists the remote holds $_rseen, $_rdiff of them with other bytes -> payload fold $_rh differs from build payload $_ph; a file the build no longer lists is not counted here - this script never deletes remote files, and verify_transfer.sh reports those as EXTRA)"
   if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "tar $TAR_FLAG -xf - -C '$REMOTE_DIR'" < "$STAGE_DIR/$_tn"; then
-    die "chunk '$_cn' failed mid-transfer. A partial chunk cannot be resumed: the next run re-sends it whole. Nothing was deleted remote."
+    die "chunk '$_cn' failed mid-transfer. A partial chunk cannot be resumed: the next run re-sends it whole. Its staged tar is kept at $STAGE_DIR/$_tn (the rerun re-stages over it; --keep-tars also keeps the tars of the chunks that did send). Nothing was deleted remote."
   fi
   if ! printf '%s\t%s\n' "$_hash" "$_tn" | run_remote "cat >> '$REMOTE_DIR/.lane_transfer/chunk_hashes'"; then
     die "chunk '$_cn' landed on the remote, but its sent-ledger line could not be appended: the bytes are there (the next run will observe them and skip), only the what-was-sent record is missing"
+  fi
+  # The send is confirmed (transport ok + ledger line appended): the local tar is now a duplicate of
+  # bytes the remote tree holds, and no future skip can ever depend on it (the skip decision is an
+  # observation of the tree, never a local file). Delete it right here, so a multi-GB promotion holds
+  # one chunk in STAGE_DIR at a time instead of shipping the whole tree into staging first. A failed
+  # send above died with its tar kept for the documented rerun; --keep-tars opts the whole lifecycle
+  # out, per-send and sweep alike.
+  if [ "$KEEP_TARS" = 1 ]; then
+    say "keep-tars: $_tn kept at $STAGE_DIR/$_tn"
+  else
+    rm -f -- "$STAGE_DIR/$_tn"
   fi
   sent=$((sent+1))
   bytes_sent=$((bytes_sent+$2))
@@ -558,6 +587,32 @@ fi
 # out by a run that did not look at every chunk is the same lie in a different file.
 if [ $((sent + skipped)) -ne "$_expected_chunks" ]; then
   die "looked at $((sent + skipped)) of $_expected_chunks chunks - refused, no 'transfer done' line and no manifest upload: the chunk list enumerated $_expected_chunks chunk(s) and this run sent $sent + skipped $skipped = $((sent + skipped)) of them, so it ended before every chunk had been looked at; a truncated run is neither a transfer nor a convergence (find why the run ended early, then re-run it - the next run re-observes every chunk from the tree)"
+fi
+
+# STAGE_DIR must not become a second copy of the tree. Every tar this loop staged for a SEND is already
+# gone (deleted above, at the confirmed send), so anything still matching the chunk-tar namespace here
+# was left by an EARLIER run: the tar of a chunk this run skipped - the remote bytes were just observed
+# and matched, so the local tar proves nothing the tree has not already proven - or the tar of a
+# top-level name the build renamed or dropped, which no run after the rename ever names again (this is
+# the residue that made a real promotion leave ~8 GB behind for an operator to delete by hand). The
+# sweep stays inside the chunk__* namespace and the three suffixes tar_name can produce, so a leftover
+# written under a different COMPRESS setting is reclaimed too, and nothing else in STAGE_DIR -
+# manifest.tsv, chunk_hashes.tsv, anything an operator put there - is touched. It runs only on a run
+# that looked at every chunk: every die above exits first, so a failed run keeps the tars the documented
+# rerun wants, and KEEP_TARS=1 keeps them all.
+if [ "$KEEP_TARS" = 1 ]; then
+  say "keep-tars: no chunk tar was deleted - $STAGE_DIR holds every tar this run made, plus any earlier chunk__*.tar* files"
+else
+  _pruned=0 _pruned_bytes=0
+  while IFS=$'\t' read -r -d '' _pb _pt; do
+    if rm -f -- "$_pt"; then
+      _pruned=$((_pruned+1))
+      _pruned_bytes=$((_pruned_bytes + ${_pb:-0}))
+    fi
+  done < <(find "$STAGE_DIR" -maxdepth 1 -type f -name 'chunk__*' \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tar.zst' \) -printf '%s\t%p\0' 2>/dev/null)
+  if [ "$_pruned" -gt 0 ]; then
+    say "stage: pruned $_pruned stale chunk tar(s) ($_pruned_bytes bytes) from $STAGE_DIR - leftovers of earlier runs: a chunk that now skips, or a chunk name the build renamed or dropped; this run's sent tars were already deleted at their confirmed sends, and manifest.tsv/chunk_hashes.tsv stay (verify_transfer.sh and swap_webroot.sh read them)"
+  fi
 fi
 
 if ! "$TRANSFER_TRANSPORT" "$SSH_TARGET" "cat > '$REMOTE_DIR/.lane_transfer/manifest.tsv'" < "$MANIFEST"; then

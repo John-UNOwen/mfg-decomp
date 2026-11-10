@@ -42,7 +42,7 @@
 # is convergence only when the two agree, because a loop cut short after 1 of 4 chunks closed with '0 sent, 1
 # skipped' and exit 0 - shape-identical to the converged '4 skipped' the promotion proof was waiting for (the
 # 2026-11-09 D759A911DF0C promotion log; the stdin closure in remote_chunk_lines removed that particular cut -
-# every read-only transport call holds its stdin shut now (the mkdir, the observations, both probes, the manifest
+# every read-only transport call holds its stdin shut now (the mkdir, the existence test, the observations, both probes, the manifest
 # rename) and only the three calls handed a payload keep it (the tar send, the sent-ledger and the manifest pipe)
 # - the count is what refuses ANY cut, and a mismatch exits nonzero with no done line and no manifest upload).
 # The same done output states the surplus the scoped fold collected: remote files under the observed chunk
@@ -65,6 +65,19 @@
 # skipped chunks and gzip make the real figure smaller, but a premature refusal is one rerun while a half-written
 # promotion is a corrupt destination. --skip-space-check / SKIP_SPACE_CHECK=1 opts out for the operator who measured the
 # fit by hand (the honest case: a converged rerun that sends 0 bytes over a nearly-full target fs).
+#
+# And the destination has to be the tree the operator meant, not one this run invented. The .lane_transfer bookkeeping
+# mkdir is 'mkdir -p', which creates every missing parent - so a REMOTE_DIR typo one letter off the real path passed
+# every guard (it is absolute, it is not a system directory, it reads plausible), was SILENTLY CREATED by the run meant
+# to fill the real tree, shipped every chunk into it, closed with a clean done line, and verify_transfer.sh then agreed
+# about a tree that had existed for ninety seconds: the two-fold comparison compares manifest against whatever is at
+# REMOTE_DIR, so agreement about the run's own typo is guaranteed, and no line in the log said the destination had
+# been made (2026-11-10 checkup). A real run now asks the target 'is $REMOTE_DIR a directory' - one read-only,
+# stdin-shut transport call before the first write - and 'absent' is a refusal naming the path and the way to mean it:
+# --create / CREATE_REMOTE_DIR=1, under which the same mkdir runs but a loud CREATION line names the created path
+# first, so the promotion log states that the destination tree was built by this run. An answer the transport cannot
+# give at all (a dead link) is its own refusal: an existence this script cannot read is an existence it will not
+# write into. --dry-run dispatches nothing and prints the probe instead.
 #
 # And what a run writes down about its own sends has to be true. $STAGE_DIR/chunk_hashes.tsv is history of what was
 # SENT, and it is read by nothing: the skip decision is an observation of the remote tree (above), and verify_transfer.sh
@@ -110,11 +123,17 @@
 # REMOTE_DIR or restoring the operator's aside (the swapped-out old tree); the failure line at
 # the send site carries the same statement. Beyond that: the script issues no rm/unlink/truncate
 # outside its own .lane_transfer bookkeeping, and refuses obviously dangerous REMOTE_DIR values
-# outright.
+# outright. And it refuses a REMOTE_DIR that does not EXIST on the target yet unless --create is
+# passed: the bookkeeping mkdir is mkdir -p, so before that gate a wrong-but-plausible path - a
+# typo one letter off passes every guard above - was silently CREATED by the run that meant to
+# fill the real tree, the chunk loop shipped into the typo, the done line and verify_transfer.sh
+# both agreed about a tree seconds old, and no line in the log ever said the destination had
+# been created. With --create the same mkdir creates it, but only after a loud CREATION line
+# naming the path, so the creation sits in the log that records the promotion.
 #
 # Usage
 # -----
-#   scripts/linux/transfer_build.sh [--dry-run] [--keep-tars] [--skip-space-check] [-h|--help]
+#   scripts/linux/transfer_build.sh [--dry-run] [--keep-tars] [--skip-space-check] [--create] [-h|--help]
 #
 #   SSH_TARGET          ssh target, e.g. deploy@vps.example.com. Required for real runs.
 #   REMOTE_DIR          destination tree on the target. Required, absolute, and guarded on its
@@ -129,6 +148,14 @@
 #                       anything that contains one of them, and a value holding a single quote (the
 #                       path is wrapped in single quotes in every remote command). Each refusal
 #                       echoes the value it compared and extracts nothing.
+#                       A real run additionally requires the normalised path to EXIST on the target:
+#                       before anything is created or written there it asks the target ('test -d',
+#                       read-only, stdin held shut) and an absent answer is a refusal. That gate is
+#                       the whole protection against a plausible typo: the bookkeeping mkdir is
+#                       mkdir -p, so the run itself used to CREATE whatever REMOTE_DIR it was handed
+#                       (2026-11-10 checkup: the typo'd tree converged, 'verified', and nothing in
+#                       the log said it had been made). --create / CREATE_REMOTE_DIR=1 opts in to
+#                       creating a first-transfer destination, with a loud CREATION line first.
 #   LOCAL_BUILD_DIR     Unity WebGL output tree.  default: ~/mfg/out/webgl
 #                       (same default as assemble_webroot.sh:26; contains index.html,
 #                        Build/, StreamingAssets/, TemplateData/)
@@ -158,6 +185,17 @@
 #                       moves, and refuses naming both numbers when either holds less than the manifest's
 #                       total bytes (an upper bound: skipped chunks and gzip make what actually streams
 #                       smaller). Opt out only when you have measured the fit yourself.
+#   CREATE_REMOTE_DIR   1, or the --create flag: allow a real run to CREATE a REMOTE_DIR that does not
+#                       exist on the target yet. Without it, before anything is created or written there
+#                       the run asks the target whether REMOTE_DIR is a directory, and 'absent' (or an
+#                       answer the transport could not give at all) is a refusal: the bookkeeping mkdir
+#                       is mkdir -p, so without this gate a wrong-but-plausible path - every value the
+#                       guard above accepts - would be created by the run meant to fill the real tree,
+#                       the build would ship into the seconds-old typo, the done line would close, and
+#                       verify_transfer.sh would agree about it, no line saying the destination was made.
+#                       With --create the run prints a loud 'CREATION:' line naming the path right before
+#                       it creates it, so the creation sits in the promotion log. A rerun once the tree
+#                       exists needs no --create.
 #   COMPRESS            gzip | none | zstd.      default: gzip
 #                       gzip = tar -z (gzip is nearly everywhere), zstd = tar --zstd
 #                       (needs the zstd binary), none = plain tar (fastest CPU).
@@ -197,6 +235,7 @@ TRANSFER_TRANSPORT=${TRANSFER_TRANSPORT:-'ssh'}
 MANIFEST_LIMIT=${MANIFEST_LIMIT:-20}
 KEEP_TARS=${KEEP_TARS:-0}
 SKIP_SPACE_CHECK=${SKIP_SPACE_CHECK:-0}
+CREATE_REMOTE_DIR=${CREATE_REMOTE_DIR:-0}
 DRY_RUN=0
 
 SCRIPT_PATH=${BASH_SOURCE[0]}
@@ -213,6 +252,7 @@ while [ $# -gt 0 ]; do
     --dry-run)   DRY_RUN=1 ;;
     --keep-tars) KEEP_TARS=1 ;;
     --skip-space-check) SKIP_SPACE_CHECK=1 ;;
+    --create)    CREATE_REMOTE_DIR=1 ;;
     -h|--help)   usage; exit 0 ;;
     *)           die "unknown argument: $1" ;;
   esac
@@ -544,8 +584,29 @@ if [ $DRY_RUN = 1 ]; then
     "    refuses when either filesystem holds less than the manifest total ($_mbytes bytes), both numbers printed:" \
     "      local:  df -B1 --output=avail -- '$STAGE_DIR'   (the filesystem the chunk tars stage on)" \
     "      remote: ${SSH_TARGET:-<SSH_TARGET unset - would be required>}: $(remote_avail_command)" \
-    '        (REMOTE_DIR not existing yet is normal - the walk goes to its nearest existing ancestor,' \
-    '         the same filesystem; an unreadable or not-a-number answer is a refusal too)' ;
+    '        (for the capacity probe alone, a REMOTE_DIR not existing yet is walkable - the walk goes to its nearest' \
+    '         existing ancestor, the same filesystem; an unreadable or not-a-number answer is a refusal too)' ;
+  printf '%s\n' \
+    '' \
+    '  existence gate (real run, after the capacity gate, BEFORE the bookkeeping mkdir - the first write):' \
+    "    probe:  ${SSH_TARGET:-<SSH_TARGET unset - would be required>}: if test -d '$REMOTE_DIR'; then printf existing; else printf absent; fi" \
+    '      (read-only, stdin held shut; the if/else answers in words so a transport that could not run the test at' \
+    '       all leaves no answer and is refused as its own case - an existence this script cannot read is an' \
+    '       existence it will not write into)' \
+    "    'absent' + no --create: REFUSED - NOTHING created on the target, no chunk streamed. The mkdir is mkdir -p," \
+    '      so the form this gate replaces CREATED whatever path it was handed: a wrong-but-plausible typo passes' \
+    '      every path guard, the build ships into the tree the run made out of the typo, the done line closes, and' \
+    '      verify_transfer.sh agrees about a destination seconds old - the only tell was a line saying it had been' \
+    '      created, and that line did not exist'
+  if [ "$CREATE_REMOTE_DIR" = 1 ]; then
+    printf '%s\n' \
+      "    'absent' + --create given (this invocation): CREATION line naming $REMOTE_DIR, then the mkdir creates it" \
+      '      and this run ships the tree into it - the creation is in the log beside the sends'
+  else
+    printf '%s\n' \
+      "    'absent' + --create / CREATE_REMOTE_DIR=1: CREATION line naming the path, then the mkdir creates it -" \
+      '      the opt-in for a first transfer to a fresh destination; a rerun once the tree exists needs neither'
+  fi
   printf '%s\n' \
     '' \
     '  per chunk, a real run does:' \
@@ -620,10 +681,34 @@ else
   say "space: gate passed - tree $_mbytes bytes (manifest total, an upper bound: skips and gzip make what streams smaller); local free on the STAGE_DIR=$STAGE_DIR filesystem $_local_avail bytes; remote free on the filesystem holding REMOTE_DIR=$REMOTE_DIR $_remote_avail bytes"
 fi
 
+# ---------------------------- existence gate ----------------------------
+# Header + the REMOTE_DIR/CREATE_REMOTE_DIR docs carry the why; this is the where: the target is asked BEFORE the
+# first write, because the mkdir below is mkdir -p - the one command of this run that can make a REMOTE_DIR typo
+# exist. The answer comes in words from an if/else, not in exit codes: 'existing'/'absent' on stdout from a command
+# that succeeds either way, so a transport that could not run the test at all leaves NO answer and is refused as its
+# own case - 'the test failed' and 'the tree is not there' must never share a shape, or a dead link becomes a
+# licence to create. The only route past an 'absent' answer is an explicit --create / CREATE_REMOTE_DIR=1, and it
+# pays for itself with a loud CREATION line naming the path before anything is created. Read-only call, so its
+# stdin is shut under the rule stated at run_remote (9761a3b).
+if ! _remote_state=$(run_remote "if test -d '$REMOTE_DIR'; then printf existing; else printf absent; fi" </dev/null); then
+  die "the existence of REMOTE_DIR=$REMOTE_DIR on the target could not be read ($TRANSFER_TRANSPORT could not run even the read-only existence test; its own error above names the reason) - refusing to create or write toward a destination whose state was never read: nothing was created on the target, no chunk was streamed, the destination is exactly as it was"
+fi
+case $_remote_state in
+  existing) ;;
+  absent)
+    if [ "$CREATE_REMOTE_DIR" != 1 ]; then
+      die "REMOTE_DIR=$REMOTE_DIR does not exist on the target and --create was not given - refused: NOTHING was created on the target, no chunk was streamed, no bookkeeping dir was made. The mkdir below is mkdir -p, so the form this gate replaces CREATED whatever path it was handed: a wrong-but-plausible typo passes every path guard above, the build ships into a tree this run made out of the typo, the convergence line closes, and verify_transfer.sh agrees about a destination seconds old - the only tell was a line saying it had been created, and no such line was ever printed. Point REMOTE_DIR at the tree that already exists (a rerun needs no --create), or pass --create / CREATE_REMOTE_DIR=1 only when this exact path is a first-transfer destination you have checked"
+    fi
+    say "CREATION: REMOTE_DIR=$REMOTE_DIR does NOT exist on the target - --create was given, so this run CREATES it now and ships into it: every byte of this build will land in a tree that did not exist until this line. Read the path above once more; a first transfer into a typoed path converges exactly as happily as one into the tree that was meant, and verify_transfer.sh agrees about the typo too - this line is the last moment the target is untouched"
+    ;;
+  *) die "the target's answer about REMOTE_DIR=$REMOTE_DIR was unreadable ('$_remote_state' - want exactly 'existing' or 'absent') - an existence this script cannot read is an existence it will not write into, so nothing was created on the target, no chunk was streamed, the destination is exactly as it was" ;;
+esac
+
 # Read-only, so its stdin is shut under the rule stated at run_remote: this call sits in the
 # script body, where the caller's stdin may be a wrapper's work list, and a transport that
 # forwards stdin eats that list on the way to the far side (9761a3b). The mkdir itself needs
-# no input.
+# no input. Past the existence gate above it creates at most the .lane_transfer bookkeeping dir;
+# with --create it creates REMOTE_DIR too, and the CREATION line already said so in the log.
 run_remote "mkdir -p '$REMOTE_DIR/.lane_transfer'" </dev/null || die "remote mkdir -p '$REMOTE_DIR/.lane_transfer' failed"
 
 # The sent-ledger is opened here and nothing else: the line this replaces (': > "$CHUNK_HASHES"' at this spot before

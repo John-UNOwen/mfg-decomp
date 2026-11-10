@@ -181,6 +181,22 @@
 # STAGE_DIR (_tree_fp.txt / _tree_fp.check.txt), are deleted on a clean re-check, and stay behind (like
 # every other refusal) for the run that dies, where the two files are the diff evidence.
 #
+# And a --dry-run has to leave the record of what shipped alone. A dry run builds its plan from
+# $STAGE_DIR/manifest.tsv, chunks.txt and _rootfiles.txt - the same paths a real run writes its own manifest and
+# chunk lists into - and it wrote them to exactly those paths before printing the plan, so the plan REPLACED the
+# record. The offline repro (2026-11-10 checkup) put the manifest of the build that had actually shipped at
+# stage/manifest.tsv, ran one --dry-run against another tree, and cmp showed the shipped record gone: RC=0, and
+# the plan itself printed the truth path as its output. Every reader after that then judged the remote tree by
+# bytes that had never gone over a wire: verify_transfer.sh's default MANIFEST is $STAGE_DIR/manifest.tsv, and
+# swap_webroot.sh's default MANIFEST is $BOOKKEEPING_DIR/manifest.tsv with BOOKKEEPING_DIR defaulting to this same
+# STAGE_DIR - so a dry run slipped in between a transfer and a promotion had the swap count the staged tree against
+# a plan (agreement with a build nobody shipped, or a MISMATCH about a tree that was exactly right). So a dry run
+# writes its plan to the same names with '.dry-run' appended - manifest.tsv.dry-run, chunks.txt.dry-run,
+# _rootfiles.txt.dry-run - and says so in its own output; the paths a real run owns are not opened. The suffix is
+# empty in a real run, so nothing about a real transfer moves. What is left shared is the per-run scratch a run
+# truncates by design in either mode (_hashes.txt/_sizes.txt while the manifest joins, _empty_dirs.txt on every
+# start): rewritten at the next start, carrying no record of anything.
+#
 # The script never deletes anything remote - but it does overwrite, and overwriting needs no
 # delete to destroy bytes: every chunk lands as 'tar -xf - -C REMOTE_DIR', replacing each file
 # the stream reaches as it arrives. A run that completes is a convergence - every file this
@@ -245,6 +261,9 @@
 #                       the documented rerun re-stages it anyway. manifest.tsv is bookkeeping
 #                       (verify_transfer.sh and swap_webroot.sh read it) and chunk_hashes.tsv is the
 #                       append-only history of confirmed sends (read by nothing); neither is ever swept.
+#                       A --dry-run writes NONE of these: its plan lands under names with '.dry-run' appended
+#                       (manifest.tsv.dry-run, chunks.txt.dry-run, _rootfiles.txt.dry-run) so the record
+#                       of the last real transfer survives a dry run.
 #   KEEP_TARS           1, or the --keep-tars flag: delete no chunk tar - neither after a confirmed send
 #                       nor at the end-of-run sweep. Forensics by request: this puts the second full copy
 #                       of the tree back on disk, and the output says so on every send and at the close.
@@ -301,9 +320,18 @@
 #   --dry-run  computes the manifest locally (reads every file - a 5.47 GB build will
 #              take minutes to hash), stages nothing, runs no transport command, and
 #              prints the chunk list with the exact commands a real run would use.
+#              What it computes goes under names with '.dry-run' appended (manifest.tsv.dry-run,
+#              chunks.txt.dry-run, _rootfiles.txt.dry-run): a dry run does NOT write manifest.tsv, chunks.txt or
+#              _rootfiles.txt, so the record of what the last real run shipped survives the plan (header: 'a
+#              --dry-run has to leave the record of what shipped alone').
 #
 # Manifests (format documented in verify_transfer.sh):
-#   $STAGE_DIR/manifest.tsv        sha256 <TAB> bytes <TAB> ./path    (local truth; also the source of the payload digests)
+#   $STAGE_DIR/manifest.tsv        sha256 <TAB> bytes <TAB> ./path    (local truth; also the source of the payload digests.
+#                       Written by a REAL run only - a --dry-run leaves it alone and writes its plan to the
+#                       .dry-run name below, the file verify_transfer.sh and swap_webroot.sh read by default)
+#   $STAGE_DIR/manifest.tsv.dry-run  the same sha256 <TAB> bytes <TAB> ./path lines for the tree a --dry-run
+#                       looked at, plus chunks.txt.dry-run / _rootfiles.txt.dry-run beside it: a plan, shipped
+#                       by nothing, read by nothing - MANIFEST= points verify_transfer.sh at it only on purpose
 #   $STAGE_DIR/chunk_hashes.tsv    run <TAB> chunk-tar-sha256 <TAB> chunk-tar-name   (what was SENT, across runs; a line
 #                       is appended only after that chunk's tar streamed to the end and the remote ledger append of the
 #                       same line succeeded, and the file is never truncated - local record of the remote ledger below)
@@ -481,9 +509,17 @@ fi
 
 mkdir -p -- "$STAGE_DIR"
 
-MANIFEST=$STAGE_DIR/manifest.tsv
+# Header ('a --dry-run has to leave the record of what shipped alone'): a dry run builds a plan, a real run ships
+# bytes, and the record of what shipped must survive the plan. The three files the plan is built from are the same
+# files a real run writes its own manifest and chunk lists into, and both readers after a transfer -
+# verify_transfer.sh (default MANIFEST) and swap_webroot.sh (default BOOKKEEPING_DIR = this STAGE_DIR) - read those
+# names. So in --dry-run they carry '.dry-run' before the extension; in a real run the suffix is empty and every
+# path below is exactly the path it has always been.
+PLAN_SUFFIX=''
+if [ $DRY_RUN = 1 ]; then PLAN_SUFFIX='.dry-run'; fi
+MANIFEST=$STAGE_DIR/manifest.tsv$PLAN_SUFFIX
 CHUNK_HASHES=$STAGE_DIR/chunk_hashes.tsv
-CHUNK_LIST=$STAGE_DIR/chunks.txt
+CHUNK_LIST=$STAGE_DIR/chunks.txt$PLAN_SUFFIX
 
 # The two remote bookkeeping paths the manifest publish touches, defined once: the upload opens ONLY the tmp for
 # writing, and the manifest path - the file the KB delta procedure and verify_transfer.sh read as truth - is reached
@@ -581,7 +617,7 @@ ROOT_CHUNK='_root_files_'
   cd "$LOCAL_BUILD_DIR"
   find . -maxdepth 1 -mindepth 1 -type d | LC_ALL=C sort
 ) > "$CHUNK_LIST"
-_rootfiles=$STAGE_DIR/_rootfiles.txt
+_rootfiles=$STAGE_DIR/_rootfiles.txt$PLAN_SUFFIX
 (
   cd "$LOCAL_BUILD_DIR"
   find . -maxdepth 1 -mindepth 1 -type f | LC_ALL=C sort
@@ -805,7 +841,9 @@ remote_manifest_probe_command() {              # -> the EXACT far-side tmp-measu
 # ---------------------------- dry-run: show the plan and exit ----------------------------
 if [ $DRY_RUN = 1 ]; then
   printf '%s\n' \
-    'transfer_build --dry-run: no ssh, no staging writes beyond manifests:' \
+    'transfer_build --dry-run: no ssh, no transport call, no chunk tars; the manifest and chunk lists this plan' \
+    '  is built from are written under .dry-run names, so the record the last REAL run left in STAGE_DIR -' \
+    '  manifest.tsv (verify_transfer.sh / swap_webroot.sh read it by default) and its chunk lists - is not written:' \
     "  source      $LOCAL_BUILD_DIR" \
     "  target      ${SSH_TARGET:-<SSH_TARGET unset - would be required>}:$REMOTE_DIR" \
     "  bookkeeping $BOOKKEEPING_DIR (manifest publish + remote sent-ledger - outside REMOTE_DIR;" \
@@ -902,6 +940,10 @@ if [ $DRY_RUN = 1 ]; then
     "    (same-dir rename, atomic: $MANIFEST_DST_REMOTE - the file the KB delta procedure reads as truth - is" \
     '    never opened for writing until a verified whole copy of this run'"'"'s manifest already exists beside it)' \
     "  manifest written for this dry run: $MANIFEST ($_mfiles files, $_mbytes bytes)" \
+    "    the plan files of this run are $MANIFEST, $CHUNK_LIST and $_rootfiles - all under '.dry-run' names:" \
+    "    $STAGE_DIR/manifest.tsv was NOT written, so it still holds the manifest of the build the last real run" \
+    '    shipped - the file verify_transfer.sh and swap_webroot.sh compare against by default. A dry run ships' \
+    '    nothing, so this plan describes a tree, not a transfer; point MANIFEST= at it only on purpose.' \
     '  NOTE: an interrupted chunk is NOT resumable mid-tar; the next run re-sends' \
     '        that whole chunk. A chunk is skipped only after the remote files behind it are hashed.' \
     '        Extraction replaces each file it reaches as the stream arrives, so a run that dies' \

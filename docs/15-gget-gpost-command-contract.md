@@ -1,4 +1,4 @@
-# 15 — `/gget` and `/gpost`: the match command contract
+# 15 - `/gget` and `/gpost`: the match command contract
 
 Purpose: a mock/replacement game server must be able to run a full Mahjong Fight Girl
 match against the *unmodified* recovered client. This document pins the exact wire
@@ -65,7 +65,7 @@ Observed (`capture/s2-evidence-sanitized.md:41`):
 
 The last slot is the client's **fetch cursor**: "give me everything from cell `554` on".
 
-Generic parameter tuple: `(int TakuID, int PlayerIndex, int PlayerID, bool isReady, int nextSeqNo)` — `AC/MFG.GameRequest/GGet.cs:9`.
+Generic parameter tuple: `(int TakuID, int PlayerIndex, int PlayerID, bool isReady, int nextSeqNo)` - `AC/MFG.GameRequest/GGet.cs:9`.
 
 ### 1.3 `/gpost` request body (verbatim template)
 
@@ -142,9 +142,9 @@ Root of the response document → `AC/MFG.GameRequest/GGet.cs:34-78`.
 
 `game/mwait` (parsed by `AC/MFG.Taikyoku/MatchingData.cs:27-106`): `status` (`≠0` ⇒
 `IsMatchingEnd`, `MatchingData.cs:31-32`), `pnum` (`:33`), `cpu_num` (`:34`), `pindex` (read
-and discarded — `MatchingData.cs:36-39`), optional `mend` roster with children
+and discarded - `MatchingData.cs:36-39`), optional `mend` roster with children
 `player_{0..3}` (`ptype` 0-2 human with `zaseki` + base64 `client_states`; `ptype` 3 CPU
-with `cpu_level`/`cpu_name`/`cpu_variant` — `AC/MFG.Taikyoku/PlayerInfo.cs:70-110`),
+with `cpu_level`/`cpu_name`/`cpu_variant` - `AC/MFG.Taikyoku/PlayerInfo.cs:70-110`),
 `g2event/e/id` (`MatchingData.cs:87-104`). Inside `mwait`, `status`/`pnum`/`cpu_num` use
 `NeedNotElement` but the local handler only swallows `MustNeed…` (`MatchingData.cs:31-43`),
 so a `mwait` missing `status` aborts match parsing for that response (caught at
@@ -166,7 +166,7 @@ so a `mwait` missing `status` aborts match parsing for that response (caught at
 
 `AC/MFG.GameRequest/GPost.cs:49-78`. Same `serv_st/code`, plus `game/mwait`,
 `game/taikyoku` (same `cell_info`/`cell_sno`/`cell_data_{seq}` log, §1.5), root `chat`,
-and — only on `gpost` — root `recon`:
+and - only on `gpost` - root `recon`:
 
 | Element | Line | Meaning |
 |---|---|---|
@@ -185,7 +185,7 @@ the *same* response, and re-basing the cursor at `recon/next_sno`
 
 Every command cell is `cell_data_{seqNo}` with attribute `kind`
 (`AC/MFG.Taikyoku/TaikyokuData.cs:55`,`:68`) plus four **seat attributes** parsed by the
-base class for every command: `pi0`, `pi1`, `pi2`, `pi3` (each `1` sets that seat's bit) —
+base class for every command: `pi0`, `pi1`, `pi2`, `pi3` (each `1` sets that seat's bit) -
 `AC/MFG.Taikyoku.Command.Receive/ReceiveCommand.cs:28-47`, flags enum
 `AC/MFG.Taikyoku.Command/PLAYER_INDEX_FLAG.cs:8-11` (`P0=1, P1=2, P2=4, P3=8`).
 `ToPlayerIndex()` returns the **lowest set bit's** seat (`AC/MFG.Taikyoku.Command/PlayerIndexFlagExtention.cs:5-24`),
@@ -218,7 +218,7 @@ outside `:20-27`), so a missing `pi*` escapes as an unhandled `NullReferenceExce
 
 ### 2.1 `MFG.Taikyoku.Command.RECEIVE_COMMAND_TYPE` (server → client)
 
-`AC/MFG.Taikyoku.Command/RECEIVE_COMMAND_TYPE.cs:5-22` — explicit values, gaps are real
+`AC/MFG.Taikyoku.Command/RECEIVE_COMMAND_TYPE.cs:5-22` - explicit values, gaps are real
 (11-13, 18, 20-22 are unassigned in the client):
 
 | Value | Member | Line |
@@ -248,7 +248,7 @@ outside `:20-27`), so a missing `pi*` escapes as an unhandled `NullReferenceExce
 
 ### 2.2 `MFG.Taikyoku.Command.SEND_COMMAND_TYPE` (client → server)
 
-`AC/MFG.Taikyoku.Command/SEND_COMMAND_TYPE.cs:5-20` — **no explicit values**: implicit
+`AC/MFG.Taikyoku.Command/SEND_COMMAND_TYPE.cs:5-20` - **no explicit values**: implicit
 0-based ordinals in declaration order.
 
 | Ordinal | Member | Line |
@@ -338,7 +338,7 @@ how the Exec handler uses them:
 **Mock consequence:** `pi0..pi3` must be present on every cell (else NRE, §1.8);
 `TSUMOCHOICES` must carry exactly the acting seat's bit (`ToPlayerIndex()` takes the
 lowest), while `SUTECHOICES` may carry several claimer bits but the inner `pindex` is
-**not** the addressed seat (`ChoicesData.cs:110` reads it into an unused field —
+**not** the addressed seat (`ChoicesData.cs:110` reads it into an unused field -
 see §3.4).
 
 ### 3.3 Per-command field lists
@@ -347,7 +347,7 @@ All element names below are children of the `cell_data_{seqNo}` element unless n
 "required" = a missing child makes that command parse as empty/zero (never kills the
 connection, but the action becomes nonsense).
 
-**TSUMO (1)** — `AC/MFG.Taikyoku.Command.Receive/Tsumo.cs:17-27`
+**TSUMO (1)** - `AC/MFG.Taikyoku.Command.Receive/Tsumo.cs:17-27`
 
 | Child | Req | Type | Meaning |
 |---|---|---|---|
@@ -358,7 +358,7 @@ Applied: wall count `--` (`AC/ExecTsumo.cs:33-34`), tile added to that seat's ha
 (`:57` first-draw path, `:91` normal path), last-tsumo warning at 0 (`:63-66`), dora
 indicator flips after a kan (`:67-73`).
 
-**SUTEHAI (2)** — `AC/MFG.Taikyoku.Command.Receive/Sutehai.cs:29-48`
+**SUTEHAI (2)** - `AC/MFG.Taikyoku.Command.Receive/Sutehai.cs:29-48`
 
 | Child | Req | Type | Meaning |
 |---|---|---|---|
@@ -370,7 +370,7 @@ indicator flips after a kan (`:67-73`).
 Applied by `AC/ExecSutehai.cs` (river, furiten bookkeeping, open-riichi wait reveal
 `:65-86`).
 
-**TSUMOAGARI (3)** — `AC/MFG.Taikyoku.Command.Receive/TsumoAgari.cs:28-56`
+**TSUMOAGARI (3)** - `AC/MFG.Taikyoku.Command.Receive/TsumoAgari.cs:28-56`
 
 | Child | Req | Type | Meaning |
 |---|---|---|---|
@@ -384,7 +384,7 @@ Applied by `AC/ExecSutehai.cs` (river, furiten bookkeeping, open-riichi wait rev
 Applied: `AC/ExecAgari.cs:66-241` (uradora reveal `:137`, per-seat score text `:189`,
 final scores `:203`).
 
-**RON (4)** — `AC/MFG.Taikyoku.Command.Receive/Ron.cs:30-65`
+**RON (4)** - `AC/MFG.Taikyoku.Command.Receive/Ron.cs:30-65`
 
 | Child | Req | Type | Meaning |
 |---|---|---|---|
@@ -397,7 +397,7 @@ final scores `:203`).
 Applied: `AC/ExecAgari.cs:243-480` (per-seat ron flags `:257`, uradora reveal `:364`,
 scores `:439`,`:464`).
 
-**RYUKYOKU (5)** — `AC/MFG.Taikyoku.Command.Receive/RyuKyoku.cs:20-33`
+**RYUKYOKU (5)** - `AC/MFG.Taikyoku.Command.Receive/RyuKyoku.cs:20-33`
 
 | Child | Req | Type | Meaning |
 |---|---|---|---|
@@ -408,7 +408,7 @@ scores `:439`,`:464`).
 
 Applied: `AC/ExecAgari.cs:482-540`.
 
-**PON (6)** — `AC/MFG.Taikyoku.Command.Receive/Pon.cs:21-32`
+**PON (6)** - `AC/MFG.Taikyoku.Command.Receive/Pon.cs:21-32`
 
 | Child | Req | Meaning |
 |---|---|---|
@@ -419,26 +419,26 @@ Applied: `AC/ExecAgari.cs:482-540`.
 
 Applied: `AC/ExecNaki.cs:34-58` (`Players[pindex].Pon(Players[sute_pindex], pon_pai[0], pon_pai[1])` `:47`).
 
-**CHI (7)** — `AC/MFG.Taikyoku.Command.Receive/Chi.cs:21-32`: same shape, array `chi_pai`
+**CHI (7)** - `AC/MFG.Taikyoku.Command.Receive/Chi.cs:21-32`: same shape, array `chi_pai`
 (`:29`); applied at `AC/ExecNaki.cs:60-79` (`:73`). Note the client ignores the *meld
 shape* here and rebuilds it from the two ids; which of the three tiles came from the
 discard is implied by the pair contents. `UNCONFIRMED:` exact `chi_pai` ordering convention
-for the three call positions — confirm with one captured CHI cell per `chi_naki` value.
+for the three call positions - confirm with one captured CHI cell per `chi_naki` value.
 
-**ANKAN (8)** — `AC/MFG.Taikyoku.Command.Receive/Ankan.cs:17-28`: `pindex` (`:22`), `pai`
+**ANKAN (8)** - `AC/MFG.Taikyoku.Command.Receive/Ankan.cs:17-28`: `pindex` (`:22`), `pai`
 (`:23`). Applied `AC/ExecNaki.cs:81-94`.
 
-**MINKAN (9)** — `AC/MFG.Taikyoku.Command.Receive/Minkan.cs:19-29`: `pindex` (`:24`),
+**MINKAN (9)** - `AC/MFG.Taikyoku.Command.Receive/Minkan.cs:19-29`: `pindex` (`:24`),
 `sute_pindex` (`:25`), `pai` (`:26`). Applied `AC/ExecNaki.cs:96-112` (remembers the
 discarded-from seat for the rinshan animation at `:108`, used by `AC/ExecTsumo.cs:72`).
 
-**KAKAN (10)** — `AC/MFG.Taikyoku.Command.Receive/Kakan.cs:17-28`:
+**KAKAN (10)** - `AC/MFG.Taikyoku.Command.Receive/Kakan.cs:17-28`:
 `pindex` (`:22`), `pai` (`:23`). Applied `AC/ExecNaki.cs:114-129`.
 
-**TYOKO (14)** — `AC/MFG.Taikyoku.Command.Receive/TyoKo.cs:15-25`: `pindex` (`:20`) only.
+**TYOKO (14)** - `AC/MFG.Taikyoku.Command.Receive/TyoKo.cs:15-25`: `pindex` (`:20`) only.
 Sets a "long think" flag for that seat client-side (`AC/ExecKyoku.cs:57-66`).
 
-**TSUMOCHOICES (15)** — `AC/MFG.Taikyoku.Command.Receive/TsumoChoices.cs:14-18` →
+**TSUMOCHOICES (15)** - `AC/MFG.Taikyoku.Command.Receive/TsumoChoices.cs:14-18` →
 `ChoicesData.ParseTsumoChoices` (`AC/MFG.Taikyoku.Command.Receive/ChoicesData.cs:89-102`):
 
 | Child | Req | Meaning |
@@ -448,10 +448,10 @@ Sets a "long think" flag for that seat client-side (`AC/ExecKyoku.cs:57-66`).
 | `ptn_num`, `ptn{0..n-1}` | no | tenpai/riichi patterns; each has `sute_pai`, `machi_num`, `machi_pai`, `stat` (`:208-232`, `:43-55`) |
 | `kuikae_pai` | no | tile ids that must become **undiscardable** (kuikae 流局しぼみ protection) (`:234-249`; consumed at `AC/ExecTsumoChoices.cs:142-159`) |
 
-No `pindex` child is read for this command — the addressed seat comes from `pi0..pi3`
+No `pindex` child is read for this command - the addressed seat comes from `pi0..pi3`
 (`AC/ExecTsumoChoices.cs:96`).
 
-**SUTECHOICES (16)** — `AC/MFG.Taikyoku.Command.Receive/SuteChoices.cs:14-18` →
+**SUTECHOICES (16)** - `AC/MFG.Taikyoku.Command.Receive/SuteChoices.cs:14-18` →
 `ChoicesData.ParseSuteChoices` (`ChoicesData.cs:104-120`):
 
 | Child | Req | Meaning |
@@ -464,16 +464,16 @@ No `pindex` child is read for this command — the addressed seat comes from `pi
 | `pon_pai` | no | pon patterns, 2 ints per pattern, max 2 patterns (`:183-206`) |
 | `kan_pai`, `kan_type` | no | added kan options (`:122-147`) |
 
-**KYOKUSTART (17)** — §7.1.
-**KYOKUEND (23)** — `AC/MFG.Taikyoku.Command.Receive/KyokuEnd.cs:15-24`: `end_stat`
+**KYOKUSTART (17)** - §7.1.
+**KYOKUEND (23)** - `AC/MFG.Taikyoku.Command.Receive/KyokuEnd.cs:15-24`: `end_stat`
 (`:20`): `1` ⇒ `IsEnd` ⇒ the whole match ends (client leaves the play scene), anything else
 means "next kyoku coming" (`AC/ExecKyoku.cs:209-247`).
-**SCORERANK (24)** — `AC/MFG.Taikyoku.Command.Receive/ScoreRank.cs:37-58`: optional
+**SCORERANK (24)** - `AC/MFG.Taikyoku.Command.Receive/ScoreRank.cs:37-58`: optional
 `riti_after{0..3}` blocks (element name built at `:44`) each with `score` and `rank`
 (`:19-20`), plus optional `kyoutaku` (`:52-54`). Applied: riichi-stick count + all seat
 scores/ranks are replaced wholesale (`AC/ExecKyoku.cs:249-266`).
 `UNCONFIRMED:` exactly when the server emits 24 (field names say "after riichi 供託"; could
-also be a generic mid-kyoku score sync) — one captured `cell_data_* kind="24"` resolves it.
+also be a generic mid-kyoku score sync) - one captured `cell_data_* kind="24"` resolves it.
 
 ### 3.4 Shared sub-structures
 
@@ -488,7 +488,7 @@ handlers (九種九牌 has no client-side sender, §4.4).
 `sute_pai` = the tile whose discard keeps this wait; `machi_num`; `machi_pai` = waiting
 tile ids; `stat` = per-wait status array where **bit 1 (`& 2`) == 0 means "this wait still
 has tiles out there"** (`IsMachiPaiRemain`, `:57-68`). If `ptn_num` is present but zero
-patterns survive, the client **clears `REACH` from `select`** (`:228-231`) — i.e. a server
+patterns survive, the client **clears `REACH` from `select`** (`:228-231`) - i.e. a server
 that wants to forbid riichi for an empty wait sends `ptn_num=0`.
 
 Pattern packing limits (fixed-size arrays, overflow is dropped silently):
@@ -525,7 +525,7 @@ where bit index == `MFG.Types.Yaku` enum ordinal.
 all mandatory (plain `Element` + `ValueInt`): `before_score` (i64), `yaku_score` (i64),
 `kyotaku_score` (供託), `tumifu_score` (場積), `new_score` (i64), `wherefore`.
 `wherefore == 1` makes the client **recompute** the payment with its own score table and
-ignore `yaku_score` (`AC/Agari.cs:663`) — a useful lever: the server can either send final
+ignore `yaku_score` (`AC/Agari.cs:663`) - a useful lever: the server can either send final
 numbers, or send han/fu in `yaku{i}` and let the client compute money.
 
 ---
@@ -538,7 +538,7 @@ numbers, or send han/fu in `yaku{i}` and let the client compute money.
 `TepaiPos2`, `PaiID`, `TepaiID`, `TepaiID2`, `ReachFlag`, `TsumoGiriFlag`, `ChiNaki`), all
 default 0. Concrete senders just fill fields (`AC/MFG.Taikyoku.Command.Send/*.cs`); the
 transport flattens them into `must=` slots 6-15 (§1.3). Therefore **any command the server
-receives has 10 value slots regardless of whether they mean anything** — unused slots are
+receives has 10 value slots regardless of whether they mean anything** - unused slots are
 `0` (verified in the observed `NAKINASHI`/`NEXT_KYOKU_READY` shapes below).
 
 ### 4.2 Per-command meaning of the slots, with construction sites
@@ -589,10 +589,10 @@ layout is deterministic:
   requested id against the current array order, consumed tiles masked so duplicates map to
   distinct indices) and `AC/Hand.cs:289-299` (`GetItemPos`).
 * `AC/ExecTsumoChoices.cs:476` timeout path uses `GetTimeUpPaiPos()`; the manual path uses
-  the tapped tile's position — both pass the same `pai_id`, so the server can validate
+  the tapped tile's position - both pass the same `pai_id`, so the server can validate
   consistency of `tepai_pos`/`pai_id` against the hand it dealt, or ignore `tepai_pos`
   entirely. `UNCONFIRMED:` whether the live server validates `tepai_pos` at all
-  (the client never re-reads it) — confirm by sending a deliberately wrong `tepai_pos` in a
+  (the client never re-reads it) - confirm by sending a deliberately wrong `tepai_pos` in a
   dev session and watching for a reject/`gpost` error code.
 
 ### 4.4 Sends the recovered client never emits
@@ -623,24 +623,24 @@ the server still needs the equivalents for CPU seats.
 command** (`AC/MFG.Taikyoku.Command/CommandClient.cs:135-140` for `gget`, `:217-221` for
 `gpost`). Consequences for the server:
 
-* An empty window (`count="0"`) leaves the cursor where it was — safe, idempotent polling.
+* An empty window (`count="0"`) leaves the cursor where it was - safe, idempotent polling.
 * A window with `available="0"` yields `NextFetchSeqNo = 0` and, if the client had already
   buffered commands, that `0` is **not** applied (count is 0). Do not send
   `available="0"` together with `count > 0`.
 * Commands are de-duplicated on arrival: anything with `SeqNo <= max(seq in buffer)` is
   dropped (`:126-134`, `:208-216`). A server may therefore retransmit a window overlapping
-  what the client already has — but a **retransmitted seq that the client has already
+  what the client already has - but a **retransmitted seq that the client has already
   consumed is silently skipped, never replayed**.
 
 ### 5.3 How the server "answers a window"
 
 There is no explicit ack. Two mechanisms carry acceptance:
 
-1. **`next_sno` on `entry_game` / `recon`** — server-side cursor for a fresh entry
+1. **`next_sno` on `entry_game` / `recon`** - server-side cursor for a fresh entry
    (`AC/MFG.Taikyoku/EntryTakuInfo.cs:52`; `AC/MFG.Taikyoku.Command.Receive/TaikyokuStartInfo.cs:100-104`
    → applied at `AC/MFG.Taikyoku.Command/CommandClient.cs:202`). `gpost` bodies carry **no**
    `next_sno` field; the seq they carry is inside `must=` slot 6.
-2. **New cells in the same or a later window** — the answer to any send is "the log moved
+2. **New cells in the same or a later window** - the answer to any send is "the log moved
    forward". A client-side send blocks on `IsBusy` while its `gpost` is in flight
    (`AC/MFG.Taikyoku.Command/CommandClient.cs:171`,`:234`; gameplay waits with
    `await UniTask.WaitWhile(() => m_commandClient.IsBusy)`, `AC/ExecKyoku.cs:244`).
@@ -652,14 +652,14 @@ until the client is reset (`Reset` clears it, `:259`). Per-kyoku readiness is in
 `NEXT_KYOKU_READY(15)` **gpost** (§7.4). The gate the client waits on is
 `game/all_ready` in a `gget` response: it loops `Fetch()` until that is non-zero
 (`AC/MahjongPlayFlow.cs:675-678`), and **an absent `all_ready` element counts as ready**
-(`AC/MFG.GameRequest/GGet.cs:43-51`) — so the mock can simply omit `all_ready`, or send
+(`AC/MFG.GameRequest/GGet.cs:43-51`) - so the mock can simply omit `all_ready`, or send
 `<all_ready>1</all_ready>` after the last seat latched.
 
 ### 5.4 What the client does when the server has nothing new
 
 The play loop polls (`AC/MahjongPlayFlow.cs:1451-1457`: when the buffer is empty the client
 fires `m_commandClient.Fetch().Forget()` and does not block on it). An empty window means
-the buffer stays empty and the loop polls again — a `gget` roughly every other frame while
+the buffer stays empty and the loop polls again - a `gget` roughly every other frame while
 the client waits (326 `gget` for a 2-match session, capture lines 32-33). No
 negative/empty status code is used: an idle `gget` still returns `code 0` with `count="0"`.
 
@@ -678,7 +678,7 @@ time, §3.1).
 | everything else (SUTE_PAI, TSUMO_AGARI, ANKAN, KAKAN, KIKEN, NEXT_KYOKU_READY, …) | the current fetch cursor `m_cmdFetchPosition` (`:249`) |
 
 Live corroboration: the `gget` at cursor 554 (capture line 41) is answered by a discard at
-seq 555 (capture line 42) — the discard sits immediately after the window that delivered
+seq 555 (capture line 42) - the discard sits immediately after the window that delivered
 the draw/choices.
 
 Three hard consequences:
@@ -763,7 +763,7 @@ Request (`AC/MFG.GameRequest/EntryGame.cs:25-60`): `web_id`, `area_id`, `pcuid`,
 `teammatch`, `consume_oids`, `entry_id`, `pro_stay`, `competition_id`,
 `shop_competition_id`, `debug_score=-1`.
 
-Response `<entry>` — **all 17 children are `MustNeedElement`**
+Response `<entry>` - **all 17 children are `MustNeedElement`**
 (`AC/MFG.Taikyoku/EntryTakuInfo.cs:47-67`): `gserv_id`, `tid`, `pindex`, `next_sno`,
 `last_cyoukou_num`, `cyoukou_num`, `ste_oya1_limit_time`, `ste_limit_time`,
 `ste_reechi1_limit_time`, `naki_limit_time`, `agari_limit_time`,
@@ -808,7 +808,7 @@ Resign path: `gpost KIKEN(13)` then `kiken_game` (identical body/response,
   (`:100-120`). `CommandClient` then clears its buffer, adopts the cells of the same
   response, and sets the cursor from `recon/next_sno` (`AC/MFG.Taikyoku.Command/CommandClient.cs:197-204`).
   `UNCONFIRMED:` a production caller of `new Send.Reconnect()` (only `AC/WebRequestTest.cs:401`
-  exists) — a captured `gpost` with `kind=14` settles it.
+  exists) - a captured `gpost` with `kind=14` settles it.
 * `TaikyokuStartInfo.ParseFromReconnect` / `ParsePlayerFromReconnect` expect
   **`player{i}`** with the extra live-state fields (`:66-79`, `:174-188` →
   `PlayerData.ParseFromReconnect` `:33-53` → `FuroData.ParseFromReconnect` `:49-63`) but
@@ -867,13 +867,13 @@ Parsed by `AC/MFG.Taikyoku.Command.Receive/KyokuStart.cs:49-125`:
 
 So: the deal is conveyed as **13 ids per seat in `player_info{i}/tepai`**; the dealer's 14th
 tile arrives as the first `TSUMO` (`AC/ExecKyoku.cs:182` arms `m_isFirstTsumo`,
-`AC/ExecTsumo.cs:52-62` consumes it) — `UNCONFIRMED:` whether the live server ever puts 14
+`AC/ExecTsumo.cs:52-62` consumes it) - `UNCONFIRMED:` whether the live server ever puts 14
 ids in the dealer's `tepai` (the client deals exactly 13 regardless); one captured
 `KYOKUSTART` settles it.
 
 ### 7.2 The dispatch loop
 
-`AC/MahjongPlayFlow.cs:1440-1514` — a per-frame state machine (`m_step`), not a coroutine
+`AC/MahjongPlayFlow.cs:1440-1514` - a per-frame state machine (`m_step`), not a coroutine
 per command:
 
 ```
@@ -890,7 +890,7 @@ step 2: if (ExecutableCount() <= 0) { m_step = 0; break; }                      
 ```
 
 A handler returns `true` when its command is fully consumed (the next tick advances to the
-following command, `:1472-1477`) and `false` to be re-run on the next frame — that is how a
+following command, `:1472-1477`) and `false` to be re-run on the next frame - that is how a
 choice window (`ExecTsumoChoices`, `ExecSuteChoices`) stays open across frames while it
 waits for touch input. The dispatch also logs seq/kind/`PlayerIndexFlag` per command when
 `DebugFlag.EnableCommandClientLog` is on (`:1483`, `:1509`).
@@ -916,7 +916,7 @@ waits for touch input. The dispatch also logs seq/kind/`PlayerIndexFlag` per com
 (`AC/MahjongPlayFlow.cs:732-737`) and calls `end_game` (`:772`).
 
 Observed traffic mix consistent with this shape: one session's client sends were
-`SUTE_PAI ×132`, `NAKINASHI ×26`, `NEXT_KYOKU_READY ×8` (capture lines 45-48) — i.e. ~8
+`SUTE_PAI ×132`, `NAKINASHI ×26`, `NEXT_KYOKU_READY ×8` (capture lines 45-48) - i.e. ~8
 kyokus, and the human seat passed on ~26 offered claim windows.
 
 ### 7.4 Per-kyoku readiness
@@ -950,7 +950,7 @@ value keeps the +64.
 
 ### 8.2 Wire examples proving the encoding
 
-* `pai_id:32` with `tsumogiri_flg:0` — 32 = `Pai.J2` = 南 (South), discarded from hand
+* `pai_id:32` with `tsumogiri_flg:0` - 32 = `Pai.J2` = 南 (South), discarded from hand
   position 11 (capture line 51). A `HaiID`-encoded South would be 28.
 * `must=…/2/13/0/17/0/0/0/1/0` — discarded `pai_id = 17` = `Pai.S7` (7-sou) at hand index 13
   with `tsumogiri_flg=1` (capture line 42).
@@ -958,7 +958,7 @@ value keeps the +64.
   `AC/MFG.Sytem.Utilities.Xml/Extensions.cs:57-60`) cast straight to `(Pai)` in
   `AC/ExecKyoku.cs:115-116`,`:139` and in `AC/ExecTsumo.cs:57`,`:91`.
 
-### 8.3 Dora, ura-dora, wall, initial hand — separate fields or one list?
+### 8.3 Dora, ura-dora, wall, initial hand - separate fields or one list?
 
 * Omote dora and ura dora are **separate parallel arrays** (`dora` / `ura_dora`,
   `AC/MFG.Taikyoku.Command.Receive/KyokuStart.cs:79-81`), with `dora_open` saying how many
@@ -969,7 +969,7 @@ value keeps the +64.
   `omote[j]` in `yama` (the client can't tell; needs a captured `yama` + `dora` pair).
 * The wall: `nokori` (count) is authoritative for the client's counters; `yama_cnt`/`yama`
   (order) and `rinshan` are parsed and ignored (`KyokuStart.cs:88-109`), so a mock may send
-  them empty — subject to the `NeedNot` guard ordering (they come before `player_info{i}`,
+  them empty - subject to the `NeedNot` guard ordering (they come before `player_info{i}`,
   so omitting them **skips player parsing** because the `NeedNot` is caught only at
   `KyokuStart.cs:69-71` / `:122-124`; send empty strings or the elements themselves).
 * Initial tiles: 13 per seat in `player_info{i}/tepai` (§7.1); the 14th tile of any draw is
@@ -977,7 +977,7 @@ value keeps the +64.
 * Melds are conveyed only as **events** (`PON/CHI/MINKAN/KAKAN` cells, §3.3); there is no
   per-kyoku furo list outside reconnect (`FuroData`, §3.4). Discards likewise exist only as
   `SUTEHAI` events (plus `sute_pai[]`/`sute_pai_state[]` in the reconnect shape). A mock that
-  wants replay must keep the log — that is exactly what the client does
+  wants replay must keep the log - that is exactly what the client does
   (`AC/MFG.Taikyoku.Command/CommandClient.cs:286-292`, kifu replay mode).
 
 ### 8.4 3-player / 2-player variants
@@ -986,7 +986,7 @@ Rule/mode flags live in `AC/MFG.GameData/MahjongGameData.cs` (TakuType/EventType
 `:273-275` for mode selection); tile *availability* filtering is
 `AC/MFG.Types/HaiIDExtensions.cs:155-183` (nima drops manzu + west + Chun, sanma drops
 honors or 2-8 manzu). The wire carries plain `Pai` ids; the client's seat count comes from
-`GameDataManager.Mahjong.TakuType` (set from `gmode`), not from the command stream — so the
+`GameDataManager.Mahjong.TakuType` (set from `gmode`), not from the command stream - so the
 server must keep `gmode` and the dealt tiles consistent (`AC/MahjongUtility.GetPlayerNum`
 loops at `AC/ExecKyoku.cs:95`, `AC/MahjongPlayFlow.cs:1976`).
 
@@ -1015,7 +1015,7 @@ Namespace `MFG.MahjonPlay.Hand` (misspelled in the original source) in
 | `AC/MFG.Types/ShantenInfo.cs`, `ScoreInfo.cs`, `Yaku.cs`, `HaiUtility.cs` | result value types |
 
 A mock/replacement server can therefore reuse, unchanged (or lifted into a .NET build):
-decomposition, shanten, wait identification, yaku recognition, fu, han and payment tables —
+decomposition, shanten, wait identification, yaku recognition, fu, han and payment tables -
 i.e. everything needed to answer `TSUMOCHOICES.select`/`ptn*`, `SUTECHOICES.select`/
 `chi_pai`/`pon_pai`/`kan_pai` and to fill `yaku{i}`/`calc_score{i}`.
 
@@ -1031,7 +1031,7 @@ i.e. everything needed to answer `TSUMOCHOICES.select`/`ptn*`, `SUTECHOICES.sele
 ### 9.3 What the client does **not** do (server-side duties you cannot delegate)
 
 * No `IsAgari()`-style win tester: a win is decided by "drawn/claimed tile ∈ `HaiNavi.MachiHais()`"
-  client-side (`AC/HaiNavi.cs:274`, `AC/ExecTsumoChoices.cs:257`) — the server must decide
+  client-side (`AC/HaiNavi.cs:274`, `AC/ExecTsumoChoices.cs:257`) - the server must decide
   legality and scores.
 * No tenhou/九種九牌/流局条件 detection client-side: yakuman *names* arrive as
   `yaku1`/`yaku2` bits (`AC/MFG.Taikyoku.Command.Receive/YakuData.cs:40-42`, decoded at
@@ -1039,7 +1039,7 @@ i.e. everything needed to answer `TSUMOCHOICES.select`/`ptn*`, `SUTECHOICES.sele
 * The client never validates the server: it displays whatever `calc_score{i}` /
   `player_info{i}/score` says (`AC/ExecKyoku.cs:253-258`), and recomputes money only when
   `wherefore == 1` (`AC/Agari.cs:663`).
-* The client sends no chi/pon "is this legal" check — legality of the *call* is implied by
+* The client sends no chi/pon "is this legal" check - legality of the *call* is implied by
   the server having offered the window; `tepai_pos`/`tepai_id` are self-reported (§4.3).
 
 ---
@@ -1067,45 +1067,45 @@ i.e. everything needed to answer `TSUMOCHOICES.select`/`ptn*`, `SUTECHOICES.sele
 ## 11. Open questions (and the artifact that settles each)
 
 1. Does the server emit a `SUTECHOICES` (with `select=NONE`) on **every** discard, or only
-   when someone can call? Client tolerates both (§3.2, §7.3 5a/5b). — *one captured discard
+   when someone can call? Client tolerates both (§3.2, §7.3 5a/5b). - *one captured discard
    followed by an immediate next `TSUMO`.*
 2. Is `TSUMO` really broadcast with the drawn tile id for **every** seat (i.e. the server
    reveals each draw to all clients)? The client applies it unconditionally
    (`AC/ExecTsumo.cs:52-91`), so "yes" is the only consistent reading, but the capture does
-   not contain a `gget` body dump. — *any captured `gget` response with `cell_data_* kind="1"`.*
-3. ~~`KYOKUEND.end_stat`~~ **Settled 2026-10-24 by two live S3 matches**: `1` = match over —
+   not contain a `gget` body dump. - *any captured `gget` response with `cell_data_* kind="1"`.*
+3. ~~`KYOKUEND.end_stat`~~ **Settled 2026-10-24 by two live S3 matches**: `1` = match over -
    the client sends `end_game` within seconds of a `KYOKUEND` with `end_stat=1` and goes to the
    ranking screen; `0` = kyoku over, match continues. The mock must send `0` mid-match and `1`
    only on the final kyoku (already its behavior; verified live end to end).
-4. `SCORERANK(24)` trigger and cadence (§3.3). — *captured `kind="24"` cell.*
+4. `SCORERANK(24)` trigger and cadence (§3.3). - *captured `kind="24"` cell.*
 5. `kan_type` numbering in `kan_pai`/`kan_type`: the client's own kan chooser only acts on
    `1` → `Ankan` and `3` → `Kakan` and silently drops any other value
    (`AC/ExecTsumoChoices.cs:952-968`); what `2` (or others) would mean, and whether
-   `SUTECHOICES`' `kan_pai` uses the same numbering, is unverified. — *captured
+   `SUTECHOICES`' `kan_pai` uses the same numbering, is unverified. - *captured
    `SUTECHOICES` with `kan_pai`.*
 6. Semantics of the unused inner fields: `SUTECHOICES/pindex`, `naki` flag word (§3.3),
    `KYOKUSTART/sai`, `yama`, `rinshan`, `rencyan`, `oya`, `chicya`. Server-side they
-   presumably drive CPU behavior; the client ignores them. — *server binary, or captured
+   presumably drive CPU behavior; the client ignores them. - *server binary, or captured
    cells compared with observed play.*
-7. `chi_pai` ordering convention per `chi_naki` position (§3.3 CHI). — *captured CHI cells
+7. `chi_pai` ordering convention per `chi_naki` position (§3.3 CHI). - *captured CHI cells
    for left/center/right calls.*
-8. Whether the dealer's `player_info{dealer}/tepai` carries 13 or 14 ids (§7.1). —
+8. Whether the dealer's `player_info{dealer}/tepai` carries 13 or 14 ids (§7.1). -
    *captured `KYOKUSTART`.*
-9. `available="0"` semantics (§1.5, §5.2) — what the live server uses it for (maintenance?
-   log compaction?). — *captured `gget` with `available="0"`.*
+9. `available="0"` semantics (§1.5, §5.2) - what the live server uses it for (maintenance?
+   log compaction?). - *captured `gget` with `available="0"`.*
 10. Reconnect element naming inside `recon` (`player{i}` vs `player_info{i}`, §6.6) and the
-    trigger request (`kind=14` gpost vs the unused `/reconnect/` endpoint). — *a captured
+    trigger request (`kind=14` gpost vs the unused `/reconnect/` endpoint). - *a captured
     mid-match reconnect.*
 11. Whether the server validates the `must=` chain / `tepai_pos` at all, and what
-    `serv_st/code` values it returns on rejection (§4.3). — *a dev-session send with a
+    `serv_st/code` values it returns on rejection (§4.3). - *a dev-session send with a
     deliberately wrong seq or `tepai_pos`, plus the server binary.*
 12. `gchat` during play: `GChat` hard-codes `scene=MATCHING` and is only called from
     `MatchingFlow` (`AC/MFG.GameRequest/GChat.cs:22`,`:26`; `AC/MatchingFlow.cs:500`,`:516`),
-    yet stamps are seen mid-match in-game — the mid-match send path was not found in
-    recovered code. — *captured `g_chat` request during `MahjongPlay`, or the missing caller.*
-13. `RANNYU(19)` — no client parser (§2.1); what does it carry and when does the server emit
-    it? — *captured `kind="19"` cell.*
-14. Units/meaning of the `entry_game` limit fields (§6.3). — *server binary, or timing a live
+    yet stamps are seen mid-match in-game - the mid-match send path was not found in
+    recovered code. - *captured `g_chat` request during `MahjongPlay`, or the missing caller.*
+13. `RANNYU(19)` - no client parser (§2.1); what does it carry and when does the server emit
+    it? - *captured `kind="19"` cell.*
+14. Units/meaning of the `entry_game` limit fields (§6.3). - *server binary, or timing a live
     kyoku against `ste_limit_time`.*
 15. Rank fields are 0-based `Rank` enum values (`KyokuStart/player_info{N}/rank` and
     `Mgresult/player_{N}/rank`; `ScorePanel.isWin = myRank == 0`, `m_ranks[rank]` has 4 entries,
@@ -1114,4 +1114,4 @@ i.e. everything needed to answer `TSUMOCHOICES.select`/`ptn*`, `SUTECHOICES.sele
 16. Renchan dealer handling: real 4-player rules keep the dealer on an exhaustive-draw renchan;
     the current mock rotates seats on any tenpai draw and increments `kyoku` as if it advanced.
     Client renders whatever `oya`/`jikaze`/`kyoku` the server sends, so this is a rule-fidelity
-    gap, not a protocol failure. — *captured renchan `KYOKUSTART` after a dealer tenpai draw.*
+    gap, not a protocol failure. - *captured renchan `KYOKUSTART` after a dealer tenpai draw.*

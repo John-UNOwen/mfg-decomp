@@ -1,4 +1,4 @@
-# 37. Round-robin face audit — every opponent vs Musashi (2026-11-11)
+# 40. Round-robin face audit - every opponent vs Musashi (2026-11-11)
 
 Purpose: after the mouth-card rim fix (docs/31 L38; rim zeroed on Character7/17 via
 `MfgRebuild.Gate2Content.FixMouthRim`, unity `579ed0ceb4`), random CPU casts made it
@@ -20,7 +20,7 @@ human seat, so each face is seen once in the kami seat (facing camera) plus a pr
 - Build under test: staging root `931E50A1B0E5` (rim fix + restored quality + 0.5/0 outlines).
 - Cast identity taken from each run's `[verdict]` standing-load line, never from guesswork.
 
-## Casts (seat: right / left / across — verified per run)
+## Casts (seat: right / left / across - verified per run)
 
 | Run | Verdict cast | Right | Left | Across | Frame shipped |
 |---|---|---|---|---|---|
@@ -43,10 +43,10 @@ human seat, so each face is seen once in the kami seat (facing camera) plus a pr
 - Census ground truth this round builds on (see OKF `references/lower-face-grey-band-mechanism`):
   18 characters still run the white rim-on default live; visibility depends on card geometry.
 
-## Artifacts (KEEP — cited by this report)
+## Artifacts (KEEP - cited by this report)
 
 - Shipped frames: `C:\mfgtmp\mp_r{1..8}_06.png` (1920x1080).
-- Full burst sets per run: `C:\mfgtmp\mp_r{1..8}_NN.png` (26-30 frames each) — keep until the
+- Full burst sets per run: `C:\mfgtmp\mp_r{1..8}_NN.png` (26-30 frames each) - keep until the
   owner's visual pass is signed off; then superseded runs' non-shipped frames may go.
 - Logs: `C:\mfgtmp\robin_r{1..8}.log.txt`, `C:\mfgtmp\robin_status.txt`.
 - Kit: `C:\mfgtmp\robin_run.ps1`, `C:\mfgtmp\patch_selectchara.py` (reusable; pins +

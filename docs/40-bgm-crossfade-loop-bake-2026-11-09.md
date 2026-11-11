@@ -1,4 +1,4 @@
-# 40 — BGM loops: the real root cause was authored crossfade tails; skip-head bake shipped (2026-11-09)
+# 40 - BGM loops: the real root cause was authored crossfade tails; skip-head bake shipped (2026-11-09)
 
 Supersedes docs/39 (silence padding - reverted, see that file's banner) and completes docs/37 (the
 decode-seam analysis - real but secondary, it only sets the ~20 ms residual gap).
@@ -80,24 +80,24 @@ or Chrome resampling the decoded buffer 44.1→48 kHz (all buffers decode at 48k
 ## Promotion to live (2026-11-10)
 `mfg.0006767.xyz` (VPS production lane) moved from `D33DFEFDA262` to `D759A911DF0C`. The promoted
 tree is the STAGING webroot itself, not a reassembly: `transfer_build.sh` shipped all 58,809 files
-and the final convergence pass hashed every file on the VPS against the manifest — 4/4 chunks
-skipped, 0 bytes moved — proving byte identity; the webroot is host-independent because the baked
+and the final convergence pass hashed every file on the VPS against the manifest - 4/4 chunks
+skipped, 0 bytes moved - proving byte identity; the webroot is host-independent because the baked
 `-FRONTURL http://127.0.0.1:8090/aog` in index.html is a placeholder the gate splices per request.
 Swap was `systemctl stop mfg-gate` + two renames + chown + start (~15 s down); the old tree rode as
 `webroot.old-20261110T042749Z` and was removed after smoke (17/0/3), the edge stamp readback, and
 brotli-sidecar identity (`webgl.framework.js.br` at `?v=D759A911DF0C` hashes equal staging's, plain
-and compressed alike — Chrome's compressed path gets the patched glue too). Cloudflare still holds
+and compressed alike - Chrome's compressed path gets the patched glue too). Cloudflare still holds
 the pre-promotion `framework.js` under the BARE unversioned key; harmless, every game page loads
 assets only under the `?v=` key and the watchdog reloads stale pages.
 
 Near-miss worth keeping: the first transfer run ended "transfer done: 1 chunk(s) sent" with a
-clean exit — `remote_chunk_lines()` ran ssh inside the `while read` chunk loop, and ssh ate the
+clean exit - `remote_chunk_lines()` ran ssh inside the `while read` chunk loop, and ssh ate the
 loop's stdin, truncating the chunk list after the first entry. The ssh-shim fixtures cannot catch
 this (a bash shim doesn't consume stdin); real ssh truncated EVERY run at chunk 1, so reruns never
 converge. Fixed by holding the observation call's stdin shut (`</dev/null`, repo `9761a3b`); the
 kit fixture suite is unchanged green by A/B (114 ok / 6 pre-existing bad both runs). VPS disk after
 promotion: 4.1 G free (journal vacuum 3.3→0.5 G; the retired 9.2 G `/srv/mfg-staging` tree stays per
-KB). Rollback, if ever needed: re-promote by the same path — `D33DFEFDA262` is reproducible from
+KB). Rollback, if ever needed: re-promote by the same path - `D33DFEFDA262` is reproducible from
 content state `a70b969da0` + a content rebuild.
 
 ## Follow-ups

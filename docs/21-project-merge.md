@@ -1,14 +1,14 @@
-# 21. Project merge — build/unity-project reorganized for Unity 2022.3.13f1
+# 21. Project merge - build/unity-project reorganized for Unity 2022.3.13f1
 
 Docs so far: [19-assembly-compile.md](19-assembly-compile.md) proved every recovered tree compiles
 against the shipped reference set; [20-content-extraction.md](20-content-extraction.md) exported the
 AssetRipper project and staged StreamingAssets. This doc records the third step: merging the recovered
 trees into the exported project so the editor opens it with the code compiled as Unity's **predefined
-assemblies**, and play mode can boot the game from the shipped addressable bundles — without ever
+assemblies**, and play mode can boot the game from the shipped addressable bundles - without ever
 running the editor (license pending).
 
 Everything here is produced by [`scripts/prepare_project.ps1`](../scripts/prepare_project.ps1)
-(idempotent — a rerun reproduces the layout without overwriting project code edits, §7) and verified
+(idempotent - a rerun reproduces the layout without overwriting project code edits, §7) and verified
 by the artifacts under `build/project-merge-analysis/`. Nothing is committed to git; the game install
 share is read-only input, never written.
 
@@ -29,13 +29,13 @@ Unity compiles every `.cs` under `Assets/` (outside `Plugins/`/`Editor/`) into A
 everything under `Assets/Plugins/` into Assembly-CSharp-firstpass; there are **0 `.asmdef`/`.asmref`
 files** in the project, so the predefined-assembly assignment above is exactly what the editor does.
 `Assets/Editor/AssetRipperPatches/AudioMixerPostprocessor.cs` is the only AssetRipper-exported `.cs`
-with no recovered equivalent — kept (compiles into Assembly-CSharp-Editor).
+with no recovered equivalent - kept (compiles into Assembly-CSharp-Editor).
 
 Totals after merge: **Assets = 146,599 files / 16.72 GB**, of which 1,477 `.cs` (the table above +
 1 editor patch) and 58,743 `.meta`. The AssetRipper code export is gone: `Assets/Scripts/`
 (1,314 `.cs`, including the six plugin assemblies AssetRipper exported there) and the firstpass export
 (72 `.cs`) were deleted after their metas were carried (below); the recovered trees cover every type
-they declared — 0 export files had to be kept (`keeps = 0`, no `_assetripper_only` folders needed),
+they declared - 0 export files had to be kept (`keeps = 0`, no `_assetripper_only` folders needed),
 confirming the recovered trees are a complete superset.
 
 ### 1.1 Compile-setting deltas (recorded, per decision)
@@ -52,7 +52,7 @@ predefined assemblies compile at **C# 9** and have no UI toggle for unsafe, so:
   seven times in one assembly = CS0579) and `UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs`
   (one same-named internal class per assembly; seven copies in Assembly-CSharp would collide).
   Assembly-CSharp and firstpass keep their own single copies of both files. Unity regenerates the
-  latter itself at player-build time (irrelevant for editor/play mode v1; strip then — see §6).
+  latter itself at player-build time (irrelevant for editor/play mode v1; strip then - see §6).
 - Directories literally named `Editor`/`Plugins` inside namespace folders would trigger Unity's
   magic-folder assembly reassignment; the script renames any it finds to `_Editor`/`_Plugins` in the
   copies. None were present in this run.
@@ -61,15 +61,15 @@ predefined assemblies compile at **C# 9** and have no UI toggle for unsafe, so:
 
 ### 1.2 Script GUID carrying (why scene references resolve)
 
-AssetRipper serialized every `.unity/.prefab/.asset` with metas whose GUIDs it **generated** — the
+AssetRipper serialized every `.unity/.prefab/.asset` with metas whose GUIDs it **generated** - the
 byte-probe (`build/project-merge-analysis/guid_bytes_probe.py` → `guid_bytes_probe.json`) searched 22
 meta GUIDs in 5 byte layouts across `globalgamemanagers*`, `resources.assets` and `level0*` and found
 zero hits: the original project GUIDs are not recoverable from the player data. The exported tree is,
-however, internally consistent, so its metas must be carried into the project — including the metas
+however, internally consistent, so its metas must be carried into the project - including the metas
 AssetRipper generated for types that live in loose dlls (`PluginImporter` metas).
 
 `m_Script` census over the export (`scripts/analyze_script_references.ps1` → `script_refs.json`):
-**103,467 refs / 446 distinct script GUIDs** — 6,239 refs across **438** `.cs`-file metas, 97,228
+**103,467 refs / 446 distinct script GUIDs** - 6,239 refs across **438** `.cs`-file metas, 97,228
 refs across **8** loose-dll importer metas, 0 builtin pseudo-guids, 0 unresolved.
 
 `prepare_project.ps1` built `build/project-merge-analysis/script_guid_map.json` mapping every
@@ -81,8 +81,8 @@ referenced `.cs` metas are carried** (`referencedGuidsNotCarriedOrKept = 0`,
 sources through the carried metas.
 
 The 8 loose-dll provider metas are preserved by keeping those dlls (§2), so their 97,228 references
-bind to the retained `PluginImporter` metas. The 21 kept dll metas additionally had their `Editor`
-platform switched `enabled: 0 → 1` — AssetRipper exports player dlls editor-**disabled**, and the
+bind to the retained `PluginImporter` metas. The 21 kept dll metas also had their `Editor`
+platform switched `enabled: 0 → 1` - AssetRipper exports player dlls editor-**disabled**, and the
 editor must load these assemblies or every one of those references resolves to "missing script".
 All 21 kept metas verified `ed:1`.
 
@@ -90,10 +90,10 @@ All 21 kept metas verified `ed:1`.
 
 All 39 loose dlls carry `AssemblyVersion 0.0.0.0` with no informational-version metadata (stripped
 player builds), so package versions were derived from **embedded version string literals** in each
-dll (full-literal scan in `loose_dlls.ndjson` + this run) — never from assembly attributes.
+dll (full-literal scan in `loose_dlls.ndjson` + this run) - never from assembly attributes.
 `loose_dlls.ndjson` also records each dll's full type list (used by §4) and assembly references.
 
-**Deleted — 18 dlls (+ their .meta; 36 items):**
+**Deleted - 18 dlls (+ their .meta; 36 items):**
 
 | dll | why | replacement | version basis |
 |---|---|---|---|
@@ -110,14 +110,14 @@ dll (full-literal scan in `loose_dlls.ndjson` + this run) — never from assembl
 | FbxBuildTestAssets | test-sample assembly, 0 serialized refs, 0 loose referrers, provided among formats.fbx package tests | — | literal `4.2.1` |
 | System.Runtime.CompilerServices.Unsafe | BCL facade: 0 referrers among the 39 loose assemblies; Unity 2022.3's own managed BCL set ships the same assembly name → keeping it risks a duplicate-assembly load error | Unity built-in BCL | n/a |
 
-Deletion safety guard (in-script): every deleted dll's importer guid is checked against the census —
+Deletion safety guard (in-script): every deleted dll's importer guid is checked against the census -
 a deleted dll must carry **0** serialized script references (all 18 do; the 8 provider dlls are all in
 the keep set). Cross-assembly reference check from `loose_dlls.ndjson`: the only deleted-assembly
 reference among kept loose dlls was `Shirahama.Async → Shirahama`, and both trees merged together into
 Assembly-CSharp, so the reference is now intra-assembly. Nothing references kamunity/Shirahama*/
 VirtualSurround/Win10actLog except the recovered sources themselves (which are merged alongside).
 
-**Kept loose — 21 dlls (4.2 MB total, all metas editor-enabled):**
+**Kept loose - 21 dlls (4.2 MB total, all metas editor-enabled):**
 
 | dll | serialized m_Script refs (type fileIDs) | version literal(s) | why kept |
 |---|---|---|---|
@@ -137,7 +137,7 @@ VirtualSurround/Win10actLog except the recovered sources themselves (which are m
 **Deviation from decision-2's default, with measured reason:** the decision said Unity-package
 assemblies shipped loose should become manifest entries. For TMP/UI/Timeline/RenderPipelines.Core that
 is not expressible without breaking the export: their metas are AssetRipper-**generated** GUIDs
-(§1.2 — the originals are unrecoverable), while the UPM packages ship the same scripts under the
+(§1.2 - the originals are unrecoverable), while the UPM packages ship the same scripts under the
 packages' own fixed GUIDs. Installing them would leave **65,201 serialized references (UI 54,108 +
 TMP 10,306 + RPCore 92 + Timeline 81) pointing at GUIDs that exist nowhere** → guaranteed missing
 components in every scene, which is worse for a play-mode boot than the cosmetic loss of those
@@ -149,7 +149,7 @@ those four + companions + ProBuilder ×5. Consequences recorded in §6.
 (`com.unity.addressables 1.21.19`, `com.unity.scriptablebuildpipeline 1.21.21`,
 `com.unity.ai.navigation 1.1.5`, `com.unity.recorder 4.0.2`, `com.unity.memoryprofiler 1.1.0`,
 `com.unity.profiling.core 1.0.2`, `com.unity.formats.fbx 4.2.1`). No
-`com.unity.render-pipelines.universal` entry — see §3. No textmeshpro/timeline/ugui/probuilder/core
+`com.unity.render-pipelines.universal` entry - see §3. No textmeshpro/timeline/ugui/probuilder/core
 entries (§2 deviation). Package assemblies resolve into the predefined assemblies automatically,
 including into Assembly-CSharp-firstpass (`UniTask.Addressables`/code references to
 Unity.Addressables/Unity.ResourceManager bind by name to the package-compiled assemblies, identity
@@ -157,13 +157,13 @@ Unity.Addressables/Unity.ResourceManager bind by name to the package-compiled as
 
 ## 3. Render pipeline verdict
 
-`ProjectSettings/GraphicsSettings.asset` line 68: `m_CustomRenderPipeline: {fileID: 0}` — no pipeline
+`ProjectSettings/GraphicsSettings.asset` line 68: `m_CustomRenderPipeline: {fileID: 0}` - no pipeline
 GUID reference. Deep name scan across all exported `.asset/.unity/.prefab`
 (`UniversalRenderPipelineAsset|RenderPipelineGlobalSettings|HDRIPipelineAsset|VolumeProfile`): **0
 hits**. No Universal/InputSystem dlls exist in the shipped `Managed/` or `Plugins/`.
 **Verdict: the shipped project is Built-in RP; the pipeline resolves with no package and no complaint.**
 Materials point at the ~40 AssetRipper dummy shader stubs, so expect **pink materials** until shader
-recovery — unrelated to the pipeline slot. The kept loose `Unity.RenderPipelines.Core.*` dlls only
+recovery - unrelated to the pipeline slot. The kept loose `Unity.RenderPipelines.Core.*` dlls only
 back the Volume/DebugUI-family serialized objects the shipped build carried (§2); they do not change
 the active pipeline.
 
@@ -175,18 +175,18 @@ declared names) and intersect against the type lists of all kept loose dlls (fro
 and across placed files; separately regex for assembly-qualified runtime lookups
 (`Type.GetType("X, kamunity")`, `Assembly.Load("kamunity")`) naming merged-away assemblies.
 
-- **placed ↔ kept-dll collisions: 19 — all the same name**:
+- **placed ↔ kept-dll collisions: 19 - all the same name**:
   `UnitySourceGeneratedAssemblyMonoScriptTypes_v1`, Unity's assembly-internal generated class that
   every precompiled assembly legitimately carries its own copy of (it exists in all 21 kept dlls and
   in the single Assembly-CSharp/firstpass copies). No real type collision: DOTween.dll vs the
-  firstpass `DG.Tweening` module files, TMP/UI/UniRx/Springbone/zxing vs the trees — zero overlaps.
-- **duplicate names within placed code: 63 groups — all flattened-nesting artifacts** (`ViewElement`
+  firstpass `DG.Tweening` module files, TMP/UI/UniRx/Springbone/zxing vs the trees - zero overlaps.
+- **duplicate names within placed code: 63 groups - all flattened-nesting artifacts** (`ViewElement`
   nested in different parents, same enum name in 48 outers, etc.) plus 2 legitimate cross-assembly
   name shadows between Assembly-CSharp and Assembly-CSharp-firstpass. The 0-error merged compile
   (§5) is the proof no true same-assembly duplicates exist (CS0101 would be an error).
 - **reflection lookups to merged assemblies: 0 hits** — no code string-load depends on the
   `kamunity`/`Shirahama*`/`VirtualSurround`/`Win10actLog-Runtime` *assembly names* disappearing.
-  (Bundle-internal type strings still name them — §6.2.)
+  (Bundle-internal type strings still name them - §6.2.)
 
 ## 5. Compile verification without the editor
 
@@ -207,11 +207,11 @@ packages + kept loose dlls will provide).
 
 **Addressables v1 strategy (no group rebuild).** The shipped runtime content was copied from the
 install (robocopy, incremental, re-run copies 0): `Assets/StreamingAssets/aa/` = **28,295 files,
-4.891 GB** — `catalog.json` (46,945,442 B), `settings.json` (1,607 B: `m_buildTarget:
+4.891 GB** - `catalog.json` (46,945,442 B), `settings.json` (1,607 B: `m_buildTarget:
 StandaloneWindows64`, `m_AddressablesVersion: 1.21.19`, providers `AssetBundleProvider` +
 `BundledAssetProvider`, catalog path `{Addressables.RuntimePath}/catalog.json`) +
 **28,292 original bundles** under `StandaloneWindows64/`. The shipped code initializes addressables
-from exactly this catalog — that is the runtime's own catalog-local loading mode, so the staged tree
+from exactly this catalog - that is the runtime's own catalog-local loading mode, so the staged tree
 reproduces the shipped play experience with zero rebuilds. `AddressableAssetsData/` (build-only
 authoring data) does not exist in any player export and is absent here. Characters/Yakuman on-demand
 videos staged: **121 + 13 `.webm`**.
@@ -226,15 +226,15 @@ Residual risks, honestly listed:
 2. **Merged assemblies vs bundle type strings.** MonoBehaviour references inside the 28k bundles
    serialize assembly names `kamunity`/`Shirahama*`/`VirtualSurround`/`Win10actLog-Runtime`, which no
    longer exist as separate assemblies after the merge. Editor play mode resolves MonoBehaviours from
-   bundles through Unity's serialized-type table with a type-name fallback across loaded assemblies —
+   bundles through Unity's serialized-type table with a type-name fallback across loaded assemblies -
    the same fallback that makes script moving between predefined assemblies usually survive at
-   runtime — but the first play session should explicitly verify character/audio/QR-scanner
+   runtime - but the first play session should explicitly verify character/audio/QR-scanner
    components bind (signature if it ever misses: `The referenced script (Unknown) on this Behaviour is
    missing!` on instantiated prefab prefabs + null component fields). Fallback plan if needed: ship
    those six trees as asmdef packages under their original names, or keep their loose dlls instead of
    copying the sources.
 3. **Bundle↔script GUID rebinding for the kept loose dlls** works only while those dlls stay at their
-   AssetRipper metas (that is why they are kept — §2). Editor play mode loads the original bundles
+   AssetRipper metas (that is why they are kept - §2). Editor play mode loads the original bundles
    with original fileIDs; binding uses the kept importer metas + the serialized type table.
 4. **Package resolution is offline now (supersedes the registry note):** `scripts/vendor_packages.ps1`
    fetches pinned versions (+ transitive deps) anonymously from packages.unity.com and embeds them
@@ -248,8 +248,8 @@ Residual risks, honestly listed:
    packages; first open needs no package registry.
 5. **Editor-side assemblies missing** (they were never in the player): TMP and UnityEngine.UI
    inspector drawers, Timeline editors, addressables editor UI after install (the package ships its
-   own editor assembly — fine). Runtime components serialize/load normally; inspectors for those
-   components look bare. TMP may prompt to "Import TMP Essentials" — the shipped Resources already
+   own editor assembly - fine). Runtime components serialize/load normally; inspectors for those
+   components look bare. TMP may prompt to "Import TMP Essentials" - the shipped Resources already
    carry the TMP settings/font assets, so dismiss rather than import if prompted.
 6. **Player build later (not v1):** Unity regenerates
    `UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs` at build time → strip the two kept copies
@@ -258,12 +258,12 @@ Residual risks, honestly listed:
    re-signing reproductions.
 7. **`Assets/Assembly-CSharp` as a folder** is a normal folder (any non-`Plugins`/`Editor` location
    compiles into Assembly-CSharp); placement deviates from "Assets root" only to keep it out of the
-   85k-file asset folder — same resulting assembly.
-8. Console will show import noise: decompiler warnings (CS0219/CS4014 — same set the probe build
+   85k-file asset folder - same resulting assembly.
+8. Console will show import noise: decompiler warnings (CS0219/CS4014 - same set the probe build
    emits), possible CS0436-family name-shadow warnings around the internal generated class name, and
    importer upgrade chatter on the legacy-version metas. None are blockers.
 
-## 7. First open in 2022.3.13f1 — exact steps
+## 7. First open in 2022.3.13f1 - exact steps
 
 ```powershell
 # with Unity Hub (recommended): Add project from disk ->
@@ -275,7 +275,7 @@ Residual risks, honestly listed:
 ```
 
 Expect on first open: package resolution (7 pins) → asset import of 146,599 files (118k of them
-small; the 28k-bundle/4.9 GB StreamingAssets tree imports as raw bytes — realistically 20–60 min on
+small; the 28k-bundle/4.9 GB StreamingAssets tree imports as raw bytes - realistically 20–60 min on
 an SSD, Library several GB) → compile of Assembly-CSharp-firstpass then Assembly-CSharp (1,477 files,
 C# 9 + csc.rsp `-unsafe`) → auto-open of the startup scene: the exported `EditorBuildSettings.asset`
 carries the full shipped scene list (62 entries, index 0 = `Assets/MFG/Scenes/Boot/Boot.unity`, all
@@ -283,20 +283,20 @@ carries the full shipped scene list (62 entries, index 0 = `Assets/MFG/Scenes/Bo
 Expected console content per §6.8 + §6.5. **Play mode:** press Play on the startup scene;
 addressables initializes from `StreamingAssets/aa` (catalog-local, §6). If addressables logs a content
 load error because the Groups window has no `AddressableAssetsData` yet: open
-Window ▸ Asset Management ▸ Addressables ▸ Groups (it creates settings), and pick **“Use Existing
-Build”** (loads the staged shipped catalog — do **not** choose Build New Groups, which would rebuild
+Window ▸ Asset Management ▸ Addressables ▸ Groups (it creates settings), and pick **"Use Existing
+Build"** (loads the staged shipped catalog - do **not** choose Build New Groups, which would rebuild
 and is impossible without the original project anyway).
 
 Rerun after any redo: `powershell -ExecutionPolicy Bypass -File scripts\prepare_project.ps1`
 (optionally `-SkipBundles`; add `-SkipBundles` while iterating on code placement to skip the 28k-file
-bundle diff pass — it is also required when the install share is unreachable, in which case all
+bundle diff pass - it is also required when the install share is unreachable, in which case all
 install staging (bundles, native plugins, videos) is skipped). The persisted guid map + kept-file
 snapshots under `build/project-merge-analysis/` make reruns deterministic even though the export
 folder they were derived from is now deleted; a full re-export from AssetRipper would rebuild the
 map from scratch.
 
 A rerun does not revert client fixes. Phase 2 compares every placed code file against the pristine
-copy of its `api/recovered` twin — the namespace transform of §1.1 is applied to the twin first, so
+copy of its `api/recovered` twin - the namespace transform of §1.1 is applied to the twin first, so
 the 909 transformed-but-untouched files still count as pristine and are left alone. Files whose
 content differs (the in-place fixes: SoundManager, CardEntryScene, AccountGameData, the gacha flows,
 …) and files with no twin at all (`Assets/Assembly-CSharp/RebuildJst.cs`, without which the recovered
@@ -307,7 +307,7 @@ copied in, so the layout is reproduced; the export folders phase 3 retires are m
 `build/project-merge-analysis/export_discarded/`, not deleted. Only `-ResetClientCode` rebuilds the
 two Assembly-CSharp trees from `api/recovered`: it moves the current trees to
 `build/project-merge-analysis/reset_backup/` first (undoable) and reverts every fix that exists only
-in the project copies — a deliberate reset, not a rerun.
+in the project copies - a deliberate reset, not a rerun.
 
 ## 8. Artifacts
 
@@ -385,7 +385,7 @@ kyoku on two front paths:
   plus -NOIO (I/O checklist bypass; netcafe without IO gates ends in a dead end otherwise) are
   what make this configuration run standalone.
 - UI driver: -AUTOSERVE runs Assets\RuntimeHarness\AutoServeBehaviour.cs (repo copy
-  scripts\runtime-harness). Screenshots are unusable in this session (capture returns black), so
+  scripts\runtime-harness). Screenshots are unusable here (capture returns black), so
   the harness polls live Buttons in the active flow scene and invokes onClick, logging
   AUTOSERVE poll/invoked lines as the observable trail. Title needs private _loginRequest
   injection because ScreenTouch gates on a cabinet touch panel; Home 対局 = a GameObject named

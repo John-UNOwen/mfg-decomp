@@ -19,10 +19,10 @@ This repository holds the research notes, evidence, tooling, recovered code, and
 
 Four parts, in request order:
 
-1. **Client** — a compilable reconstruction of the game (`build/unity-project`, its own git tree): decompiled C# with WebGL-target fixes (flow endgames, async lanes, content fallbacks), merged with extracted content (`build/export-primary-content`, addressables-ready). Built with Unity batchmode (`MfgRebuild.Gate2Content.BuildWebGLPlayer`).
-2. **Gate** — `webfront/`, a .NET 8 single public edge: access-code lobby, username/password signup with a minted 16-hex DataID pinned into the play page per session, card entry automated at boot, and an `/aog` relay the client's HTTP transport (`XrpcWebTransport`) targets in place of the arcade front server.
-3. **Server** — a vendored RyuNET core plus a purpose-built plugin (`mfg@asphyxia`) implementing the full AOG protocol for this title. Identity, savedata, matching and settlement all run server-side. The canonical plugin tree and its rationale: [docs/28](docs/28-web-identity-hosting-plan.md).
-4. **Tunnel** — a Cloudflare tunnel per lane; the gate trusts `X-Forwarded-*` only from the tunnel's proxy marker.
+1. **Client** - a compilable reconstruction of the game (`build/unity-project`, its own git tree): decompiled C# with WebGL-target fixes (flow endgames, async lanes, content fallbacks), merged with extracted content (`build/export-primary-content`, addressables-ready). Built with Unity batchmode (`MfgRebuild.Gate2Content.BuildWebGLPlayer`).
+2. **Gate** - `webfront/`, a .NET 8 single public edge: access-code lobby, username/password signup with a minted 16-hex DataID pinned into the play page per session, card entry automated at boot, and an `/aog` relay the client's HTTP transport (`XrpcWebTransport`) targets in place of the arcade front server.
+3. **Server** - a vendored RyuNET core plus a purpose-built plugin (`mfg@asphyxia`) implementing the full AOG protocol for this title. Identity, savedata, matching and settlement all run server-side. The canonical plugin tree and its rationale: [docs/28](docs/28-web-identity-hosting-plan.md).
+4. **Tunnel** - a Cloudflare tunnel per lane; the gate trusts `X-Forwarded-*` only from the tunnel's proxy marker.
 
 The client reaches the stack over plain HTTPS; there is no streaming, no video encoding, and the game runs in the player's browser.
 

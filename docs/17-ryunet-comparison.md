@@ -1,7 +1,7 @@
-# 17 — Our mock vs the live private provider (`mfg@asphyxia`)
+# 17 - Our mock vs the live private provider (`mfg@asphyxia`)
 
 Purpose: audit the accuracy of [docs/15-gget-gpost-command-contract.md](15-gget-gpost-command-contract.md)
-and `mock/` against the server that actually runs the game today — the provider's Asphyxia plugin
+and `mock/` against the server that actually runs the game today - the provider's Asphyxia plugin
 (`mfg@asphyxia`, TypeScript; `handlers/aog.ts`, `taikyoku.ts`, `mahjong.ts`, `handlers/utils.ts`,
 `index.ts`).
 
@@ -9,14 +9,14 @@ Method: line-by-line comparison of the two implementations, plus the recovered c
 (`AC/` = `api/recovered/Assembly-CSharp/`) as the tie-breaker on "who is right", plus 900 live
 requests captured against our mock in [mock/mock.log.txt](../mock/mock.log.txt).
 Citations: THEIRS = `handlers/aog.ts:NNNN` / `taikyoku.ts:NNNN` (relative to
-`tmp/RyuNET-core/dist/plugins/mfg@asphyxia/` — the copy AsphyxiaCore actually loads, staged per
+`tmp/RyuNET-core/dist/plugins/mfg@asphyxia/` - the copy AsphyxiaCore actually loads, staged per
 docs/18 §"Stage the runtime layout"); OURS = `mock/MatchEngine.cs:NNNN`, `mock/Mahjong.cs:NNNN`,
 `mock/Program.cs:NNNN`, `mock/specs/x.xml:NN`. `tmp/asphyxia_plugins/mfg@asphyxia/` is a staging
 mirror refreshed *from* the runtime copy (`pwsh scripts/ryunet_stage.ps1 -Action mirror`) and is
 byte-identical to it, so no copy of the plugin is edited there; `pwsh scripts/ryunet_stage.ps1
 -Action status` lists every copy in the tree and says which match. Before that rule the staging
 mirror lagged the runtime copy (aog.ts 3,086 vs 3,111 lines) and pointed a reader at the wrong code.
-Anchor for the THEIRS column: the copy on disk now — aog.ts `84D9FA3AA182…` (3,568 lines), utils.ts
+Anchor for the THEIRS column: the copy on disk now - aog.ts `84D9FA3AA182…` (3,568 lines), utils.ts
 `D4B775D0DBE3…` (3,182), index.ts `3583EB3E15A7…` (353), all written 2026-11-01. Every THEIRS range
 below was walked against that snapshot on 2026-11-01; 187 that no longer described the code named
 were re-anchored, and `taikyoku.ts` / `mahjong.ts` are unchanged since the first pass, so their
@@ -27,28 +27,28 @@ cites stand. The pre-takeover baseline older notes quote (`6DD99D10210D…`, 3,1
 ## Verdict
 
 **Our wire format is right; our rule/lifecycle layer is where we drift.** Everything the
-recovered client *parses structurally* — `must=` grammar, `cell_sno`/`cell_data_{seq}` envelope,
+recovered client *parses structurally* - `must=` grammar, `cell_sno`/`cell_data_{seq}` envelope,
 `pi0..pi3`, kind numbers, per-command child names, `Pai` tile encoding, 13-id deals,
-`end_stat` semantics, `calc_score` blocks — is confirmed by theirs, which is serving the
+`end_stat` semantics, `calc_score` blocks - is confirmed by theirs, which is serving the
 unmodified shipping client right now. Nothing THEIRS does contradicts a structural claim in
 docs/15. Deltas are in four classes:
 
-1. **Two real bugs in our mock** — the tsumo-window win bit (`0x80` where the client needs
+1. **Two real bugs in our mock** - the tsumo-window win bit (`0x80` where the client needs
    `0x40`, mock/MatchEngine.cs:371-372) and renchan on a tenpai exhaustive draw (we rotate the
    dealer, mock/MatchEngine.cs:611,625-638 vs taikyoku.ts:1249-1258). Both are invisible to the
    client's parser but visible in play, and #1 explains why the shipping client never once sent
    `TSUMO_AGARI(3)` in 264 live `gpost`s.
-2. **Semantic choices docs/15 left open** — theirs answers 12 of the 16 open questions in §11 and
+2. **Semantic choices docs/15 left open** - theirs answers 12 of the 16 open questions in §11 and
    partly answers 2 (see *Open questions resolved by theirs*); the ones that still read "the server
-   never does that either" are `recon` and `RANNYU`. Mid-match stamps are no longer one of them —
+   never does that either" are `recon` and `RANNYU`. Mid-match stamps are no longer one of them -
    the count went up because Q12 flipped: a `gpost` answer carries `<chat>` against a per-seat
    cursor (aog.ts:2424-2426) and the client parses it (`AC/MFG.GameRequest/GPost.cs:73-77`).
-3. **Depth we deliberately skipped** — theirs is a full game server: riichi (with 供託 accounting
+3. **Depth we deliberately skipped** - theirs is a full game server: riichi (with 供託 accounting
    and a `SCORERANK(24)` cadence), chi/pon/kan incl. chankan and rinshan, multi-ron resolution,
    red-free walls, real han/fu → payment tables, honba/kyoutaku transfers, abortive 九種九牌,
    CPU AI with shanten/danger evaluation, 23 gmodes × seat/tenbo tables, 60 s disconnect→CPU.
    Ours is 4-seat tonnan, no calls, nominal mangan money.
-4. **Their panel layer is state-driven, ours is canned** — theirs persists a profile per `refid`,
+4. **Their panel layer is state-driven, ours is canned** - theirs persists a profile per `refid`,
    serves *every* stored `client_state` kind, and authors the kinds no client can save
    (`friend_game`, `present_box_game`, `music_gacha`, `receive_only`, `notice_game`, the four
    competition records) once per account rather than synthesizing them on every read. My Room,
@@ -58,11 +58,11 @@ docs/15. Deltas are in four classes:
 
 Three points where the servers disagreed and **ours was the correct one** are now agreed on both
 sides, each fixed on theirs: `chara_enabled` answers `is_gacha_enabled` / `end_date` at the document
-root, where `AC/MFG.GameRequest/CharaEnabledSend.cs:34-41` reads them (aog.ts:3420-3433 — the
+root, where `AC/MFG.GameRequest/CharaEnabledSend.cs:34-41` reads them (aog.ts:3420-3433 - the
 wrapped shape used to disable theirs' own pickup-gacha notice); `competition_entry` answers
 root-level `<entry><result>/<is_entry>/<reason>` plus `<displayed_result>`, which is what
 `AC/MFG.GameRequest/CompetitionEntry.cs:44-61` parses (aog.ts:3168-3190); and `entry_game` limit
-fields are **seconds** — 20/15/20/15/15/30/30/30/60 (aog.ts:188-203) — which is how
+fields are **seconds** - 20/15/20/15/15/30/30/30/60 (aog.ts:188-203) - which is how
 `MachingLimitTime` consumes them, one unit per `Time.deltaTime` with a 99 display cap
 (`AC/CountDownTimer.cs:238,50`). Ours is still the more faithful side on red fives and on a
 `breakdown`-rich `mgresult` (see *Deliberate non-changes*).
@@ -79,9 +79,9 @@ fields are **seconds** — 20/15/20/15/15/30/30/30/60 (aog.ts:188-203) — which
 6 CHI, 7 ANKAN, 8 MINKAN, 9 KAKAN, 10 KYUSYUKYUHAI, 11 NAKINASHI, 12 CYOUKOU, 13 KIKEN,
 14 RECONNECT, 15 NEXT_KYOKU_READY (taikyoku.ts:35-49) == docs/15 §2.2. THEIRS defines no
 `RANNYU(19)` and never emits it; ours neither. Neither side emits `TYOKO(14)` unless the client
-sends `CYOUKOU(12)` (taikyoku.ts:1336-1337) — which the recovered client never sends.
+sends `CYOUKOU(12)` (taikyoku.ts:1336-1337) - which the recovered client never sends.
 
-`SELECTABLE_TYPE_FLAG` — theirs' constants match the client exactly (taikyoku.ts:52-60:
+`SELECTABLE_TYPE_FLAG` - theirs' constants match the client exactly (taikyoku.ts:52-60:
 `F_NONE=0x1, PON=0x2, CHI=0x4, KAN=0x8, TSUMOAGARI=0x40, RON=0x80, KYUSYU=0x100, REACH=0x200,
 SUTE=0x400`). **OURS IS WRONG HERE**: we put the RON bit in the *tsumo* window.
 
@@ -112,14 +112,14 @@ SUTE=0x400`). **OURS IS WRONG HERE**: we put the RON bit in the *tsumo* window.
   (taikyoku.ts:64-68). Ours sends no attribute (mock/Mahjong.cs:242 `JoinPais`) but the same
   `0` filler. Client reads only the text (`ValueArrayInt`), so both parse; `__count` is almost
   certainly the Konami serializer's artifact, and the safest mock copies it.
-- **`KYOKUSTART` field values** (docs/15 §7.1): `rencyan` — theirs hardcodes `0`
-  (taikyoku.ts:323), ours sends a real streak counter (:339). `chicya` 0 both. `sai` — theirs
+- **`KYOKUSTART` field values** (docs/15 §7.1): `rencyan` - theirs hardcodes `0`
+  (taikyoku.ts:323), ours sends a real streak counter (:339). `chicya` 0 both. `sai` - theirs
   sends two random 1-6 (`_ints("sai", [randint(1,6)×2])`, :318), ours hardcodes `1 1` (:337).
-  `ba`/`kyoku`/`all_last` — theirs derives from a flat `kyoku_index` (`ba = idx<seats?0:1`,
+  `ba`/`kyoku`/`all_last` - theirs derives from a flat `kyoku_index` (`ba = idx<seats?0:1`,
   `kyoku = idx%seats`, `all_last = idx>=total-1`, taikyoku.ts:222-236), ours hardcodes `ba=0` and
   `all_last = kyoku==3` (:337-338): equivalent for tonnan, wrong for hanchan.
-  `kyoutaku` — theirs dynamic (riichi 供託), ours always `0` (:339).
-  `nokori`/`yama_cnt`/`yama`/`rinshan` — both send the real thing (theirs 70 live tiles for 4p,
+  `kyoutaku` - theirs dynamic (riichi 供託), ours always `0` (:339).
+  `nokori`/`yama_cnt`/`yama`/`rinshan` - both send the real thing (theirs 70 live tiles for 4p,
   taikyoku.ts:312,325,329-331; ours 70, mock/MatchEngine.cs:339-342). `dora`/`ura_dora` 5 ids
   each on both, `dora_open` 1 at start on both.
 - **`player_info{i}` for unused seats** — theirs fills `tepai` with 13 copies of Pai 1,
@@ -153,19 +153,19 @@ SUTE=0x400`). **OURS IS WRONG HERE**: we put the RON bit in the *tsumo* window.
   (mock/MatchEngine.cs:717-730), nominal mangan only (12000 ron / 8000-dealer-or-4000 tsumo,
   :511,541) and **no honba bonus at all**, so a 1-本場 agari pays the same as 本場 0.
 - **Tenpai payments agree** (both real): theirs `gain=floor(3000/n)`, `loss=floor(3000/(seats-n))`
-  (taikyoku.ts:1226-1233); ours `+1000×(4-t)/-1000×t` (mock/MatchEngine.cs:596-599) — same numbers
+  (taikyoku.ts:1226-1233); ours `+1000×(4-t)/-1000×t` (mock/MatchEngine.cs:596-599) - same numbers
   at 4 seats, ours fixed to 4 (theirs generalizes to 3/2 seats).
 - **Ranks are 0-based on both** (theirs `_ranks()` taikyoku.ts:363-375 ties toward the dealer-
   nearer seat; ours `RankOf` mock/MatchEngine.cs:747-754 ties toward the lower seat index), which
   matches the client (`ScorePanel`/`Rank` enum; docs/15 §11 Q15). Tie-break differs slightly
-  (theirs is dealer-relative, ours absolute index) — cosmetic, but pick theirs if you want the
+  (theirs is dealer-relative, ours absolute index) - cosmetic, but pick theirs if you want the
   same bracket as the live service.
 - **`gpost` response body**: THEIRS returns the new cells plus a `chat` block filtered by its own
   per-seat cursor (`<game>{cells}</game><chat>…</chat>`, aog.ts:2413-2427; cursor utils.ts:1017-1035)
-  — **no `mwait`**. OURS re-states the full roster `mwait` in every gpost ack
+  - **no `mwait`**. OURS re-states the full roster `mwait` in every gpost ack
   (mock/MatchEngine.cs:265-268). Both parse; ours is the noisier one. Theirs no longer suppresses
   `chat` with `since=1e9` the way the first pass did, so mid-match stamps do arrive in `gpost`
-  answers — the only poll the client keeps making during play.
+  answers - the only poll the client keeps making during play.
 - **Root/envelope**: THEIRS `<?xml …?>\n<root><serv_st><code>0</code></serv_st>…`
   (utils.ts:91-106; a rejection uses the same envelope with a non-zero code, utils.ts:107-111);
   OURS `<res><serv_st><code>0</code></serv_st><code>0</code>…`
@@ -174,7 +174,7 @@ SUTE=0x400`). **OURS IS WRONG HERE**: we put the RON bit in the *tsumo* window.
   comments in responses (mock/Program.cs:285-317); theirs ships none. Cosmetic.
 - **`must=` slot usage**: theirs reads tid(3), kind(7), pindex(4), pai(10), tepai_id(11),
   tepai_id2(12), reach(13), tsumogiri(14) and **ignores the seq slot (6), tepai_pos(8) and
-  chi_naki(15)** of a `gpost` must (aog.ts:2386-2396 via `mustInt`, utils.ts:130-137) — slot 6 is
+  chi_naki(15)** of a `gpost` must (aog.ts:2386-2396 via `mustInt`, utils.ts:130-137) - slot 6 is
   not nothing, it is `gget`'s `next_sno` (aog.ts:2258-2262), which is how the same index looks ignored
   from the match side. The tid is not ignored any more:
   `addressedSeat` (aog.ts:360-374) requires it to be the table its own seat record names, and a
@@ -201,9 +201,9 @@ whole match** → `end_game` → sometimes `player_record`. `appli_boot`, `keep_
 
 Their server requires exactly this order too, but the *matching phase is slower*: a lobby fills
 only when `seats` humans have entered, otherwise it is CPU-filled **on a `gget` that arrives more
-than `LOBBY_FORCE_SECONDS` (60 — the same window `entry_game` advertises as `last_time`) after the
+than `LOBBY_FORCE_SECONDS` (60 - the same window `entry_game` advertises as `last_time`) after the
 lobby was created** (aog.ts:205-207, 2276-2283). Since `MatchingFlow` keeps `Fetch()`ing `gget`
-while `mwait/status == 0` (`AC/MatchingFlow.cs:243-246`), a solo guest does get a table — after
+while `mwait/status == 0` (`AC/MatchingFlow.cs:243-246`), a solo guest does get a table - after
 ~60 s, not instantly like ours (poll 2, mock/MatchEngine.cs:153,171-188). A 2-seat (Nima) `gmode`
 with no passphrase is short-circuited to an instant private table, while a passphrase lobby keeps
 pairing humans for private Versus (aog.ts:2143-2152, 2112). A `gget` whose tid matches neither a
@@ -223,8 +223,8 @@ no `epdata_N`. The client's `MatchingData.Parse` sets `PlayerNum = pnum + cpu_nu
 → `AC/MFG.Taikyoku/PlayerInfo.cs:66-70`), so **`mend` must contain exactly `pnum+cpu_num` players**:
 theirs is self-consistent by construction; ours is consistent only because we always send 4
 children whenever we send `mend`. Emitting `cpu_num 3` with no `mend` is safe (element absent ⇒
-loop skipped), but emitting `mend` with fewer than `pnum+cpu_num` children is an NRE risk —
-worth pinning in docs/15 §1.5. `epdata_{i}` is genuinely parsed (`MatchingData.cs:52-60`) — ours
+loop skipped), but emitting `mend` with fewer than `pnum+cpu_num` children is an NRE risk -
+worth pinning in docs/15 §1.5. `epdata_{i}` is genuinely parsed (`MatchingData.cs:52-60`) - ours
 omits it, so other humans' identities never populate in our roster path.
 
 ### Kyoku start / turn windows / who owns the clock
@@ -232,7 +232,7 @@ omits it, so other humans' identities never populate in our roster path.
 - **No turn-window timers exist on either side.** THEIRS has no `must`/`wait`/`timeup` concept in
   the match layer; CPU seats act inside the same request that drew them (taikyoku.ts:401-416), and
   the only deadlines a client sees are the `entry_game` limit fields, which are display input
-  (`AC/CountDownTimer.cs` countdown) — not enforcement. What theirs does carry is two wall-clock
+  (`AC/CountDownTimer.cs` countdown) - not enforcement. What theirs does carry is two wall-clock
   timers in the matching layer, both 60 s: the lobby CPU-fill window (aog.ts:205-207, 2276-2283) and the
   disconnect→CPU sweep (aog.ts:2293-2335). Neither acts inside a kyoku. Ours: same (mock/MatchEngine.cs never
   times out a window).
@@ -251,7 +251,7 @@ omits it, so other humans' identities never populate in our roster path.
 - **Chankan**: THEIRS offers `SUTECHOICES(select=RON, chankan)` to every human after a `KAKAN`
   and resumes the kanner's rinshan draw on declines (taikyoku.ts:834-878,762-764). Ours has no kan.
 - **Kan bookkeeping**: theirs caps kans at 4 and opens one more dora pair per kan, capped at 5
-  pairs (`kan_count`, `dora_open = min(5, +1)`, :815-816,827-828,844-845) — exactly what the
+  pairs (`kan_count`, `dora_open = min(5, +1)`, :815-816,827-828,844-845) - exactly what the
   client's 5-element `dora`/`ura_dora` requirement implies (docs/15 §1.8). Ours pins `DoraOpen=1`
   forever (mock/MatchEngine.cs:60).
 - **CPU seat behavior**: THEIRS CPU = full AI: tsumo win check → ankan/kakan evaluation →
@@ -259,7 +259,7 @@ omits it, so other humans' identities never populate in our roster path.
   with riichi declaration at tenpai (:901-989), call willingness by shanten improvement +
   yakuhai/all-sequences heuristics (:996-1038), CPU→CPU ron priority before pon/chi (:728-750).
   Ours: CPU tsumogiri-discards its draw and wins whenever the hand is a win
-  (mock/MatchEngine.cs:368-403) — no melds, no AI, so our CPU hands are structurally weaker and
+  (mock/MatchEngine.cs:368-403) - no melds, no AI, so our CPU hands are structurally weaker and
   our kyoku are shorter than theirs.
 
 ### Agari settlement and kyoku scores
@@ -281,7 +281,7 @@ THEIRS, in one block: `renchan = abortive || tenpai.includes(oya)` (taikyoku.ts:
 renchan `honba += 1` and `advance_kyoku = false` → `kyoku_index` is **not** incremented, so
 `oya = kyoku_index % seats`, `kyoku = kyoku_index % seats`, `ba` and `all_last` are all unchanged
 (:222-236,1253-1277); on a non-renchan draw/loss `honba = 0` and the index advances.
-**Correction (2026-11-07) — the engine cited here does not do that.** `_end_kyoku` reads
+**Correction (2026-11-07) - the engine cited here does not do that.** `_end_kyoku` reads
 `if (renchan || draw) this.honba += 1` (taikyoku.ts:1393, the vendored line since `33947ac`, still
 the line today), so a dealer-noten exhaustive draw, where the dealer does rotate, carries a stick
 into the next kyoku. That is standard-riichi-wrong and provider-faithful at once: nothing in
@@ -294,12 +294,12 @@ then is `KYOKUEND.end_stat = 1`. `KYOKU_COUNT` = tonnan 4, hanchan 8, sanma 3, n
 (mahjong.ts:74-79); `SEATS_OF` 4/4/3/2 (:67-72); start score 25000/25000/35000/35000 (:81-86).
 
 Therefore, for a **tonnan guest match**: 4 kyoku, extended past east-4 by any renchan (dealer agari,
-or dealer-tenpai exhaustive draw) — and `end_stat=1` is emitted only on the kyoku where the
+or dealer-tenpai exhaustive draw) - and `end_stat=1` is emitted only on the kyoku where the
 condition finally fails. Abortive draws (九種九牌, `S_KYUSYUKYUHAI` → `_ryuukyoku(true)`) force
 renchan with no tenpai payments (:1210-1251,1331-1333).
 
 OURS differs on both halves (mock/MatchEngine.cs:611,619-638): a tenpai exhaustive draw of **any**
-seat increments `Honba` **and** rotates `DealerSeat` and advances `KyokuCompleted` — i.e. we grant
+seat increments `Honba` **and** rotates `DealerSeat` and advances `KyokuCompleted` - i.e. we grant
 honba without renchan, and we deny renchan to a tenpai dealer; a non-tenpai draw correctly resets
 honba and rotates. Agari renchan (dealer wins) is right in ours. Our match-end cap is
 `KyokuCompleted >= 4 || RenchanCount >= 4` (:629,637), which caps a renchan streak at 4 and gives
@@ -318,10 +318,10 @@ removes `LastDrawPai` explicitly). Consistent.
 ### Inter-kyoku latch and match end
 
 THEIRS: `S_NEXT_KYOKU_READY` records the seat and starts the next kyoku once
-`next_kyoku_ready.size === humans.length` (taikyoku.ts:1338-1342) — with 1 human + 3 CPU that is
+`next_kyoku_ready.size === humans.length` (taikyoku.ts:1338-1342) - with 1 human + 3 CPU that is
 the human's single gpost (CPU readiness is implicit, and the humans set shrinks when a seat is
 converted), with 4 humans it needs **all four**. THEIRS answers that gpost with the whole next
-`KYOKUSTART` in the same response (aog.ts:2413-2427 + taikyoku.ts:279-292) — exactly what our
+`KYOKUSTART` in the same response (aog.ts:2413-2427 + taikyoku.ts:279-292) - exactly what our
 capture shows the client accepting (~2.9 KB on the inter-kyoku hop, `mock/mock.log.txt`
 seq=37, bytes=2931). OURS: same single-answer latch (mock/MatchEngine.cs:253-257). So docs/15
 §11 Q4's "does the server need all four" answers as: *needed for human seats only*.
@@ -329,7 +329,7 @@ seq=37, bytes=2931). OURS: same single-answer latch (mock/MatchEngine.cs:253-257
 Resign: `end_game` and `kiken_game` share one handler (`handle_end_or_kiken` aog.ts:2790) because
 `EndGame.cs:21` and `KikenGame.cs:21` post the same fields, so what separates them is the route:
 `kiken_game: (f, c) => handle_end_or_kiken(f, c, true)` (aog.ts:3744). They used to share an outcome
-as well — `S_KIKEN` set `state="game_end"` and `finished`, and the settlement ranked the quitting
+as well - `S_KIKEN` set `state="game_end"` and `finished`, and the settlement ranked the quitting
 seat by standing, so a dealer who quit before any scoring came home 1st with +20000 uma. Both sides
 now do what the original game does with 棄和 (DanLevelMaster.cs:1336 is the client branch that makes
 the *last* rank the one a quit costs): `Table.resign(seat)` records the seat, drops it from `humans`
@@ -339,8 +339,8 @@ points say, so the quitter takes the last rank and its uma (taikyoku.ts:1503, :1
 the engine played out is archived: the engine stamps `completed` at its last kyoku (taikyoku.ts:1306)
 and the handler archives on that rather than on `finished` (aog.ts:2814, :2838), so a resign
 mid-match writes no `match_archive` row and does not burn the latch for the seats still playing. The
-quitting session's seat record is released — a re-login, even a fresh session on the same account,
-cannot take the seat back — with its account kept in `table.seat_quit` so the archive still names who
+quitting session's seat record is released - a re-login, even a fresh session on the same account,
+cannot take the seat back - with its account kept in `table.seat_quit` so the archive still names who
 sat there (`kiken: 1`). Both still demand the tid they address: a request whose tid is not the
 caller's table is answered `serv_st 770`. OURS: the mock stops the match (mock/MatchEngine.cs:247)
 because it has no second live seat to play on for, and mirrors the settlement through `SettleRanks`
@@ -349,26 +349,26 @@ because it has no second live seat to play on for, and mirrors the settlement th
 scramble-designated.
 
 Disconnect / kiken / reconnect: THEIRS' only liveness mechanism is in `handle_gget`: a human seat
-whose `lastSeen` — bumped by any request that addresses its table (`addressedSeat`, aog.ts:360-374) —
+whose `lastSeen` - bumped by any request that addresses its table (`addressedSeat`, aog.ts:360-374) -
 is > 60 s stale is removed from `humans`, and if that seat was mid-discard the CPU discards for it,
 or mid-claim its offer is dropped and CPU calls are resolved (aog.ts:2293-2335). **This never fires
 mid-match for the shipping client, which does not `gget` during play** (0 mid-match ggets in the
-capture) — so theirs can stall a table on a dead human until someone else polls. Reconnect: THEIRS
+capture) - so theirs can stall a table on a dead human until someone else polls. Reconnect: THEIRS
 implements only the standalone `/reconnect` endpoint, returning the same `entry` body `entry_game`
 builds (`handle_reconnect` aog.ts:2238-2252 → `entryXml` :222-240, with `<gmode>` and an absolute
 `gserv_url`) after re-adding the seat to `humans` to take control back from the CPU; a pcuid with no
 seat behind it falls through to `handle_entry_game` and gets a fresh table. It **never emits `recon`**
-in a `gpost` answer and does not handle `S_RECONNECT(14)` at all (taikyoku.ts:1289-1347 dispatch) —
+in a `gpost` answer and does not handle `S_RECONNECT(14)` at all (taikyoku.ts:1289-1347 dispatch) -
 so docs/15 §6.6's production reconnect path is implemented by *neither* server, and their
 `reconnect` response shape (`next_sno 0`, full `entry`) is a table-rejoin, not a snapshot. What
 changed is reachability: the plugin now pulls the endpoint name out of the path by scanning
 segments longest-first (aog.ts:3454-3480), where the core's last-segment rule read the mandatory
 trailing slash as an empty name and never saw a mid-path `reconnect` at all. `next_sno 0` is on both
 sides' `entry_game` too (aog.ts:231, mock/specs/entry_game.xml:13), so a mid-match re-entry replays
-the whole cell log — legal for the client (it re-applies the log) but heavy.
+the whole cell log - legal for the client (it re-applies the log) but heavy.
 
 `mgresult` / final delivery: THEIRS emits `gmode` and `taku_class` from **the table's own record**
-(stamped when `entry_game` created it, aog.ts:176-186, 328-339 — no longer read off the posted
+(stamped when `entry_game` created it, aog.ts:176-186, 328-339 - no longer read off the posted
 `gmode` param, which `end_game` does not even send) + `continue_state 0` + `continue_fee 0` +
 `player_i{rank,score,uma}` for i < seats, where `i` is the **seat** and `uma` is indexed by
 **rank** from a per-seat-count table (4p 20000/10000/−10000/−20000, 3p 20000/0/−20000,
@@ -378,7 +378,7 @@ the whole cell log — legal for the client (it re-applies the log) but heavy.
 `mgresult` is `NeedNot`/null-checked, including `breakdown`, `battle_item_use_info` and
 `player_{0..3}` (`AC/MFG.GameData/MahjongResultInfo.cs:75-186`). OURS sends `breakdown` exp +
 affinity and a `g2result` in kiken (mock/MatchEngine.cs:756-773, mock/specs/end_game.xml,
-kiken_game.xml) with tonnan uma `{30,20,10,−60}` — parse-safe either way, but the uma **numbers**
+kiken_game.xml) with tonnan uma `{30,20,10,−60}` - parse-safe either way, but the uma **numbers**
 differ, and ours has no 3-seat/2-seat uma table.
 
 ---
@@ -391,20 +391,20 @@ THEIRS = `AOG_HANDLER_MAP` (aog.ts:3285-3434) registered name-by-name through `R
 (`registerAogRoutes`, aog.ts:3541-3568) plus the `R.AogUnhandled` fallback (:3489-3533). The core
 middleware still keys on the **last path segment** (`src/middlewares/AogMiddleware.ts:13-18`), and
 both the fallback and the plugin's own `extractAogName` (:3454-3480) exist to undo that: doubled
-slashes collapsed, the `/aog` prefix — including one glued to a `gserv_url` — stripped, exact
+slashes collapsed, the `/aog` prefix - including one glued to a `gserv_url` - stripped, exact
 segment match before a substring match, longest registered name first so `gget_stamp_info` is never
 read as `gget`. A second native listener on `mfg_http_port` 22421 (index.ts:244-340) runs the same
 extractor. Anything left over is answered `<root><serv_st><code>0</code></serv_st></root>`, through
-the fallback (aog.ts:3521-3524) and at the tail of every native request (index.ts:323-328) — the
+the fallback (aog.ts:3521-3524) and at the tail of every native request (index.ts:323-328) - the
 same contract as our `_default.xml`, and now guaranteed: the first pass could leave a request
 unanswered entirely, because the fallback was written to `R.AogUnhandled(ctx)` while the core calls
 `fb(form, ctx)`. The invented aliases `get_record` and `coop_done` are no longer in the plugin's
-map, so they fall to that empty success on theirs — the core's own 45-name `KNOWN_AOG` list still
+map, so they fall to that empty success on theirs - the core's own 45-name `KNOWN_AOG` list still
 admits them (`src/middlewares/AogMiddleware.ts:20-26`), which is exactly our `_default.xml`.
 
 Both sides agree on HTTP 200 `text/xml; charset=utf-8`. `serv_st/code = 0` is still the answer to
-everything that succeeds; theirs now also answers non-zero codes — 770 (session gone / no such
-table), 803 (state payload rejected), 930 (gacha ticket already spent) — on a well-formed envelope
+everything that succeeds; theirs now also answers non-zero codes - 770 (session gone / no such
+table), 803 (state payload rejected), 930 (gacha ticket already spent) - on a well-formed envelope
 (utils.ts:66-81), where the first pass had no way to say "no" at all. Deltas that matter for a
 stricter client or a fuller flow:
 
@@ -465,7 +465,7 @@ New questions theirs raises that docs/15 doesn't ask:
   (theirs: `score −= 1000` at discard, taikyoku.ts:606) or only at settlement? Either works if
   `calc_score.before_score` is consistent with it, but a mock mixing the two will show double
   deductions. Theirs' invariant: `new_score == before + yaku + kyotaku + tumifu` for all four
-  seats, always (`_calc_score_xml`, :1117-1135) — worth stating as a self-test rule.
+  seats, always (`_calc_score_xml`, :1117-1135) - worth stating as a self-test rule.
 - N2. `gmode` → (seats, kyoku count, start score, wall kinds) as one table: theirs'
   `GMODE_TAKU`/`SEATS_OF`/`KYOKU_COUNT`/`START_SCORE` + sanma (M2-M8 removed) / nima (no manzu,
   no West/North) tile filtering (aog.ts:120-146; mahjong.ts:67-108) is a complete answer to
@@ -485,10 +485,10 @@ New questions theirs raises that docs/15 doesn't ask:
 
 ## What to change in our mock
 
-Priority order; each is a small, targeted edit. (Not applied here — this document is the deliverable.)
+Priority order; each is a small, targeted edit. (Not applied here - this document is the deliverable.)
 
 1. **Fix the tsumo-window win bit.** `mock/MatchEngine.cs:371-372,381`: use `0x40`
-   (`SELECTABLE_TYPE_FLAG.TSUMOAGARI`) instead of `0x80` (RON) — and label it correctly. Without
+   (`SELECTABLE_TYPE_FLAG.TSUMOAGARI`) instead of `0x80` (RON) - and label it correctly. Without
    this the shipping client can never press 和了, so our loop has never exercised `S_TSUMO_AGARI(3)`
    or a human agari path (0 × kind 3 in 264 live gposts). Add a selftest assertion that a winnable
    human draw emits `select & 0x40`.
@@ -496,7 +496,7 @@ Priority order; each is a small, targeted edit. (Not applied here — this docum
    tenpai`; renchan ⇒ honba+1, **dealer and kyoku number unchanged**; else honba 0, kyoku advances.
    Drop the `RenchanCount >= 4` cap and end on "last kyoku of `KYOKU_COUNT[gmode]` && !renchan"
    (add bust: any seat `< 0` ends the match) as at taikyoku.ts:1249-1262.
-3. **Emit `SCORERANK(24)`** with the theirs-documented cadence — after any riichi-declaring
+3. **Emit `SCORERANK(24)`** with the theirs-documented cadence - after any riichi-declaring
    `SUTEHAI`, and immediately before every `KYOKUEND`, body `kyoutaku` + `riti_after{0..3}{score,
    rank}` (taikyoku.ts:613-614,1254). This also gives us a live test of `AC/ExecKyoku.cs:249-266`,
    which our client loop has never seen.
@@ -504,7 +504,7 @@ Priority order; each is a small, targeted edit. (Not applied here — this docum
    6 haneman / 7 baiman / 8 sanbaiman / 9 yakuman (+n for multi-yakuman) exactly as
    `han_rank` (mahjong.ts:1286-1295); keep raw han in `han_num`. Compute `fu_num` instead of
    hardcoding 30 (mock/MatchEngine.cs:697), and fill `kyotaku_score`/`tumifu_score` instead of
-   emitting zeros (:725-727) — honour-bonushi and 供託 are the visible-in-text parts of settlement
+   emitting zeros (:725-727) - honour-bonushi and 供託 are the visible-in-text parts of settlement
    (`tumifu` drives the client's 場積 line, `AC/Agari.cs` panel).
 5. **Claim barrier + call vocabulary** (only if we add calls): one `SUTECHOICES` per claimant
    (single-seat `pi`), `pindex` = discarder, `naki` = call bits mirror, patterns `chi_pai` (2 ints
@@ -525,7 +525,7 @@ Priority order; each is a small, targeted edit. (Not applied here — this docum
    `mwait` in every `gpost` ack (`gpost.xml`/mock/MatchEngine.cs:266) or note that theirs omits it.
 9. **`entry_game` limit fields → seconds, ≤ 99** (e.g. `last_time 60`) with a comment citing
    `AC/CountDownTimer.cs:50,238`; also fix the stale log line `MATCH entry_game tid=1027` →
-   the tid actually served (mock/MatchEngine.cs:110 vs mock/specs/entry_game.xml:11) — the
+   the tid actually served (mock/MatchEngine.cs:110 vs mock/specs/entry_game.xml:11) - the
    capture shows the client using `tid=1`.
 10. **Panel realism, cheapest wins first**: multi-row `get_gacha_result` honoring `times`;
     per-id `present_done` rows echoing the claimed ids; `gget_stamp_info` cursor (`idx > since`)
@@ -539,65 +539,65 @@ Priority order; each is a small, targeted edit. (Not applied here — this docum
     `refid`) and issue an opaque 32-hex `session_id` at login (aog.ts:1057-1121), tombstoning the
     superseded one on the profile so it stays dead (utils.ts:1197-1256).
 12. **Names served**: both sides now serve what the client actually
-    posts — `player_record` (`GetRecord.cs:21`) and `eashop_done` (`EashopDone.cs:18-20`):
+    posts - `player_record` (`GetRecord.cs:21`) and `eashop_done` (`EashopDone.cs:18-20`):
     ours via `mock/specs/player_record.xml` and `mock/specs/eashop_done.xml`, theirs via
     handlers (aog.ts:3316 `player_record`, aog.ts:3419 `eashop_done`). The invented
     `get_record`/`coop_done` aliases were removed from their route map (aog.ts:3282-3284);
     no client posts those names.
 
 Deliberate non-changes (ours is the correct side): root-level `chara_enabled` and
-`competition_entry` shape — theirs moved to that shape, so this row is now "both sides agree,
+`competition_entry` shape - theirs moved to that shape, so this row is now "both sides agree,
 ours was right first"; `serv_st/code` only (root-level `<code>` is inert but harmless); dealing red
 fives (their engine never deals one); `breakdown`-rich `mgresult` (client-optional, useful for our
 exp/affinity display tests). `last_time` stays in **seconds**, but ours is still 300 and theirs is
-60 — that one is a real change, listed at item 9.
+60 - that one is a real change, listed at item 9.
 
 ---
 
 ## What to change in docs/15
 
-1. **§2.3/§3.4 — flag `SELECTABLE_TYPE_FLAG` usage as the single most error-prone constant pair**:
+1. **§2.3/§3.4 - flag `SELECTABLE_TYPE_FLAG` usage as the single most error-prone constant pair**:
    add the two worked values (`TSUMOCHOICES` win-possible = `0x400|0x40`;
    `SUTECHOICES` ron = `0x80`(+0x1)), and note that `SUTECHOICES.naki` mirrors the PON/CHI/KAN
    bits while `SUTECHOICES.pindex` is the **discarder**, both server-informational
    (taikyoku.ts:684-699).
-2. **§3.3 `SCORERANK(24)`** — replace the `UNCONFIRMED` with the observed provider cadence and body
+2. **§3.3 `SCORERANK(24)`** - replace the `UNCONFIRMED` with the observed provider cadence and body
    (riichi + kyoku end, `riti_after{i}{score,rank}` + `kyoutaku`) and keep one caveat: this is
    what the provider does, not proof about Konami's server.
-3. **§3.4 `ScoreData`** — document the invariant `new_score = before + yaku + kyotaku + tumifu`,
+3. **§3.4 `ScoreData`** - document the invariant `new_score = before + yaku + kyotaku + tumifu`,
    that 供託 is debited at riichi declaration by the live provider, and that `tumifu_score` is the
    honba transfer (100/seat tsumo, 300 ron). Also record `yaku_han` → `MFG.Types.Han` tier mapping
    with the `han_rank` cut-offs, since docs/15 §3.4 currently just says "`yaku_han`".
-4. **§7.1 KYOKUSTART** — settle the `renchan` row: dealer-tenpai (or abortive) ⇒ honba+1 with
+4. **§7.1 KYOKUSTART** - settle the `renchan` row: dealer-tenpai (or abortive) ⇒ honba+1 with
    `oya`/`kyoku`/`ba` unchanged; `kyoku = index % seats`, `ba = index < seats ? 0 : 1`,
    `all_last = index ≥ KYOKU_COUNT[taku] − 1`; `KYOKU_COUNT` = 4/8/3/2 and start scores
    25000/25000/35000/35000; dealer `tepai` is 13 ids; `sai` is decorative.
-5. **§6.3 `entry_game`** — units note: `last_time` is consumed as **seconds** with a 99-display cap
+5. **§6.3 `entry_game`** - units note: `last_time` is consumed as **seconds** with a 99-display cap
    and 5 s alert (`AC/CountDownTimer.cs:36,50,238`), the provider writes ms-shaped values
    and freezes its countdown at 99; add that the live provider appends an 18th child `<gmode>`
    (client ignores it) and returns an absolute `gserv_url`.
-6. **§1.5 `game/taikyoku` + `mwait`** — add the two couplings from gap N3 (`mend` child count ==
+6. **§1.5 `game/taikyoku` + `mwait`** - add the two couplings from gap N3 (`mend` child count ==
    `pnum + cpu_num`; `epdata_{0..pnum-1}` keyed by `pnum`), the exact `available="0"` shape
    (no `cell_sno`), and the `__count` attribute convention.
-7. **§5.5** — state plainly that neither observed server binds or even reads `must` slot 6, that
+7. **§5.5** - state plainly that neither observed server binds or even reads `must` slot 6, that
    `pindex` is server-authoritative on the live provider, and that legality is enforced
-   functionally (silent substitution/re-offer) with **no non-zero `serv_st/code` ever returned** —
+   functionally (silent substitution/re-offer) with **no non-zero `serv_st/code` ever returned** -
    i.e. the seq binding is a client invariant, not a handshake.
-8. **§6.1/§6.5** — record the provider's real matching policy (lobby per `gmode`+passphrase,
+8. **§6.1/§6.5** - record the provider's real matching policy (lobby per `gmode`+passphrase,
    CPU-fill only on a `gget` > 60 s after lobby creation, instant private table for 2-seat modes,
    passphrase lobbies match humans together), the > 60 s `gget`-only disconnect→CPU conversion,
    and that `end_game`/`kiken_game` are one handler that archives only natural finishes.
-9. **§6.6** — downgrade reconnect to "not implemented by the working provider": no `recon` in
+9. **§6.6** - downgrade reconnect to "not implemented by the working provider": no `recon` in
    any `gpost` answer, `S_RECONNECT(14)` unhandled, and `/reconnect` answers the same
    `entry`-shaped table rejoin `entry_game` builds (`handle_reconnect`, aog.ts:2238-2252 →
    `entryXml` :222-240, `<gmode>` and `next_sno 0` included) or re-enters when the seat is gone.
    The `player{i}` vs `player_info{i}` question is still open and unexercised either way.
-10. **§11** — mark Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9,Q11,Q14,Q15,Q16 as answered by an implementation
+10. **§11** - mark Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9,Q11,Q14,Q15,Q16 as answered by an implementation
     (theirs), Q12 as answered in the opposite direction from docs/15's guess (mid-match stamps are
-    delivered through `gpost` `chat`), Q5,Q10 as partially answered, Q13 as still open — a working
-    provider never emits `RANNYU` — and add N1-N4 from the previous section. Add a pointer to
+    delivered through `gpost` `chat`), Q5,Q10 as partially answered, Q13 as still open - a working
+    provider never emits `RANNYU` - and add N1-N4 from the previous section. Add a pointer to
     this document from §11's header.
-11. **§1.1/§6.2 identity** — record that the live provider treats the posted `user_id`
+11. **§1.1/§6.2 identity** - record that the live provider treats the posted `user_id`
     (uppercased) as the durable identity (`refid`), issues a fresh 32-hex `session_id` per
     `login` with no TTL, and resolves an account **from the login session and nothing else**
     (`resolveProfile` *is* `sessionProfile`, utils.ts:763-776): null for a session this server
@@ -612,12 +612,12 @@ exp/affinity display tests). `last_time` stays in **seconds**, but ours is still
     (utils.ts:450-465, called at :497 and :508-509). Cross-check with our own capture:
     the shipping client's minted `user_id` has **Unix-seconds in its high 32 bits**
     (`6ADC2910…` → 1792813328 = the request's own timestamp, `mock/mock.log.txt` seq=6), so
-    theirs' `mid` rule is literally `seconds & 0x7fffffff` for guests — stable across launches for
-    one DataID, and colliding for two players minted in the same second — which is what
+    theirs' `mid` rule is literally `seconds & 0x7fffffff` for guests - stable across launches for
+    one DataID, and colliding for two players minted in the same second - which is what
     `findFreePlayerId` exists to fix, and why a mid is a display id rather than a key.
-12. **§8** — note that the live provider never deals red fives (no `+64` ids, mahjong.ts:137-144)
+12. **§8** - note that the live provider never deals red fives (no `+64` ids, mahjong.ts:137-144)
     while the client's enum, art layer and akadora counter clearly support them, and that dora
-    indicator wraps differ per taku (nima: South→East) — our red-five mock is the more faithful one.
+    indicator wraps differ per taku (nima: South→East) - our red-five mock is the more faithful one.
 
 ---
 
@@ -627,22 +627,22 @@ exp/affinity display tests). `last_time` stays in **seconds**, but ours is still
   `R.AogRoute` per name in `registerAogRoutes` (:3541-3568); the `/aog` prefix comes from the core,
   whose middleware extracts the name from the **last URL segment**
   (`src/middlewares/AogMiddleware.ts:13-18`) and only treats a request as AOG when the url starts
-  with `/aog` or that last segment is one of its 45 `KNOWN_AOG` names (:20-26,36-38) — a `Mozilla`
+  with `/aog` or that last segment is one of its 45 `KNOWN_AOG` names (:20-26,36-38) - a `Mozilla`
   user-agent or an `x-eamuse-info`/`x-compress` header routes the request away from AOG entirely
   (:32-35). Two shapes the client actually emits break that extraction: the doubled slash in
   `…/aog//gget` (docs/15 §1.1) and a trailing slash, which yields `""`; and a name in the middle of
-  a path — `/aog/reconnect/<gserv_url>` — is never seen at all. `extractAogName` (aog.ts:3454-3480)
+  a path - `/aog/reconnect/<gserv_url>` - is never seen at all. `extractAogName` (aog.ts:3454-3480)
   is the fix, applied by the unhandled fallback (:3489-3533) and by the second native listener on
   `mfg_http_port` 22421 (index.ts:244-340): collapse doubled slashes, strip `/aog` even where a
   `gserv_url` is glued to it, match exact segments from the deepest end, then the longest
-  registered name as a substring, so a `gget_stamp_info` segment is never read as `gget`. `/aog/login/` reaches `handle_login` now — via the fallback,
+  registered name as a substring, so a `gget_stamp_info` segment is never read as `gget`. `/aog/login/` reaches `handle_login` now - via the fallback,
   which is the fragile part: the core calls it as `fb(form, ctx)` (`AogMiddleware.ts:67-76`) and the
   first version wrote it as `R.AogUnhandled(ctx)`, so the request was never answered at all
   (aog.ts:3482-3488). A handler that throws is invisible too: the middleware answers code 0
   (`AogMiddleware.ts:82-87`).
 - **Body decoding**: theirs URL-decodes the body with `URLSearchParams`
   (`AogMiddleware.ts:5-11`), merges the query string over it (:50-55) and then re-tries four base64
-  strategies on `client_state_write` (aog.ts:1921-1951) — the `+`-as-space trap is real and already
+  strategies on `client_state_write` (aog.ts:1921-1951) - the `+`-as-space trap is real and already
   bitten once there (their own comment at :1921-1926). Any client that posts raw base64 will
   corrupt silently under naive form decoding.
 - **AOG-only (no card) flow works**, and it is what their guest path is built for: `guest=1` is
@@ -651,7 +651,7 @@ exp/affinity display tests). `last_time` stays in **seconds**, but ours is still
   than answered as mid `1`/`GUEST`, and `entry_game` for one stamps mid `0` so the match archive is
   never attributed to somebody else's account (:2086-2096). Our guest loop (fresh client-minted
   `user_id` per launch, `pcuid` = the returned `session_id`, stable for the whole launch incl.
-  `end_game`) works against theirs — state persists because the same `user_id` re-binds the profile,
+  `end_game`) works against theirs - state persists because the same `user_id` re-binds the profile,
   and each launch gets a brand-new session, with the superseded pcuid tombstoned so the first
   client cannot keep playing on it (aog.ts:1093-1106, 1099-1106; `AC/MFG.GameRequest/Login.cs:30-31`).
   Skipping `login`, or inventing your own `pcuid`, now ends in 770s rather than a phantom profile.
@@ -666,30 +666,30 @@ exp/affinity display tests). `last_time` stays in **seconds**, but ours is still
   that finished naturally, for the seat the request addresses (:2452-2495). No timers means a human
   who stalls mid-kyoku stalls the table until the client's own think clock answers, and a human who
   disconnects mid-claim is reclaimed only by the sweep inside `gget` once `lastSeen` is 60 s stale
-  (:2293-2335; `lastSeen` itself is bumped by any request that addresses the table, :360-374) — and the
+  (:2293-2335; `lastSeen` itself is bumped by any request that addresses the table, :360-374) - and the
   shipping client sends no `gget` during play, so that reclaim is a server-side assumption, not an
   observed flow.
 - **Their engine's deliberate simplifications to expect in any capture**: no red fives ever
   (mahjong.ts:137-144), so no akadora and no `+64` ids on the wire; no open-riichi/fire-riichi/
-  atomic-riichi (`stat` bits 2-4 never set, `reach_flg` treated as boolean — taikyoku.ts:1297);
+  atomic-riichi (`stat` bits 2-4 never set, `reach_flg` treated as boolean - taikyoku.ts:1297);
   `kan_type` `2` in sute choices; `rencyan` always 0; `chicya` always 0; `dora_open` capped at 5;
   abortive-draw support limited to 九種九牌 (`S_KYUSYUKYUHAI` → tenpai-less renchan, :1331-1333);
   multi-ron supported in scoring but CPU→CPU ron is taken by the first seat in turn order (:728-739);
   no `kyuushu` for CPU seats, no 流局満開/四風連打 style abortive draws.
-- **Bug-shaped behaviors to copy only knowingly**: `mustInt(parts, i) || def` — a legitimate `0`
+- **Bug-shaped behaviors to copy only knowingly**: `mustInt(parts, i) || def` - a legitimate `0`
   collapses to the default (utils.ts:130-137, still the shape, still wrong for a real zero); the
   stamp cursor is not the client's at all, `gget` reads slot 6 of the posted `must` as `nextSno`
   for match cells (aog.ts:2258-2262) and answers `chat` from the server's own per-seat record
   (:2374-2379, utils.ts:1017-1035), so an always-0 client cursor silently means "whatever the server
   thinks you have not seen"; `moserv_url`/`gserv_url` advertise `CONFIG.port` (8083) while the
-  native AOG listener sits on `mfg_http_port` (22421) — utils.ts:3143-3174 and aog.ts:998-1014
+  native AOG listener sits on `mfg_http_port` (22421) - utils.ts:3143-3174 and aog.ts:998-1014
   against index.ts:244-250; `entry_game` defines `sendDiscordWebhook` inline and fires it on every
   lobby create and join when `VFG_DISCORD_WEBHOOK` is set (aog.ts:2114-2188, 2195-2220). Out of
   this list now: the wrapped `chara_enabled` and `competition_entry` names and the ms-shaped
-  `entry_game` limits — all three are fixed in the shipped copy.
+  `entry_game` limits - all three are fixed in the shipped copy.
 - **Quick parity checklist for our client-vs-theirs smoke test**: `web_id=1`, `area_id=1`,
   `AppVersion=2.0.2`, `matching_ver=70` (live `appli_info` body is exactly `matching_ver=70`);
-  `guest=1`; `passphrase` sent as a single space when empty — theirs trims it or every public
+  `guest=1`; `passphrase` sent as a single space when empty - theirs trims it or every public
   lobby collapses into one key (aog.ts:2086-2088); `entry_id`/`passphrase` with their literal
   trailing spaces and `debug_score=-1` (live bodies, `mock/mock.log.txt`); `app_param=0/0`
   constant; `end_game` carries `version=2.0.2` and no `gserv_id` (docs/15 §6.5 confirmed live).

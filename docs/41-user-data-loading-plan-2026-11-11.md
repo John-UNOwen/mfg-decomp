@@ -1,11 +1,9 @@
-# 41. User-supplied data loading: deep dive and staged plan
+# 41. User-supplied data loading: findings and staged plan
 
-Date: 2026-11-11. Status: proposal. The owner asked for a thorough plan for letting people
-load their own data through this project and was unavailable for questions, so assumptions
-are stated up front and open decisions are marked **DECIDE**. Foundation: a read-only
-investigation of three subsystems (client content loading, core data handling, asset
-pipeline). Every claim below carries a `file:line` anchor; the full index is Appendix A.
-No code was changed by the investigation.
+Date: 2026-11-11. Status: proposal. Assumptions are stated up front and open decisions are
+marked **DECIDE**. Foundation: a read-only investigation of three subsystems (client content
+loading, core data handling, asset pipeline). Every claim below carries a `file:line` anchor;
+the full index is Appendix A. No code was changed by the investigation.
 
 ## 0. Assumptions
 
@@ -293,7 +291,7 @@ shippable; the order is dependency-driven.
 Total for the asset-pack product without T3: ~15-27 engineer-days of focused work,
 with P0/P1/P3 proving the mechanism end-to-end in under two weeks of effort.
 
-## 7. Open decisions (owner)
+## 7. Open decisions
 
 1. Pack privacy: public-with-known-URL bundle paths (recommended v1) vs signed paths.
 2. Quota numbers and who reviews art.

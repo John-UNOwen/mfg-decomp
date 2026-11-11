@@ -86,7 +86,7 @@ Analysis scripts (all read-only against the install, all write inside the repo):
 | `build/export-primary-content/` | 93,656 | 8.43 GB | other export mode: per-asset **JSON dumps** + `.glb` mesh/scene previews + **full decompiled C#** (14,458 `.cs` incl. UnityEngine modules, 131 `.dll`, 131 `.csproj`, `.slnx`) |
 | `build/export-logs/` | 4 | 12 MB | both AssetRipper logs, the served `openapi.json`, the exact settings JSON |
 
-Nothing was committed. `.gitignore` already covers `tmp/` but **not** these new `build/` trees, so before any commit the owner will probably want: `build/unity-project/`, `build/unity-project-auxiliary/`, `build/export-primary-content/`, `build/export-logs/` (the repo has committed `build/` subfolders before, so this is a call for the owner, not made here).
+Nothing was committed. `.gitignore` already covers `tmp/` but **not** these new `build/` trees, so before any commit these need a keep/exclude decision: `build/unity-project/`, `build/unity-project-auxiliary/`, `build/export-primary-content/`, `build/export-logs/` (the repo has committed `build/` subfolders before, so the call is open).
 
 
 `build/unity-project/Assets/` by type (files / MB; `.meta` excluded from the counts below where noted):

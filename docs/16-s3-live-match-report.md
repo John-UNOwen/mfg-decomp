@@ -48,7 +48,7 @@ Verified against the live client in one session each:
 - Guest defaults auto-play: auto discard ~10 s per turn; win windows time out (~20 s action
   bar) and are auto-passed - the "instant win" board toggle defaults OFF per fresh guest;
   first-kyoku tutorial balloons swallow taps.
-- Free-play emulation (docs/12 mod + this session's patch, `GameUtility.IsFreePlay` -> true)
+- Free-play emulation (docs/12 mod + a later patch, `GameUtility.IsFreePlay` -> true)
   is what lets guest entry bypass the unemulated cabinet credit/PASELI path cleanly.
 
 ## Known gaps (next iteration, not blocking)

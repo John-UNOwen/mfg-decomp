@@ -1,4 +1,4 @@
-# 23. WebGL browser play — pipeline, settings, and proof recipe
+# 23. WebGL browser play - pipeline, settings, and proof recipe
 
 Browser proof as of this doc: headless Chromium (Edge) loads the WebGL build from webfront,
 boots through ResidentFlow, logs in over the KONAMINET front path against the mock (fronted by
@@ -12,12 +12,12 @@ proof harness is `tmp/webgl_proof.cjs`; the oracle is `mock/mock.log.txt`.
    `& 'C:\Program Files\Unity 2022.3.13f1\Editor\Unity.exe' -batchmode -quit -projectPath 'C:\mfg\build\unity-project' -executeMethod MfgRebuild.Gate2Content.BuildWebGLPlayer -logFile 'C:\mfgtmp\webglbuildN.log'`
    Watch `C:\mfgtmp\side.log.txt` for `webgl build result=Succeeded` and the `webgl exceptions=` line
    (must be `FullWithStacktrace`). Exit 0 = success, 1 = compile error (`error CS` in log), 5 = build failed.
-2. Assemble webroot: `.\scripts\assemble_webroot.ps1` — validates the build, the tools and the
+2. Assemble webroot: `.\scripts\assemble_webroot.ps1` - validates the build, the tools and the
    `-Webroot` path first, stops only the gate recorded in `C:\mfgtmp\gate_pid.txt`, refuses if a
    live front answers for that webroot (the pid record is not the only gate there is), mirrors the
    build into a staging copy, patches `index.html` (config.arguments) and `framework.js`
    (URL->argv), runs sidecar.exe to brotli every StreamingAssets file (~3.8GB -> 3.4GB, ~5 min),
-   then swaps the staged root into place — a failure before the swap leaves the served root alone.
+   then swaps the staged root into place - a failure before the swap leaves the served root alone.
 3. Serve: start `webfront\bin\Release\net8.0\WebFront.exe` with
    `WEBFRONT_ROOT=C:\mfgtmp\webroot`, `WEBFRONT_UPSTREAM=http://127.0.0.1:8080` (mock),
    `WEBFRONT_BIND=any`; logs to `C:\mfgtmp\wf.*.txt`. Mock (`mock\bin`) must run on :8080.
@@ -33,7 +33,7 @@ AssetRipper-exported ProjectSettings ships every WebGL knob as 0/stub, so the bu
 - `webGLInitialMemorySize=512`, `webGLMaximumMemorySize=3584`, growth mode 2 (geometric) with
   step 8 / cap 512. With initial 0, emcc dies: `INITIAL_MEMORY must be larger than TOTAL_STACK, was 0`.
 - `webGLExceptionSupport=FullWithStacktrace` (serialized value 3). With `None` the linker emits
-  `function ___cxa_allocate_exception(){abort()}` stubs and every C# `throw` kills the wasm —
+  `function ___cxa_allocate_exception(){abort()}` stubs and every C# `throw` kills the wasm -
   it looks like an OOM abort but is not. Enum member names in 2022.3: `None`,
   `ExplicitlyThrownExceptionsOnly`, `FullWithoutStacktrace`, `FullWithStacktrace` (singular
   `Stacktrace`; the plural spellings people copy around do not exist).
@@ -102,6 +102,6 @@ against the mock (poll 2 reports 3 CPUs, ready cue deals the kyoku).
 - `webgl_proof.cjs` must stay CommonJS (`.cjs`): `require()` fails in `.mjs`.
 - Run harnesses from the repo root; puppeteer resolves from `tmp/unity-activate/...node_modules`.
 - The proof harness closes its browser on exit; leaked headless trees are identifiable by
-  `remote-debugging` cmdline + creation time — kill only those.
+  `remote-debugging` cmdline + creation time - kill only those.
 - Mock is stateful per session (entry_game resets the match); a fresh browser run re-logs in as
-  a fresh profile and replays story (~7 min) — budget window time accordingly.
+  a fresh profile and replays story (~7 min) - budget window time accordingly.

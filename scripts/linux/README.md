@@ -32,12 +32,12 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
    dry run never replaces `STAGE_DIR/manifest.tsv` - the record of what the last real run shipped, which
    `verify_transfer.sh` and `swap_webroot.sh` read by default); then real run (disk accounting: it refuses
    up front unless both its `STAGE_DIR` filesystem and `REMOTE_DIR`'s filesystem have the manifest
-   total free — roughly the tree size, so a full-size promotion wants that much free beside the
+   total free - roughly the tree size, so a full-size promotion wants that much free beside the
    staged webroot, `--skip-space-check` when you have measured the fit, which means `df` and never
    `du`: for a delta refresh into a `cp -al` staged tree the manifest total over-counts what lands,
    because most of those bytes are already resident under `REMOTE_DIR` (see "Disk accounting:
    account a hardlink handle with df before and after, never du" in the swap section); and a
-   `REMOTE_DIR` that does not exist on the target is refused before anything is created — a first
+   `REMOTE_DIR` that does not exist on the target is refused before anything is created - a first
    transfer to a fresh path
    takes `--create` / `CREATE_REMOTE_DIR=1`, which prints a loud `CREATION:` line naming the path
    it is about to make); then `verify_transfer.sh` until it reports agreement, and step 2 does not
@@ -435,18 +435,18 @@ ports 8083/8090/8091/8095 were never targeted):
   is normalised with both values printed, dispatches `cd` with the normalised one, and a real tree verified through
   a trailing-slash `REMOTE_DIR` still reports agreement, exit 0.
 - Read-only transport stdin (2026-11-10, fixture cases C82-C84, transport shims only): the transport shim behaves
-  like ssh — it reads all of its stdin, because ssh cannot know whether the far side will consume it — and logs the
+  like ssh - it reads all of its stdin, because ssh cannot know whether the far side will consume it - and logs the
   class of every call with the number of stdin bytes it drained. Driven through a `while read` wrapper over a
   3-line work list, the kit as it stood before this fix (that one call reopened, every earlier closure kept) runs
-  1 iteration of 3 and exits 0 — the drain log shows the `.lane_transfer` mkdir and the first listing eating the
-  remaining 14 bytes — while the kit as tracked runs all three: three `transfer done` lines and three agreements,
+  1 iteration of 3 and exits 0 - the drain log shows the `.lane_transfer` mkdir and the first listing eating the
+  remaining 14 bytes - while the kit as tracked runs all three: three `transfer done` lines and three agreements,
   each exit 0. The same drain log shows the payload calls still
-  handed their stdin — the chunk tars, the ledger lines and the manifest upload all landed, and the verifier agrees
-  with the last build byte-for-byte — and every read-only call drained nothing. A census of both scripts counts
+  handed their stdin - the chunk tars, the ledger lines and the manifest upload all landed, and the verifier agrees
+  with the last build byte-for-byte - and every read-only call drained nothing. A census of both scripts counts
   every transport dispatch and holds each one either closed (`</dev/null`) or payload-fed: 9 call sites in
   `transfer_build.sh` (6 closed, 3 payload), 1 in `verify_transfer.sh` (closed), zero left inheriting the caller.
 - Destination existence (2026-11-10, fixture cases C85-C86, transport shims only): the far-side form of the
-  bookkeeping `mkdir` is `mkdir -p` — proven to create the destination tree itself, exit 0, the mechanism that
+  bookkeeping `mkdir` is `mkdir -p` - proven to create the destination tree itself, exit 0, the mechanism that
   turned a plausible typo into a seconds-old tree the verifier would later agree about. Against the tracked
   script, a run at an absent `REMOTE_DIR` refuses before the first write, names the path and `--create`, creates
   nothing (the typoed path is still absent after the whole run), and prints no send/skip/CREATION/done line;
@@ -454,7 +454,7 @@ ports 8083/8090/8091/8095 were never targeted):
   behind a loud `CREATION:` line naming the path and preceding the first send, the tree lands complete with its
   manifest, `verify_transfer.sh` agrees, and the convergence rerun needs no flag and prints no CREATION line;
   an existing tree without the flag still ships untouched, no over-refusal; and a transport that fails only the
-  read-only existence test is its own refusal — the target is not guessed absent, no bookkeeping dir appears,
+  read-only existence test is its own refusal - the target is not guessed absent, no bookkeeping dir appears,
   nothing streams. The `--dry-run` plan prints the existence gate, the exact `if test -d …` probe, and `--create`
   as the opt-in; the `--help` usage line carries `[--create]`.
 - Bookkeeping outside the served tree (fixture case C87, transport shims only): with `BOOKKEEPING_DIR`
@@ -477,25 +477,25 @@ ports 8083/8090/8091/8095 were never targeted):
   says the `cp -al` cost 0 bytes, the delta cost 1,048,576, and `rm -rf` of the handle returned 40 KB (0 bytes
   on an earlier run) instead of the 51 MB `du` had attached to it.
 - Empty top-level directories (2026-11-10, fixture case C90, offline, transport shim only): a top-level
-  directory that holds no files is a chunk the sha256 rule can never ship — its manifest lines are empty and
+  directory that holds no files is a chunk the sha256 rule can never ship - its manifest lines are empty and
   the remote of an absent/empty path folds to the same empty-input digest, so it skips every run, the tar that
   would have created the directory never runs, and the shipped tree is left without a directory the local tree
   has, invisible to the files-only manifest and `verify_transfer.sh` (reproduced: a copy with the creation
   neutralized skips `EmptyDir`, `verify_transfer.sh` says `agree`, and `remote/EmptyDir` never exists, exit 0).
   The kit now runs one `mkdir -p` over the empty top-level directories after the existence gate and prints an
-  `EMPTY-DIR` line each — the directory lands, the `skip EmptyDir` line and the `4 of 4` denominator stay intact,
+  `EMPTY-DIR` line each - the directory lands, the `skip EmptyDir` line and the `4 of 4` denominator stay intact,
   `verify_transfer.sh` still agrees (a directory is not a file, so it is neither MISSING nor EXTRA), and the
   convergence rerun no-ops on the directory that is now there.
 - A `--dry-run` leaves the record of what shipped alone (2026-11-10, fixture case C96, offline, transport shim
    only): a real transfer's `STAGE_DIR/manifest.tsv`, `chunks.txt` and `_rootfiles.txt` are snapshotted, then a
    `--dry-run` against a **second** tree runs over the same `STAGE_DIR`. On a copy of the kit with the plan-name
    switch no-oped the dry run exits 0, prints `manifest written for this dry run: …/stage/manifest.tsv`, and
-   replaces all three files — so the next default `verify_transfer.sh` reads a manifest that never went over a
+   replaces all three files - so the next default `verify_transfer.sh` reads a manifest that never went over a
    wire and answers `MISSING ./Build/b2.js` + `MISMATCH` over a destination that still equals the published
    manifest. The kit instead writes `manifest.tsv.dry-run`, `chunks.txt.dry-run` and `_rootfiles.txt.dry-run`,
    leaves the three record files byte-for-byte unchanged (and still equal to the published truth), states the
    three plan paths plus `manifest.tsv was NOT written` in its own output, and still plans everything it planned
-   before (chunk list, the `chunks enumerated:` total, the per-chunk command shapes, the publish line) — after
+   before (chunk list, the `chunks enumerated:` total, the per-chunk command shapes, the publish line) - after
    which the same default `verify_transfer.sh` run agrees again (exit 0, no `MISSING`). Pointing `MANIFEST=` at
    the plan still verifies against it (exit 1, the same `MISSING` name), and a following real run still owns the
    record paths. Re-runnable repros: `tmp/linux_fix/c96_repro.sh` (the clobber, three `cmp` verdicts) and

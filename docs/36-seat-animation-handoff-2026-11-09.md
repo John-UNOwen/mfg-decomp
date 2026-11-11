@@ -1,9 +1,10 @@
 # 36. Seat animation / springbone — handoff for the next agent
 
-Date: 2026-11-09. Status: **all defect-2 project changes reverted** (unity repo `a70b969`), so the
-project is byte-equal to the pre-experiment state (`3efbea58eb`). Read this before touching anything
-animation- or physics-related. Ground-truth diffs: `C:\mfgtmp\defect2_diff\report.md` (full
-shipped-vs-recon comparison, 274 lines, every claim anchored to file:line) and
+Date: 2026-11-09. Status: **defect-2 root cause found and fixed 2026-11-10 — read section 8 first**
+(`-Infinity` tangent tokens in the extracted `.anim` files; sanitized + verified). The pre-fix
+history below (springs reverted, unity repo `a70b969`) stands as written and explains what was
+tried before the data cause was pinned. Ground-truth diffs: `C:\mfgtmp\defect2_diff\report.md`
+(full shipped-vs-recon comparison, 274 lines, every claim anchored to file:line) and
 docs/34 section E (original animation mechanism).
 
 ## 1. What the owner saw on staging (2026-11-09) — the new facts
@@ -117,3 +118,69 @@ do-not-patch list in the diff report §4 still holds in full.
 Validate on the reverted staging build (`https://mfg-staging.0006767.xyz`, rebuilt from
 `a70b969`): leg behavior back to baseline, physics bursts gone under memory pressure, bowtie/chest
 sync state. Their answers decide whether questions 1-3 stay open or close.
+
+## 8. Root cause found (2026-11-10): `-Infinity` tangents in the extracted `.anim` files
+
+**The snap is corrupted animation data, not game code and not springbone.** The extraction tool
+that rebuilt the repo's `.anim` files wrote the literal YAML token `-Infinity` as the slope for
+flat components (e.g. the constant-zero x/z of quaternion curves). Unity 2022.3.13f1 imports
+`-Infinity` as a `-inf` tangent and the editor evaluates those curves **correctly** — every
+editor-side check passes. But the player content packer compiles any quaternion curve carrying a
+non-finite tangent into **stepped, one-key phase-shifted stream keys** (all tangents zeroed, each
+key's value replaced by the next key's value). The runtime then faithfully evaluates that step
+curve: the shin holds one pose and teleports — the observed ~1 s snap.
+
+Why every earlier check missed it:
+
+- The shipped desktop bundle holds the same clip with finite tangents and glides (decoded with
+  UnityPy: `2abba23a…` group, shin y keys `t=0 → -0.097548 os=-0.037751`).
+- The repo YAML parses smooth — hermite math on the key tables glides (the tangents *in the file*
+  are fine; only two of four components carry the sentinel).
+- `AnimationClip.SampleAnimation` on the live loaded clip reproduced the step in the browser
+  (run3 log: shin pinned at -0.12557 from ct 2.0 to 2.6333) — proof the *loaded stream data* was
+  bad, not the evaluation path.
+- Fresh re-packs from the repo YAML reproduce the bad bytes deterministically (new content hash,
+  same step) — so it is not a stale-build artifact; the packer itself produces it.
+- Toitoi's clip has zero sentinel entries and packs smooth; in the broken Yao clip the thigh (all
+  finite slopes) packs smooth next to the stepped shin — the discriminator is per-curve.
+
+**Blast radius** (old staging webroot, UnityPy scan of 97 character Wait/Idle bundles): 17 bundles
+carry at least one stepped quaternion curve — characters 1 (Hiyori), 2 (Sen), 5 (Yao ×3),
+8 (Musashi ×2) fully sentinel-caused; 11 (Chaos), 14 (GAloe), 15 (Cocoa), 16 (Dia), 17 (Dubly)
+carry stepped curves of the non-constant class (below). Toitoi, iyo and the rest are clean —
+matching the owner's per-seat report.
+
+**The fix** (`C:\mfgtmp\sanitize_inf.py`, applied 2026-11-10): replace the sentinel with `0`
+**only where that component's value is constant across the curve entry** — provably correct for a
+constant curve. Applied under `Assets/MFG/Characters`: 1,488 files, 11,759 tokens replaced, diff
+contains only `inSlope/outSlope` lines. Re-bake → the 2abba group's new bundle (`bf285fa3…`)
+decodes byte-equivalent to the shipped desktop tuple: `Shin_L y: t=0 -0.09755 os=-0.0378,
+t=0.6333 -0.12557 os=+0.0893, …`. Nine of the 17 bundles are fully fixed (Yao both costumes +
+swim, Musashi both, Hiyori both, Sen).
+
+**Runtime verification** (probe build, run4 `C:\mfgtmp\legprobe_run4.log.txt`, webroot
+`CC2F363962E8`): `SampleAnimation` sweep of the live YaoWait clip now slides through the old snap
+window (SLy 2.0→-0.09755, 2.1→-0.10215, 2.3→-0.11893; run3 pinned all -0.12557). Per-frame shin
+delta profile moved from 59 jumps >0.02 (max 0.1221) to 7 (max 0.0447) — inside the band of the
+known-healthy Toitoi (9, max 0.0962). One 389-frame flat run remains with `n0` advancing
+throughout: animator culling freezes bone writes while the state clock runs, the hold value is the
+t=0 loop pose (smooth rest, no jump) — a cull artifact, not the defect.
+
+**Follow-up class (open):** 33,669 sentinel tokens sit on **non-constant** components (the 8
+bundles that remain partially stepped, incl. Dia/Chaos/Cocoa/Dubly/GAloe idles). Zeroing those
+would flatten real motion. The ground truth for their tangents exists: the shipped bundles' stream
+keys carry the true in/out slopes (e.g. Sen's shipped shin y slope -0.0378). A shipped-stream
+reconstruction pass is the right repair; nobody has run it.
+
+**Bake mechanics learned this pass** (unity repo, uncommitted `Gate2Content.BakeContentOnly` =
+`AddressableAssetSettings.BuildPlayerContent`): the per-bundle skip is Unity's content
+**BuildCache** (`Library\BuildCache`, keyed on imported artifact bytes) — editing the YAML text in
+a way that doesn't change the imported object (a comment) will not re-pack; a real data change
+will. Deleting `addressables_content_state.bin` alone does **not** force a re-pack. The batch-mode
+content build **deletes** `Assets/AddressableAssetsData/link.xml` (tracked, commit `21fa555321`)
+and never restores it — `BakeContentOnly` now snapshots/restores it around the build.
+
+Staging note: the lane currently serves the **probe build with fixed content** (webroot
+`CC2F363962E8`, undo handle `C:\mfgtmp\webroot.old-20261111001734-128140`). Promotion shape still
+needs the probe-chain revert + rebuild (chain tip: drop-CurveCount fix, 5 commits over
+`df0af9ed90` + uncommitted Gate2Content tooling).

@@ -78,3 +78,28 @@ comparison; the mechanical truth is rim=0 in all 33 bundles. Owner visual pass o
 is the standing verdict.
 Artifacts KEEP: `C:\mfgtmp\mp_s{1..8}_06.png` (+ burst sets), `robin_run2.ps1`, `rim_verify2.py`,
 `run_rimfix.ps1`, `rim_lane.log`, `robin_status2.txt`.
+
+## Live promotion (2026-11-11 evening, owner-approved)
+
+The rim-zero build (`884F48017067`) went live on the VPS (`mfg.0006767.xyz`, units
+`mfg-lane`/`mfg-gate`/`mfg-tunnel`). Live had been `234BB22AA309` - the morning build (rim on Ch7/17 +
+quality restore), promoted ~06:17Z, so the delta was rim-all-only in content terms plus the re-hashed
+catalog and engine data: **4,231 files / 530 MB shipped, 4,224 dropped names deleted**, staged by
+`cp -al` off live + delta tar, verified by re-hashing every shipped file against the new manifest and
+spot-hashing 369 unchanged files against the live tree's published manifest (premise held).
+`swap_webroot.sh` (first real run of the kit script; tally 0 MISSING/0 EXTRA) promoted with
+`SERVICES="mfg-gate mfg-lane"`. `aog.ts` (only plugin drift: the `MFG_CPU_PIN` test hook, off by
+default) shipped with a timestamped backup; savedata backed up untouched beforehand.
+
+Post-swap proofs: stamp served at the public edge, a renamed bundle 200/immutable, its old name 404,
+served catalog carries the renamed rim groups, `lane_smoke.sh` 17 PASS / 0 FAIL / 3 SKIP, kit boot
+against live green (login auth OK, no Addressables key errors - unlike the morning baseline run on the
+pre-promotion tree, which threw `InvalidKeyException` spam - and the test account parks at
+`NewRegistration`, the documented name-entry step for an account with no live-side game data).
+Undo handle kept at `webroot.old-20261111T191040Z-281779` (the `234BB` tree);
+the previous generation's aside was freed after smoke passed (486 MB back).
+
+Two lessons banked: live had 12 orphan bundles from an intermediate build (in live, in no manifest) -
+they surfaced as EXTRA at staged-count time and were deleted before the swap, which is exactly what
+`swap_webroot.sh`'s count gate is for; and pipefail + `head` aborts a list pipeline on SIGPIPE -
+write the list to a file, then take the head.

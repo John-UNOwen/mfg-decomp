@@ -42,10 +42,10 @@ also spike-safe needs a code-level cap (e.g. `min(Time.deltaTime, 1/30)`), which
 | `5d0cf207ff` (reverted) | `simulationFrameRate: 60 -> 0` on all 202 SpringManagers across 197 `Assets\MFG\Characters\*\3D\*\Prefabs\CharaModel.prefab` |
 | `9d87ade731` (reverted) | `ProjectSettings\QualitySettings.asset` Medium: `pixelLightCount 4 -> 1`, `shadowDistance 0 -> 20.0` |
 
-Note the quality drift is real and still stands in the project (`pixelLightCount 4`,
-`shadowDistance 0` vs shipped `1` / `20.0`, per the shipped `globalgamemanagers` quality level read
-in the diff report D5). It is orthogonal to springs — whether to restore it is an open owner call;
-the KB eye-iris note already treats `pixelLightCount: 1` as the pinned analysis baseline.
+The quality drift was restored on 2026-11-11: `pixelLightCount 1` / `shadowDistance 20.0` are back in
+`QualitySettings.asset` (unity repo `2a696607ef`, after a same-cast A/B window), staged as root
+`931E50A1B0E5`. The shipped `globalgamemanagers` read behind that (diff report D5) stayed the reference.
+The KB eye-iris note's `pixelLightCount: 1` baseline now matches the project again.
 
 ## 3. Asset inventory (everything involved, both sides)
 

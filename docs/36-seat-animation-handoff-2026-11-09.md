@@ -1,6 +1,7 @@
 # 36. Seat animation / springbone — handoff for the next agent
 
-Date: 2026-11-09. Status: **defect-2 root cause found and fixed 2026-11-10 — read section 8 first**
+Date: 2026-11-09. Status: **defect-2 fixed and promoted to live 2026-11-11 (stamp
+`234BB22AA309`) — read §8 (root cause) and §9 (promotion)**
 (`-Infinity` tangent tokens in the extracted `.anim` files; sanitized + verified). The pre-fix
 history below (springs reverted, unity repo `a70b969`) stands as written and explains what was
 tried before the data cause was pinned. Ground-truth diffs: `C:\mfgtmp\defect2_diff\report.md`
@@ -180,7 +181,43 @@ will. Deleting `addressables_content_state.bin` alone does **not** force a re-pa
 content build **deletes** `Assets/AddressableAssetsData/link.xml` (tracked, commit `21fa555321`)
 and never restores it — `BakeContentOnly` now snapshots/restores it around the build.
 
-Staging note: the lane currently serves the **probe build with fixed content** (webroot
-`CC2F363962E8`, undo handle `C:\mfgtmp\webroot.old-20261111001734-128140`). Promotion shape still
-needs the probe-chain revert + rebuild (chain tip: drop-CurveCount fix, 5 commits over
-`df0af9ed90` + uncommitted Gate2Content tooling).
+Staging note: superseded by §9 — the probe build and its webroot are gone; staging and live both
+serve the promoted `234BB22AA309`.
+
+## 9. Promotion to live + staging (2026-11-11, stamp `234BB22AA309`)
+
+The promoted player was built from a probe-free tree: `promo/legfix` = `df0af9ed90` (the commit live
+was built from) + cherry-pick `566b8b5514` (the sanitized anims + content state). The probe chain
+(5 commits) and the editor-side tooling stayed on `master`, out of the build. Fast player build,
+then `assemble_webroot.ps1 -L105Baked16` — the flag matters: an assemble without it ships the
+un-patched loop needle and would silently regress the docs/40 BGM fix. Staging (`:8090`, behind
+`mfg-staging.0006767.xyz`) took the webroot directly: headless boot `booted=true`, zero `LEGPROBE`
+lines (probe absent), fixed bundle `200 immutable`.
+
+Live went through the documented delta path (KB `linux-vps-lane-bringup`), with one improvement:
+the live tree's published manifest (`/srv/mfg/lane_transfer.D759A911DF0C/manifest.tsv`) hashed the
+old tree too, so the delta was computed **manifest vs manifest locally** — no 40-minute remote
+`sha256sum` pass. Ship = 2,975 files / 468 MB (sanitized bundles + their renames + catalog.json +
+`webgl.data` — a changed-at-the-same-size file that a name+size diff would have missed), deletes =
+2,968 superseded bundle names. The player code itself did not move: `webgl.wasm`/`loader`/
+`framework.js` hash-identical between `D759A911DF0C` and `234BB22AA309` — the live build never had
+the probe, and the promo branch restored exactly that code. Box-side proof: all 2,975 shipped files
+re-hashed against the new manifest (match), 378 unchanged files spot-hashed against the OLD
+manifest (premise "live tree == old manifest" holds), staged tree count 58,809 = manifest, then
+`swap_webroot.sh` (dry-run first): 0 MISSING / 0 size-mismatch / 0 EXTRA, chown, two renames,
+HTTP stamp proof on the box.
+
+Post-swap proofs: old bundle name 404 / new name 200 / catalog references the new name; brotli
+serves by `Accept-Encoding` negotiation (literal `.br` URLs 404 on this gate — that is the normal
+shape, Chrome negotiates); `lane_smoke.sh` 9 PASS / 0 FAIL / 4 SKIP (the SKIPs are the auth section
+— smoke ran without an access code); real-browser edge check through Cloudflare: lobby page 200,
+`framework.js?v=` 200 @ 516,792 B, fixed bundle 200 @ 24,059 B, `/build_stamp.txt` reads
+`234BB22AA309`. Note for scripted probes: Cloudflare answers `1010` (browser-traffic filter) to
+plain urllib — probe the edge through a real browser engine only.
+
+Undo handles kept (hardlink asides, ~the delta each): `/srv/mfg/webroot.old-20261111T061710Z-245257`
+on the VPS — remove after the owner's live visual check (`rm -rf`; measure with `df`, never `du`).
+The local `webroot.old-*` set was removed after the boot proof (housekeeping). Owner visual on
+`https://mfg.0006767.xyz` remains the acceptance for defect 2; the non-constant sentinel class from
+§8 (8 idle sets + CutInParts corpus) is still open.
+

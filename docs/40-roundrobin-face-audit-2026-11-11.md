@@ -55,3 +55,26 @@ human seat, so each face is seen once in the kami seat (facing camera) plus a pr
 ## Lane state after
 
 Standard owner pins restored (`3=7,1=17,2=8`), account back to Yao, staging on `931E50A1B0E5`.
+
+## Round 2 (2026-11-11 pm): all-character rim zeroing, same rotation
+
+Owner pass over round 1 named nine characters with the band (3, 6, 10, 11, 13 hard; 8, 9, 19, 20
+mid) and observed it angle-dependent: strong at side seats, fading when a character turns to face
+the camera - textbook rim (Fresnel) behavior, consistent with the mechanism in docs/33.
+
+Fix: `FixMouthRim` generalized to enumerate every `Mt_mouth` material (`Gate2Content.cs`, unity
+`05cc9830a8`); the run zeroed 33 materials - the shared `Assets/Material/Mt_mouth*` family (the
+antipodean-ON variant), every `Character1..21/3D/Common/Mt_mouth.mat` including Character10's
+`NewCommon`, skipping 10 Standard-shader FBX mats without the property and Ch7/17 (already zero).
+Materials committed unity `334f497af0`. Full content rebuild; `rim_verify2.py` proved it shipped:
+exactly 33 bundles renamed vs the live root, every material inside reading `rim=0, ap=0`.
+New staging stamp `884F48017067` (Baked-16 needle green).
+
+Round 2 (`robin_run2.ps1`, tags `mp_s*_NN.png`, logs `robin2_s*.log.txt`): identical groupings to
+round 1, all eight casts verdict-matched (s7 seat 3 drew Dia; unpinned seats pool-draw). Old-vs-new
+same-seat pair (`mp_r4_06.png` vs `mp_s4_06.png`, G-14 Ie at the kami seat): band present on old,
+absent on new. One s4 flag and one s7 flag from single-frame vision did not survive direct
+comparison; the mechanical truth is rim=0 in all 33 bundles. Owner visual pass on the `s*` frames
+is the standing verdict.
+Artifacts KEEP: `C:\mfgtmp\mp_s{1..8}_06.png` (+ burst sets), `robin_run2.ps1`, `rim_verify2.py`,
+`run_rimfix.ps1`, `rim_lane.log`, `robin_status2.txt`.

@@ -542,10 +542,16 @@ public class BootSceneFlow : BaseFlow
 	protected override void OnUpdate()
 	{
 		int num = _updateFrameCount++;
-		Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update begin frame:{num}");
+		if (VerboseLog.Data)
+		{
+			Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update begin frame:{num}");
+		}
 		if (m_isOnExit)
 		{
-			Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} m_isOnExit:true");
+			if (VerboseLog.Data)
+			{
+				Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} m_isOnExit:true");
+			}
 			return;
 		}
 		uint num2 = (uint)(Time.deltaTime * 1000f);
@@ -583,7 +589,10 @@ public class BootSceneFlow : BaseFlow
 				}
 				redraw = false;
 			}
-			Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num}");
+			if (VerboseLog.Data)
+			{
+				Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num}");
+			}
 			return;
 		}
 		ApplyDeviceSetting();
@@ -624,19 +633,28 @@ public class BootSceneFlow : BaseFlow
 			{
 				ResidentFlow.GetInstance().IsErrorModeRequest = true;
 				OnExit();
-				Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} ResumeLastError:true");
+				if (VerboseLog.Data)
+				{
+					Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} ResumeLastError:true");
+				}
 			}
 			else
 			{
 				OnExit();
-				Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} ResumeLastError:false");
+				if (VerboseLog.Data)
+				{
+					Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} ResumeLastError:false");
+				}
 			}
 		}
 		else
 		{
 			ResidentFlow.GetInstance().IsErrorModeRequest = true;
 			OnExit();
-			Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} failed:true");
+			if (VerboseLog.Data)
+			{
+				Debug.Log($"[{DateTime.Now}]BootSceneFlow:Update end frame:{num} failed:true");
+			}
 		}
 	}
 

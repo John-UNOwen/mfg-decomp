@@ -10,7 +10,7 @@ using MFG.Taikyoku.Command.Send;
 using UniRx;
 using UnityEngine;
 
-namespace MFG.Taikyoku.Command;
+namespace MFG.Taikyoku.Command {
 
 [Serializable]
 public class CommandClient
@@ -141,7 +141,10 @@ public class CommandClient
 			ApplyCpu(resultData.Taikyoku.IsDaisou);
 			if (matching.PlayerInfos.Exists((PlayerInfo info) => info.IsActive) || matching.IsMatchingEnd)
 			{
-				UnityEngine.Debug.Log("onMatchingData");
+				if (VerboseLog.Data)
+				{
+					UnityEngine.Debug.Log("onMatchingData");
+				}
 				m_onMatchingData.OnNext(matching);
 			}
 			StampData stamp = resultData.Stamp;
@@ -316,4 +319,5 @@ public class CommandClient
 			UnityEngine.Debug.Log($"  <color=green>seqNo:{cmd.SeqNo}: Kind:{cmd.Kind} PindexFlag:{cmd.PlayerIndexFlag}</color>");
 		}
 	}
+}
 }

@@ -5,7 +5,7 @@ using MFG.MasterGameData;
 using MFG.Types.Mission;
 using UnityEngine;
 
-namespace MFG.GameData;
+namespace MFG.GameData {
 
 [Serializable]
 public class MissionProgressInfo : ISerializationCallbackReceiver
@@ -75,7 +75,10 @@ public class MissionProgressInfo : ISerializationCallbackReceiver
 	{
 		ClearCount = 0;
 		Progress = 0;
-		Debug.Log($"Mission Reset : {MissionID}");
+		if (VerboseLog.Data)
+		{
+			Debug.Log($"Mission Reset : {MissionID}");
+		}
 	}
 
 	public void Convert(int progress)
@@ -83,4 +86,5 @@ public class MissionProgressInfo : ISerializationCallbackReceiver
 		Progress = ((Master.LoopType != LoopType.Endless && Master.AchievementList().Last() <= progress) ? Master.AchievementList().Last() : progress);
 		ClearCount = Master.GetAchievementIndex(Progress);
 	}
+}
 }

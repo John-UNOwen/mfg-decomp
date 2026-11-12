@@ -11,7 +11,7 @@ using MFG.Types.AD;
 using MFG.Types.Customize.CutinItem;
 using UnityEngine;
 
-namespace MFG.GameData;
+namespace MFG.GameData {
 
 [Serializable]
 public class GachaInfoGameData : GameDataBase
@@ -148,7 +148,10 @@ public class GachaInfoGameData : GameDataBase
 						dictionary[Rarity.SR] = (float)xElement6.Element("sr").ValueInt() / 10f;
 						dictionary[Rarity.UR] = (float)xElement6.Element("ur").ValueInt() / 10f;
 						list7.Add(dictionary);
-						Debug.Log($"{list8} : {dictionary[Rarity.N]} / {dictionary[Rarity.R]} / {dictionary[Rarity.SR]} / {dictionary[Rarity.UR]} ");
+						if (VerboseLog.Data)
+						{
+							Debug.Log($"{list8} : {dictionary[Rarity.N]} / {dictionary[Rarity.R]} / {dictionary[Rarity.SR]} / {dictionary[Rarity.UR]} ");
+						}
 					}
 				}
 				string startDate = ((item.Element("start_date") != null) ? item.Element("start_date").Value : null);
@@ -243,4 +246,5 @@ public class GachaInfoGameData : GameDataBase
 		}
 		return (GachaSeriesName)(-1);
 	}
+}
 }

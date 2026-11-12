@@ -6,7 +6,7 @@ using MFG.Taikyoku.Command.Receive;
 using MFG.Taikyoku.Command.Send;
 using UnityEngine;
 
-namespace MFG.GameRequest;
+namespace MFG.GameRequest {
 
 public class GPost : RequestApiBase<GPost, GPost.ResultData, (SendCommand cmd, int TakuID, int PlayerIndex, int PlayerID)>
 {
@@ -43,7 +43,10 @@ public class GPost : RequestApiBase<GPost, GPost.ResultData, (SendCommand cmd, i
 		m_sendUrl = base.DefaultFrontServerUrl + "/gpost";
 		m_postStr = $"web_id={base.WebID}&area_id={base.AreaID}&pcuid={base.AppSessionID}&gserv_id={base.GameServiceID}&tid={item}&mid={item3}&pindex={item2}&must={base.AppVersion}/{base.AppSessionID}/{item}/{item2}/{item3}/{seqNo}/{kind}/{tepaiPos}/{tepaiPos2}/{paiID}/{tepaiID}/{tepaiID2}/{reachFlag}/{tsumoGiriFlag}/{chiNaki}&app_param={num}/{num2}";
 		m_serverLog = $"{item}/{item2}/{item3}/{seqNo}/{kind}/{tepaiPos}/{tepaiPos2}/{paiID}/{tepaiID}/{tepaiID2}/{reachFlag}/{tsumoGiriFlag}/{chiNaki}";
-		Debug.Log($"GPost param: {base.SendParameter.cmd.Kind}({kind}). pindex:{item2} next_sno:{seqNo} tepai_pos:{tepaiPos} tepai_pos2:{tepaiPos2} pai_id:{paiID}({paiID}) tepai_id:{tepaiID}({tepaiID}) tepai_id2:{tepaiID2}({tepaiID2}) reach_flg:{reachFlag} tsumogiri_flg:{tsumoGiriFlag} chi_naki:{chiNaki}");
+		if (VerboseLog.Data)
+		{
+			Debug.Log($"GPost param: {base.SendParameter.cmd.Kind}({kind}). pindex:{item2} next_sno:{seqNo} tepai_pos:{tepaiPos} tepai_pos2:{tepaiPos2} pai_id:{paiID}({paiID}) tepai_id:{tepaiID}({tepaiID}) tepai_id2:{tepaiID2}({tepaiID2}) reach_flg:{reachFlag} tsumogiri_flg:{tsumoGiriFlag} chi_naki:{chiNaki}");
+		}
 	}
 
 	protected override async UniTask OnParse(XElement baseElem, CancellationToken cancellationToken = default(CancellationToken))
@@ -76,4 +79,5 @@ public class GPost : RequestApiBase<GPost, GPost.ResultData, (SendCommand cmd, i
 			base.Result.Stamp.Parse(xElement5);
 		}
 	}
+}
 }

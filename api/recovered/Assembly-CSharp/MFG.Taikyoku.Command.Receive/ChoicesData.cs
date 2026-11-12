@@ -4,7 +4,7 @@ using System.Xml.Linq;
 using MFG.Sytem.Utilities.Xml;
 using UnityEngine;
 
-namespace MFG.Taikyoku.Command.Receive;
+namespace MFG.Taikyoku.Command.Receive {
 
 public class ChoicesData
 {
@@ -150,7 +150,10 @@ public class ChoicesData
 	{
 		try
 		{
-			Debug.Log("ParseChiPattern : " + cellDataElement.ToString());
+			if (VerboseLog.Data)
+			{
+				Debug.Log("ParseChiPattern : " + cellDataElement.ToString());
+			}
 			int[] array = cellDataElement.NeedNotElement("chi_pai").ValueArrayInt();
 			int[] array2 = null;
 			XElement xElement = cellDataElement.Element("extra_chi_pai");
@@ -247,4 +250,5 @@ public class ChoicesData
 		{
 		}
 	}
+}
 }

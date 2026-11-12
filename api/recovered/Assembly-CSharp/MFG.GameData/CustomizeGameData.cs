@@ -11,7 +11,7 @@ using MFG.Types.Customize.Costume;
 using MFG.Types.Customize.MatchingBackground;
 using UnityEngine;
 
-namespace MFG.GameData;
+namespace MFG.GameData {
 
 [Serializable]
 public class CustomizeGameData
@@ -104,13 +104,19 @@ public class CustomizeGameData
 	public async UniTask Save(CancellationToken cancellationToken = default(CancellationToken))
 	{
 		string text = JsonUtility.ToJson(this);
-		UnityEngine.Debug.Log("CustomizeGameData Save : " + text);
+		if (VerboseLog.Data)
+		{
+			UnityEngine.Debug.Log("CustomizeGameData Save : " + text);
+		}
 		await RequestApiBase<ClientStateWrite, ClientStateWrite.ResultData, (string, string)>.Send(("customize_item", text), enableErrorScreenTransition: false, enableSendLog: true, cancellationToken);
 	}
 
 	public static CustomizeGameData LoadFromJson(string jsonString)
 	{
-		UnityEngine.Debug.Log("CustomizeGameData Load : " + jsonString);
+		if (VerboseLog.Data)
+		{
+			UnityEngine.Debug.Log("CustomizeGameData Load : " + jsonString);
+		}
 		CustomizeGameData customizeGameData = JsonUtility.FromJson<CustomizeGameData>(jsonString);
 		if (customizeGameData == null)
 		{
@@ -217,4 +223,5 @@ public class CustomizeGameData
 			}
 		}
 	}
+}
 }

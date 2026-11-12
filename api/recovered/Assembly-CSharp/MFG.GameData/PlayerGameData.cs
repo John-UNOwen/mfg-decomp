@@ -14,7 +14,7 @@ using MFG.Types.Customize.CustomizeItem;
 using MFG.Types.YellCampaign;
 using UnityEngine;
 
-namespace MFG.GameData;
+namespace MFG.GameData {
 
 [Serializable]
 public class PlayerGameData : GameDataBase
@@ -448,13 +448,19 @@ public class PlayerGameData : GameDataBase
 	{
 		MatchingVersion = 70;
 		string text = JsonUtility.ToJson(this);
-		Debug.Log("PlayerGameData Save : " + text);
+		if (VerboseLog.Data)
+		{
+			Debug.Log("PlayerGameData Save : " + text);
+		}
 		await RequestApiBase<ClientStateWrite, ClientStateWrite.ResultData, (string, string)>.Send(("player_game", text), enableErrorScreenTransition: false, enableSendLog: true, cancellationToken);
 	}
 
 	public static PlayerGameData LoadFromJson(string jsonString)
 	{
-		Debug.Log("PlayerGameData Load : " + jsonString);
+		if (VerboseLog.Data)
+		{
+			Debug.Log("PlayerGameData Load : " + jsonString);
+		}
 		LoadDataVersion = JsonUtility.FromJson<PlayerGameData>(jsonString).DataVersion;
 		PlayerGameData playerGameData = JsonUtility.FromJson<PlayerGameData>(jsonString);
 		LoadDataVersion = 14;
@@ -484,4 +490,5 @@ public class PlayerGameData : GameDataBase
 			CharaData.Add(charaGameData);
 		}
 	}
+}
 }

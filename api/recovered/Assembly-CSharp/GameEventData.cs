@@ -112,7 +112,10 @@ public class GameEventData : ISerializationCallbackReceiver
 			_params.Clear();
 			_params = param.Split(",").ToDictionary((string x) => x.Split("=")[0], (string x) => x.Split("=")[1]);
 		}
-		Debug.Log("GameEventData: " + DebugLogString());
+		if (VerboseLog.Data)
+		{
+			Debug.Log("GameEventData: " + DebugLogString());
+		}
 	}
 
 	public string DebugLogString()

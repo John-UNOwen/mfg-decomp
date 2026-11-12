@@ -116,7 +116,10 @@ public class HaiNaviPanel : MonoBehaviour
 		KaratenSet();
 		foreach (YakuPossibilityInfo yakuPossibilityInfo in m_yakuInfo.YakuPossibilityInfos)
 		{
-			Debug.Log("HaiNaviPanel -> yaku : " + yakuPossibilityInfo.Yaku.ToString() + "  possibility : " + yakuPossibilityInfo.Possibility.ToString() + "  karaten : " + yakuPossibilityInfo.Karaten);
+			if (VerboseLog.Data)
+			{
+				Debug.Log("HaiNaviPanel -> yaku : " + yakuPossibilityInfo.Yaku.ToString() + "  possibility : " + yakuPossibilityInfo.Possibility.ToString() + "  karaten : " + yakuPossibilityInfo.Karaten);
+			}
 		}
 		m_yakuInfo.YakuPossibilityInfos.Sort((YakuPossibilityInfo a, YakuPossibilityInfo b) => GetHanNum(b.Yaku) - GetHanNum(a.Yaku));
 		m_oneByOneDiscardedYakuPossibilityInfos = oneByOneDiscardedYakuPossibilityInfos;

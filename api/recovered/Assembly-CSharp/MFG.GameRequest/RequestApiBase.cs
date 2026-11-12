@@ -7,7 +7,7 @@ using KAMUNITY;
 using Konami.System.Net;
 using MFG.Sytem.Utilities.Xml;
 
-namespace MFG.GameRequest;
+namespace MFG.GameRequest {
 
 public abstract class RequestApiBase<ApiType, ResultType> where ApiType : RequestApiBase<ApiType, ResultType>, new() where ResultType : ResultBase, new()
 {
@@ -95,7 +95,10 @@ public abstract class RequestApiBase<ApiType, ResultType> where ApiType : Reques
 					m_postStr = EaEnvParam + "&" + m_postStr;
 				}
 			}
-			Logger.Log($"{DateTime.Now.Second}:{DateTime.Now.Millisecond} {GetType().Name}.PushRequest--> url: {m_sendUrl} data: {m_postStr}");
+			if (VerboseLog.Data)
+			{
+				Logger.Log($"{DateTime.Now.Second}:{DateTime.Now.Millisecond} {GetType().Name}.PushRequest--> url: {m_sendUrl} data: {m_postStr}");
+			}
 			m_stopWatch.Start();
 			Response response = await SingletonBehaviour<RequestManager>.Instance.PushRequest(m_sendUrl, m_postStr, _manualRetry: false, cancellationToken);
 			cancellationToken.ThrowIfCancellationRequested();
@@ -164,7 +167,10 @@ public abstract class RequestApiBase<ApiType, ResultType> where ApiType : Reques
 		try
 		{
 			num = baseElement.MustNeedElement("code").ValueInt();
-			Logger.Log($"{DateTime.Now.Second}:{DateTime.Now.Millisecond} {GetType().Name}--> resultcode:{num} sec:{m_stopWatch.Elapsed.TotalSeconds:F1}");
+			if (VerboseLog.Data)
+			{
+				Logger.Log($"{DateTime.Now.Second}:{DateTime.Now.Millisecond} {GetType().Name}--> resultcode:{num} sec:{m_stopWatch.Elapsed.TotalSeconds:F1}");
+			}
 		}
 		catch
 		{
@@ -219,4 +225,5 @@ public abstract class RequestApiBase<ApiType, ResultType, SendParameterType> : R
 		await api.PushRequest(cancellationToken);
 		return api.Result;
 	}
+}
 }

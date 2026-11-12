@@ -115,7 +115,10 @@ public class ExecSutehai
 		{
 			Players[cmd.PlayerIndex].m_proStand.GetComponent<Animator>().SetTrigger("Out");
 		}
-		Debug.Log($"ExecSutehai {cmd.PlayerIndex} Finished");
+		if (VerboseLog.Data)
+		{
+			Debug.Log($"ExecSutehai {cmd.PlayerIndex} Finished");
+		}
 		return true;
 	}
 }

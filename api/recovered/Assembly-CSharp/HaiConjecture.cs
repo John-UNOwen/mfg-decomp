@@ -37,7 +37,10 @@ public class HaiConjecture : MonoBehaviour
 		{
 			hand.OnAddTsumoHai.Subscribe(delegate((Pai pai, Cha cha) e)
 			{
-				Debug.Log($"Add TsumoHai : {e.cha} {e.pai}\n");
+				if (VerboseLog.Data)
+				{
+					Debug.Log($"Add TsumoHai : {e.cha} {e.pai}\n");
+				}
 				conjectSafeHaiAtTsumohai(e.cha);
 				conjectDangerHaiAtTsumohai(e.cha);
 				onMyConjectureChanged.OnNext(conjectureList[0]);
@@ -46,13 +49,19 @@ public class HaiConjecture : MonoBehaviour
 			{
 				(Cha, Pai) item = (e.cha, MahjongUtility.AkaToNormal(e.pai));
 				dumps.Add(item);
-				Debug.Log($"Discard TsumoHai : {item.Item1} {item.Item2}\n");
+				if (VerboseLog.Data)
+				{
+					Debug.Log($"Discard TsumoHai : {item.Item1} {item.Item2}\n");
+				}
 				conjectSafeHaiAtSutehai(e.cha);
 				conjectDangerHaiAtSutehai(e.cha);
 			}).AddTo(this);
 			hand.OnStartReach.Subscribe(delegate(Cha cha)
 			{
-				Debug.Log($"Reach Start : {cha}, {dumps?.Count ?? (-1)}\n");
+				if (VerboseLog.Data)
+				{
+					Debug.Log($"Reach Start : {cha}, {dumps?.Count ?? (-1)}\n");
+				}
 				if (!reachIndex.ContainsKey(cha))
 				{
 					reachIndex[cha] = dumps.Count;
@@ -60,7 +69,10 @@ public class HaiConjecture : MonoBehaviour
 			}).AddTo(this);
 			hand.OnTurnComing.Subscribe(delegate(Cha cha)
 			{
-				Debug.Log($"Turn Coming : {cha}\n");
+				if (VerboseLog.Data)
+				{
+					Debug.Log($"Turn Coming : {cha}\n");
+				}
 				conjectSafeHaiAtTsumohai(cha);
 				conjectDangerHaiAtTsumohai(cha);
 				onMyConjectureChanged.OnNext(conjectureList[0]);

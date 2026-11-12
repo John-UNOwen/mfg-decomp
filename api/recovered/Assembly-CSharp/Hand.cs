@@ -827,7 +827,10 @@ public class Hand : MonoBehaviour
 		foreach (Tile tile in Tiles)
 		{
 			num++;
-			Debug.Log($"リーチボタンチェック {tile.pai}\u3000待ち {hainavi.ShantenInfos[num].MachiType}");
+			if (VerboseLog.Data)
+			{
+				Debug.Log($"リーチボタンチェック {tile.pai}\u3000待ち {hainavi.ShantenInfos[num].MachiType}");
+			}
 			if (!tile.m_enableDiscard)
 			{
 				continue;
@@ -861,7 +864,10 @@ public class Hand : MonoBehaviour
 		foreach (Tile tile in Tiles)
 		{
 			num++;
-			Debug.Log($"リーチボタンチェックKaratenCheck {tile.pai}\u3000待ち {hainavi.ShantenInfos[num].MachiType}");
+			if (VerboseLog.Data)
+			{
+				Debug.Log($"リーチボタンチェックKaratenCheck {tile.pai}\u3000待ち {hainavi.ShantenInfos[num].MachiType}");
+			}
 			if (!tile.m_enableDiscard)
 			{
 				continue;

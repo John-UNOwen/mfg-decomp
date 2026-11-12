@@ -170,10 +170,11 @@ public class HttpWebRequestor
 				uwr = UnityWebRequest.Get(url);
 			}
 			uwr.downloadHandler = new DownloadHandlerBuffer();
-			if (userAgent.Length > 0)
-			{
-				uwr.SetRequestHeader("User-Agent", userAgent);
-			}
+			// No User-Agent here on purpose: in the browser it is a forbidden header (the request
+			// would carry the browser's own UA regardless), and Unity's SetRequestHeader check emits
+			// a Debug.LogWarning with a full stack dump on EVERY request - that warning is a
+			// per-request cost and was the console-spam defect. webfront rewrites the relay UA on
+			// the /aog path, so the arcade UA never reached the provider from the browser anyway.
 			uwr.timeout = 60;
 			UnityWebRequestAsyncOperation op = uwr.SendWebRequest();
 			op.completed += delegate

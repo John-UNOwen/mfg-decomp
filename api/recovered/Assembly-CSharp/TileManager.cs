@@ -131,7 +131,7 @@ internal class TileManager : MonoBehaviour
 
 	private IDisposableAsset<Texture> m_texture;
 
-	private IDisposableAsset<SpriteAtlas> m_spriteAtlas;
+	private readonly List<IDisposableAsset<Texture2D>> m_tileTextures = new List<IDisposableAsset<Texture2D>>();
 
 	private Dictionary<Pai, Sprite> TileSprites = new Dictionary<Pai, Sprite>();
 
@@ -197,7 +197,6 @@ internal class TileManager : MonoBehaviour
 		UnityEngine.Object.Destroy(m_kiraMaterial.dark);
 		UnityEngine.Object.Destroy(m_kiraMaterial.blink);
 		m_texture?.Dispose();
-		m_spriteAtlas?.Dispose();
 		foreach (KeyValuePair<Pai, Sprite> tileSprite in TileSprites)
 		{
 			UnityEngine.Object.Destroy(tileSprite.Value);
@@ -314,44 +313,54 @@ internal class TileManager : MonoBehaviour
 		{
 			atomicTile.RefleshTextureType();
 		}
-		m_spriteAtlas?.Dispose();
 		TileSprites.Clear();
-		try
+		string atlasPath = AssetPathResolver.ResolveTileSurfaceSpriteAtlas(paiItemID);
+		// The .spriteatlas address is not attempted: in the regenerated content set it aliases
+		// the surface material's Texture2D (same instance as m_texture), so loading it only
+		// risked a double Addressables.Release of the surface texture, and a real SpriteAtlas
+		// exists in no content set (KB tile-sprite-texture-fallback). If a future content set
+		// packs real atlases, reintroduce the typed load here before this loop.
+		Debug.Log("TileManager: no sprite atlas for " + atlasPath + ", assembling from loose tile sprites");
+		// The content set assembles each surface from the loose keys in the addressable
+		// catalog. Two facts the catalog forces here (verified against the content state):
+		//  - the re-exported tile PNGs have no Sprite sub-asset (their main asset is the
+		//    Texture2D), so LoadAssetAsync<Sprite> throws InvalidKeyException for every tile;
+		//    load the texture and wrap it with Sprite.Create instead.
+		//  - surfaces key only the 34 base faces + the 5R red doras; the other red variants
+		//    only ever existed inside the original atlas. Probe the key with Exists first -
+		//    a missing face is data, not an error, and probing by exception spammed
+		//    InvalidKeyException + a stack dump for every missing face on every kyoku start.
+		foreach (Pai value2 in Enum.GetValues(typeof(Pai)))
 		{
-			m_spriteAtlas = await AssetLoader.LoadAssetAsync<SpriteAtlas>(AssetPathResolver.ResolveTileSurfaceSpriteAtlas(paiItemID), null, cancellationToken);
-		}
-		catch (Exception)
-		{
-			// The regenerated content set carries no .spriteatlas entries; assembling the
-			// surface from the per-tile sprites in the addressable catalog keeps kyoku playable.
-			m_spriteAtlas = null;
-			UnityEngine.Debug.LogError("TileManager: sprite atlas load failed for " + AssetPathResolver.ResolveTileSurfaceSpriteAtlas(paiItemID) + ", using loose tile sprites");
-		}
-		if (m_spriteAtlas != null && m_spriteAtlas.Asset != null)
-		{
-			foreach (Pai value in Enum.GetValues(typeof(Pai)))
+			string atlasKey = "Assets/MFG/CustomizeItem/TileSurface/" + paiItemID + "/2D/" + value2.ToString() + ".png";
+			Sprite tileSprite = null;
+			if (await AssetLoader.Exists(atlasKey))
 			{
-				TileSprites.Add(value, m_spriteAtlas.Asset.GetSprite(value.ToString()));
-			}
-		}
-		else
-		{
-			foreach (Pai value2 in Enum.GetValues(typeof(Pai)))
-			{
-				string atlasKey = "Assets/MFG/CustomizeItem/TileSurface/" + paiItemID + "/2D/" + value2.ToString() + ".png";
 				try
 				{
-					IDisposableAsset<Sprite> disposableAsset4 = await AssetLoader.LoadAssetAsync<Sprite>(atlasKey, null, cancellationToken);
-					TileSprites.Add(value2, disposableAsset4.Asset);
+					IDisposableAsset<Texture2D> tileTexture = await AssetLoader.LoadAssetAsync<Texture2D>(atlasKey, null, cancellationToken);
+					m_tileTextures.Add(tileTexture);
+					Texture2D texture2D = tileTexture.Asset;
+					tileSprite = Sprite.Create(texture2D, new Rect(0f, 0f, texture2D.width, texture2D.height), new Vector2(0.5f, 0.5f));
 				}
 				catch (Exception)
 				{
-					UnityEngine.Debug.LogError("TileManager: loose tile sprite missing for key " + atlasKey);
-					if (!TileSprites.ContainsKey(value2))
-					{
-						TileSprites.Add(value2, null);
-					}
+					Debug.LogWarning("TileManager: tile texture load failed for " + atlasKey);
 				}
+			}
+			if (tileSprite == null)
+			{
+				string name = value2.ToString();
+				// Red-dora variants (M/S/P1R-9R, J1R-7R) are not keyed on their own: draw them
+				// as their base tile. Enum order puts bases before reds, so the base is loaded.
+				if (name.EndsWith("R") && Enum.TryParse(name.Substring(0, name.Length - 1), out Pai basePai) && TileSprites.TryGetValue(basePai, out Sprite baseSprite))
+				{
+					tileSprite = baseSprite;
+				}
+			}
+			if (!TileSprites.ContainsKey(value2))
+			{
+				TileSprites.Add(value2, tileSprite);
 			}
 		}
 	}

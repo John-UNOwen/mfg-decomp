@@ -1,6 +1,6 @@
 # mock - KONAMINET front-server mock
 
-Status (2026-11): historical harness. Hosted play now runs WebGL through the WebFront gate to the self-hosted core + plugin (docs/28); this mock stays for offline protocol experiments and as the reference for the transport seam. The mechanics below describe the mock as built and still hold.
+Status (2026-11): historical harness. Hosted play now runs WebGL through the WebFront gate to the self-hosted core + plugin (docs/28). This mock stays for offline protocol experiments and as the reference for the transport seam. The mechanics below describe the mock as built and still hold.
 
 Stands in for the real AOG front server so the decompiled game can talk HTTP in
 `-KONAMINET` mode without `proxy-jp100.konami` existing. It emulates the whole transport seam:
@@ -9,7 +9,7 @@ then plain HTTP/1.1 request/response with XML bodies.
 
 - `mock/Program.cs` + `mock/MockServer.csproj`: .NET 8 console app, no external packages.
 - `mock/specs/*.xml`: one response template per endpoint path (48 files, derived from the parsers).
-- `mock/FINDINGS.md`: endpoint -> parser class -> required / modeled / skipped nodes table.
+- `mock/FINDINGS.md`: table mapping each endpoint to its parser class and the required / modeled / skipped nodes.
 - `mock/mock.log.txt`: created at runtime (append mode), never committed content of interest.
 
 ## Run
@@ -52,7 +52,7 @@ accepts any certificate (all `SslPolicyErrors` are bypassed in
   are served on the same code path without TLS. Origin-form request lines (`GET /aog/login`) also
   work, so a direct curl without `-x` is fine.
 - Routing: the `/aog` prefix is stripped and the remaining endpoint name selects
-  `mock/specs/<name>.xml`; longer paths are matched by segment and then by longest spec name, so
+  `mock/specs/<name>.xml`. Longer paths are matched by segment and then by longest spec name, so
   `gget_stamp_info` is never stolen by `gget`, and `reconnect/...` style URLs resolve. Anything
   else gets `mock/specs/_default.xml` (`<res><serv_st><code>0</code></serv_st><code>0</code></res>`).
 - Every reply is `200 OK`, `Content-Type: text/xml; charset=utf-8`, `Content-Length`,
@@ -68,7 +68,7 @@ accepts any certificate (all `SslPolicyErrors` are bypassed in
 
 ## Response contract
 
-Body is XML text; the root element name is arbitrary (`RequestApiBase.cs:113`). `code` is read out
+Body is XML text. The root element name is arbitrary (`RequestApiBase.cs:113`). `code` is read out
 of `serv_st` when `serv_st` exists, and the parse of an endpoint aborts when `serv_st` is missing
 (`RequestApiBase.cs:160-179`), so every template carries `<serv_st><code>0</code></serv_st>` plus
 payload as siblings of `serv_st`. A missing `code` is not treated as success: it falls through to

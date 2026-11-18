@@ -6,7 +6,7 @@ dotnet SDK, or does it secretly depend on Unity-editor-only references?
 Answer: it compiles. All eight recovered-source assemblies - `Assembly-CSharp` (1315 files,
 the flagship) plus the seven plugin assemblies - build with **0 errors and 0 warnings**, in
 Debug and Release, with `dotnet build` on SDK 8.0.402 and no Unity anywhere. Three recovered
-files needed edits; everything else was settled with project configuration. `Assembly-CSharp`
+files needed edits. Everything else was settled with project configuration. `Assembly-CSharp`
 references **no** editor-only assembly, so nothing on that axis blocks the rebuild.
 
 The interesting part is *which* reference set makes it compile. The shipped assemblies link
@@ -21,7 +21,7 @@ is 69 error sites, all of them framework facts rather than code defects (§5, §
 | Toolchain | `dotnet` SDK 8.0.402 (Roslyn from the SDK), msbuild targets only |
 | Shipped assemblies | `\\MYAPPSANDBOX\c\Games\MFG\game\MFGClient_Data\Managed` - 129 dlls, Unity 2022.3.13f1 Mono player, **read-only, never written** |
 | `MonoBleedingEdge` | ships `EmbedRuntime` only, no reference assemblies, so the BCL had to come from `Managed` |
-| Framework dev packs | no .NET Framework targeting pack installed; `Microsoft.NETFramework.ReferenceAssemblies.net472` 1.0.3 present in the local NuGet cache (used read-only by one profile) |
+| Framework dev packs | no .NET Framework targeting pack installed. `Microsoft.NETFramework.ReferenceAssemblies.net472` 1.0.3 present in the local NuGet cache (used read-only by one profile) |
 | NuGet | no package is referenced or restored in the default profile |
 
 ## 2. What gets compiled
@@ -31,27 +31,27 @@ Recovered trees (`api\recovered\...`) and the projects that compile them
 
 | Project (= assembly) | .cs compiled | notes |
 |---|---|---|
-| `Assembly-CSharp.csproj` | 1315 | flagship; SDK-style `<Compile Include="..\..\api\recovered\Assembly-CSharp\**\*.cs" />` |
+| `Assembly-CSharp.csproj` | 1315 | flagship. SDK-style `<Compile Include="..\..\api\recovered\Assembly-CSharp\**\*.cs" />` |
 | `Assembly-CSharp-firstpass.csproj` | 73 | |
 | `kamunity.csproj` | 67 | depends on `zxing.unity` from `build\reftype` |
 | `Shirahama.csproj` | 16 | |
-| `Shirahama.Async.csproj` | 5 | `ProjectReference` -> Shirahama |
+| `Shirahama.Async.csproj` | 5 | `ProjectReference` to Shirahama |
 | `Shirahama.Rx.csproj` | 2 | |
 | `VirtualSurround.csproj` | 7 | |
 | `Win10actLog-Runtime.csproj` | 3 | |
-| **Total** | **1488** | every recovered file is compiled; none excluded |
+| **Total** | **1488** | every recovered file is compiled. None excluded |
 
 Assembly graph follows Unity's: `Assembly-CSharp` is built *after* firstpass / kamunity /
 VirtualSurround / Win10actLog-Runtime as `ProjectReference`s, so the flagship is compiled
 against the freshly rebuilt plugin assemblies, not against their shipped copies.
 `-p:UseShippedPluginRefs=true` swaps the four for the shipped binaries in
-`build\reftype-rebuilt` to isolate a plugin-tree failure from an Assembly-CSharp failure; both
+`build\reftype-rebuilt` to isolate a plugin-tree failure from an Assembly-CSharp failure. Both
 modes are green. The plugin side is documented separately in
 [PLUGINS-REPORT.md](../build/asmdef-probe/PLUGINS-REPORT.md).
 
 Every tree also carries the two files Unity generates - `Properties\AssemblyInfo.cs` and
 `UnitySourceGeneratedAssemblyMonoScriptTypes_v1.cs` (the MonoScript name/type byte table). Both
-compile unchanged against the shipped `UnityEngine.dll`; the recovered `AssemblyInfo.cs` is the
+compile unchanged against the shipped `UnityEngine.dll`. The recovered `AssemblyInfo.cs` is the
 reason `GenerateAssemblyInfo=false`. There is not a single `#if` in `api\recovered` (the export
 was fully preprocessed), so no Unity defines are needed.
 
@@ -65,26 +65,26 @@ and exclusions. Summary:
 | `build\reftype` | 100 dlls: `UnityEngine.dll` facade + 67 `UnityEngine.*Module`, 21 Unity package / FBX runtime, 11 middleware (`DOTween`, `UniRx`, `UniTask*`, `Springbone.Runtime`, `zxing.unity`, `UnityEngine.UI`, `Unity_userfully`, ...) | glob-referenced by every probe project |
 | `build\reftype-bcl\.NETFramework\v4.7.2` | 21 dlls: the game's own Mono BCL (`mscorlib` 4.0.0.0 pkt `b77a5c561934e089`, `System`, `System.Core`, `System.Xml*`, `System.Numerics`, `netstandard` **2.1.0.0** pkt `cc7b13ffcd2ddd51`, ...) laid out as an MSBuild targeting pack with a generated `RedistList\FrameworkList.xml` | framework reference set for the default profile |
 | `build\reftype-rebuilt` | shipped copies of the 7 source-recovered plugin assemblies + `netstandard.dll` | fallback for `-p:UseShippedPluginRefs=true` only |
-| excluded | `Assembly-CSharp.dll` | the rebuild target; comparing against it happens after the build (§7) |
+| excluded | `Assembly-CSharp.dll` | the rebuild target. Comparing against it happens after the build (§7) |
 
 The targeting pack layout is the trick `Microsoft.NETFramework.ReferenceAssemblies` uses:
 `TargetFrameworkRootPath` + `NoStdLib=true` + `EnableFrameworkPathOverride=false`, with
 `FrameworkList.xml` written from the identities read out of the shipped dlls. Nothing from the
-install was modified; everything is a copy.
+install was modified. Everything is a copy.
 
 ### Profiles (`-p:ProbeProfile=...`, default `shipped`)
 
 | Profile | TargetFramework | Framework reference set | NuGet |
 |---|---|---|---|
 | `shipped` | net472 | the game's Mono BCL as targeting pack | none |
-| `pack` | net472 | Microsoft's net472 reference assemblies, read in place from the NuGet cache via `TargetFrameworkRootPath` | none (no PackageReference; cache path overridable with `-p:Net472RefPackRoot=`) |
+| `pack` | net472 | Microsoft's net472 reference assemblies, read in place from the NuGet cache via `TargetFrameworkRootPath` | none (no PackageReference, cache path overridable with `-p:Net472RefPackRoot=`) |
 | `netstandard` | netstandard2.1 | the game's Mono BCL as plain references | none |
 
 Why three: the shipped `Assembly-CSharp.dll` carries **no** `TargetFrameworkAttribute` at all
 (only `ExtensionAttribute`, `CompilationRelaxations`, `RuntimeCompatibility`, `Debuggable`), so
 the moniker is a compile-time contract, not a shipped fact. What matters is which library the
 code is compiled *against*. `shipped` keeps the requested net472 moniker and supplies the
-library the shipped code really links; `pack` measures a stock Microsoft 4.7.2 reference set;
+library the shipped code links. `pack` measures a stock Microsoft 4.7.2 reference set.
 `netstandard2.1` shows the clean result does not depend on the moniker - and it is the level
 Unity itself declares: the shipped `UnityEngine.dll` facade references `netstandard 2.1.0.0`.
 
@@ -111,7 +111,7 @@ reference set and the restore graph).
 
 Only decompiler artifacts were touched. Every one is a construct ilspy emitted that C# cannot
 compile, in a shape where the intended meaning is forced by the surrounding code. 3 edits in
-1488 files; no other file in `api\recovered` was modified (`git status` shows exactly these
+1488 files. No other file in `api\recovered` was modified (`git status` shows exactly these
 three plus the new `build\` tree, nothing committed).
 
 | # | File | Cause | Symptom |
@@ -130,7 +130,7 @@ _ = 2;
 
 `num` is never assigned, never used again in the method - the only other `num` in the file is
 line 942, in a different method - and the two discarded expressions are stack leftovers of the
-state-machine rewrite. The language forbids reading it (CS0165); the runtime cannot observe the
+state-machine rewrite. The language forbids reading it (CS0165). The runtime cannot observe the
 difference, because hoisted state-machine fields are zero-initialised and the result is dropped.
 Fixed in place with the value the shipped IL would have seen:
 
@@ -174,12 +174,12 @@ excluded from compilation.
 
 | Setting | Why |
 |---|---|
-| `LangVersion=10` | ilspy emits file-scoped namespaces (`namespace X;`), a C# 10 syntax feature: CS8773 under C# 9 in 63 sites of one file. Semantics are identical to the braced form Unity compiled; raising the language version beats rewriting 1300 files. (`api\recovered\*\*.csproj` exports by ilspy itself declare 11.0.) |
-| `AllowUnsafeBlocks=true` | recovered code uses `unsafe` (e.g. kamunity heap marshalling) |
-| `GenerateAssemblyInfo=false` | each tree ships its own recovered `Properties\AssemblyInfo.cs`; otherwise duplicate `AssemblyVersion`/`AssemblyTitle` attributes |
+| `LangVersion=10` | ilspy emits file-scoped namespaces (`namespace X;`), a C# 10 syntax feature: CS8773 under C# 9 in 63 sites of one file. Semantics are identical to the braced form Unity compiled. Raising the language version beats rewriting 1300 files. (`api\recovered\*\*.csproj` exports by ilspy itself declare 11.0.) |
+| `AllowUnsafeBlocks=true` | recovered code uses `unsafe` (for example kamunity heap marshalling) |
+| `GenerateAssemblyInfo=false` | each tree ships its own recovered `Properties\AssemblyInfo.cs`. Otherwise duplicate `AssemblyVersion`/`AssemblyTitle` attributes |
 | `EnableDefaultItems=false`, `EnableDefaultCompileItems=false` + explicit recursive globs | keep `obj\` generated files out of the compile and make the compiled file set auditable (counted per profile with `dotnet msbuild -getItem:Compile`) |
-| `ProduceReferenceAssembly=false`, `AutoGenerateBindingRedirects=false`, `Deterministic=true` | no ref-assemblies wanted for the metadata diff; no app.config semantics in a library probe |
-| `NoWarn=1701;1702;0436;0435;0105;0108;0114;0169;0414;0649;1591;1998` | reference-identity and forwarding noise from linking the game's own BCL (1701/1702/0436/0435), decompiler-emitted hidden/duplicated inherited members and unused fields (0105/0108/0114/0169/0414/0649), missing doc comments (1591), state-machine async-without-await (1998). All warnings; **no error is silenced** - that matters for §6.2 |
+| `ProduceReferenceAssembly=false`, `AutoGenerateBindingRedirects=false`, `Deterministic=true` | no ref-assemblies wanted for the metadata diff. No app.config semantics in a library probe |
+| `NoWarn=1701;1702;0436;0435;0105;0108;0114;0169;0414;0649;1591;1998` | reference-identity and forwarding noise from linking the game's own BCL (1701/1702/0436/0435), decompiler-emitted hidden/duplicated inherited members and unused fields (0105/0108/0114/0169/0414/0649), missing doc comments (1591), state-machine async-without-await (1998). All warnings. **No error is silenced** - that matters for §6.2 |
 | profile machinery (`TargetFrameworkRootPath`, `NoStdLib`, `EnableFrameworkPathOverride`, `DisableImplicitFrameworkReferences`, `AutomaticallyUseReferenceAssemblyPackages`) | the only way to point a net472 build at a chosen reference set when no developer pack is installed |
 
 ### 6.2 Build-side compat, `pack` profile only (`shims\`, `compat\`)
@@ -191,15 +191,15 @@ artifacts exist, all conditioned on `'$(ProbeProfile)' == 'pack'`, none inside
 
 | File | What it is | Why it is not a source fix |
 |---|---|---|
-| `shims\MathFShim.cs` | internal global `MathF` with `static readonly float PI, E` (fields, not constants, so the emitted IL keeps the float32 runtime load instead of folding with doubles) | `System.MathF` exists in the shipped Mono `mscorlib`; absence is a property of the reference set, not of the code |
-| `shims\KeyValuePairCreateShim.cs` | internal `Shirahama.KeyValuePair.Create` - enclosing-namespace member that shadows the imported generic struct only inside `namespace Shirahama` | same reason; scoped so nothing else changes binding |
-| `compat\pack\IPlayerInteractor.cs` | the recovered interface's 30 abstract members unchanged + its 13 default bodies re-expressed as extension methods on `IPlayerInteractor` | the .NET Framework 4.7.2 runtime cannot host interface method bodies, so the *target* rejects valid shipped IL; lowering is a target capability, not a bug fix |
+| `shims\MathFShim.cs` | internal global `MathF` with `static readonly float PI, E` (fields, not constants, so the emitted IL keeps the float32 runtime load instead of folding with doubles) | `System.MathF` exists in the shipped Mono `mscorlib`. Absence is a property of the reference set, not of the code |
+| `shims\KeyValuePairCreateShim.cs` | internal `Shirahama.KeyValuePair.Create` - enclosing-namespace member that shadows the imported generic struct only inside `namespace Shirahama` | same reason. Scoped so nothing else changes binding |
+| `compat\pack\IPlayerInteractor.cs` | the recovered interface's 30 abstract members unchanged + its 13 default bodies re-expressed as extension methods on `IPlayerInteractor` | the .NET Framework 4.7.2 runtime cannot host interface method bodies, so the *target* rejects valid shipped IL. Lowering is a target capability, not a bug fix |
 
 The lowering is safe here, and that was checked rather than assumed: in the shipped assembly
 `MFG.MahjongPlay.Cutin.IPlayerInteractor` declares 43 methods, **13 of which carry IL bodies**,
-and neither implementer (`PlayerInteractor`, 34 methods; `PreviewPlayerInteractor`, 33) declares
-any of those 13 names, so there is no override to break; every call site is a direct
-invocation on a static receiver typed `IPlayerInteractor` (34 files checked; the only other
+and neither implementer (`PlayerInteractor` 34 methods, `PreviewPlayerInteractor` 33) declares
+any of those 13 names, so there is no override to break. Every call site is a direct
+invocation on a static receiver typed `IPlayerInteractor` (34 files checked. The only other
 `IsFakeClear` declarations in the tree are `MFG.Types.Player.IsFakeClear` - a property on a
 different type - and `CharaTypeExtentions.IsFakeClear(this CharaType, int)`).
 
@@ -214,7 +214,7 @@ Flagship under `pack`: 56 error sites, zero warnings, none of them about Unity:
 | 7 | CS0117 | `Math.Clamp` | `BingoEventDisp.cs:40`, `CompetitionRankGraph.cs:63`, `PlayerGameData.cs:477`, `StoryPlayFlow.cs:403`, `VoiceManager.cs:470` |
 | 6 | CS1061 | `Dictionary<,>.TryAdd`, `Enumerable.TakeLast` | `LoadableAssetSet.cs:46`, `PlayerRecordInfo.cs:47`, `GameSettings.cs:103`, `VoiceManager.cs:568` |
 | 2 | CS0518 | predefined types `System.Range` / `System.Index` for `text[..n]` | `TestModeLocalization.cs:89` |
-| 13 | CS8701 | default interface implementations, when the recovered `IPlayerInteractor.cs` is compiled (`.NET Framework 4.7.2` cannot host interface method bodies; `NoWarn` cannot suppress an error) | `MFG.MahjongPlay.Cutin\IPlayerInteractor.cs`, 13 declaration sites |
+| 13 | CS8701 | default interface implementations, when the recovered `IPlayerInteractor.cs` is compiled (`.NET Framework 4.7.2` cannot host interface method bodies. `NoWarn` cannot suppress an error) | `MFG.MahjongPlay.Cutin\IPlayerInteractor.cs`, 13 declaration sites |
 
 Zero `CS0246`/`CS0234` against `UnityEngine*` or any plugin: in every profile every Unity and
 middleware type resolves. The residual set is entirely "this BCL is older than the one the game
@@ -226,11 +226,11 @@ are .NET Core 2.0 / .NET Standard 2.1 era additions - which is exactly what the 
 
 One measurement quirk worth recording: with the recovered DIM file compiled in `pack` mode the
 build reports 13 errors, not 69. Roslyn skips method-body binding once declaration-level errors
-exist, so the 13 CS8701 hide the 56 body-level API gaps. Both variants were run; 69 is the
+exist, so the 13 CS8701 hide the 56 body-level API gaps. Both variants were run. 69 is the
 union, and the two logs are kept.
 
 Two things were tried and do not work, so they are not in the design: `<NoWarn>8701</NoWarn>`
-(CS8701 is an error; 13 errors persisted) and `TargetFrameworkRootPath` against a synthetic
+(CS8701 is an error. 13 errors persisted) and `TargetFrameworkRootPath` against a synthetic
 pack layout that omitted the generated `RedistList\FrameworkList.xml` (MSB3644: reference
 assemblies not found - the generated FrameworkList is what makes the shipped-BCL pack resolve).
 
@@ -240,7 +240,7 @@ assemblies not found - the generated FrameworkList is what makes the shipped-BCL
 rebuild with the shipped dll: `tfm` (identity, assembly attributes, reference list), `members`
 (counts), `dim` (which declared methods carry IL bodies), `diff` (three member-set projections:
 hand-written members with signatures, public/protected hand-written, and everything including
-compiler-generated names; nested-type names are qualified through `GetDeclaringType`, otherwise
+compiler-generated names. Nested-type names are qualified through `GetDeclaringType`, otherwise
 unrelated closure classes collide).
 
 `Assembly-CSharp`, rebuild from the default profile vs the shipped dll:
@@ -268,7 +268,7 @@ Release, firstpass 209/257 vs 210/209, `Shirahama` 12/13).
 
 Reading of these numbers: every hand-written name, signature, access level, attribute set and
 inheritance relationship in the shipped assemblies is reproduced by the recovered source,
-including private and `[SerializeField]` members and the 13 interface bodies; what differs is
+including private and `[SerializeField]` members and the 13 interface bodies. What differs is
 machine-generated plumbing that the recovered source never contained. That is the strongest
 statement available short of running the game.
 
@@ -281,7 +281,7 @@ all available from the install. Nothing had to be excluded, stubbed or wrapped.
 Standing caveats, stated as limits rather than failures:
 
 - This proves the recovered source compiles to the same assembly contract. It does not execute
-  it; behaviour parity still rests on the runtime-evidence work in `docs\`.
+  it. Behaviour parity still rests on the runtime-evidence work in `docs\`.
 - `pack` mode is a measurement, not a shipping target: 69 latent error sites are framework
   facts about a BCL older than the one the game carries. If the rebuild ever has to run on
   stock .NET Framework 4.7.2 instead of Unity's Mono, those APIs (and the 13 default interface
@@ -353,15 +353,15 @@ Read-only inputs, unmodified: `\\MYAPPSANDBOX\c\Games\MFG` (game install),
 
 ## 2026-10-25 recheck: the project-copy build itself
 
-The merged project copy (what Unity will actually compile; namespace-flattened variants of the
+The merged project copy (what Unity will actually compile, namespace-flattened variants of the
 recovered trees, all six plugin trees merged into Assembly-CSharp) was rebuilt through
 `build/project-merge-analysis/verify/ac9` + `firstpass9` and diffed against the shipped DLLs
 with asmmeta:
 
 - firstpass: 1832/1832 hand-written members identical (public/protected 1407/1407), 0 missing,
-  0 extra; only compiler-generated closure names differ.
+  0 extra. Only compiler-generated closure names differ.
 - merged Assembly-CSharp: every shipped hand-written member present. The 38 nominal
-  "shipped-only" entries are all the same member with a type-qualification artifact (e.g.
+  "shipped-only" entries are all the same member with a type-qualification artifact (for example
   `GetCardType(CardType)` vs `GetCardType(KAMUNITY.AvsTypes/CardType)`): plugin types now live in
   the merged assembly so the signature prints unqualified. Left-only entries are the six plugin
   trees` members (kamunity et al.) landing in Assembly-CSharp by design, plus compiler-generated

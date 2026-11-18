@@ -1,12 +1,12 @@
 # 11 - Port boundary and rebuild design
 
-Design draft after Phase 1. Everything marked OBSERVED is cited in [inventory/platform-callsites.md](inventory/platform-callsites.md) or [inventory/flow-trace.md](inventory/flow-trace.md); INFERRED items are labeled.
+Design draft after Phase 1. Everything marked OBSERVED is cited in [inventory/platform-callsites.md](inventory/platform-callsites.md) or [inventory/flow-trace.md](inventory/flow-trace.md). INFERRED items are labeled.
 
 ## The boundary is the wrapper ABI, and it is already C#
 
 `KamunityInstance.Boot()` binds every `[KamunityDllApiClass]` delegate property by name from `GetProcAddress` (OBSERVED, `api/recovered/kamunity/KAMUNITY/KamunityInstance.cs:84-111`). The rebuild keeps the wrapper classes exactly as shipped source and replaces only the bootstrap: bind the same delegate properties to managed implementations instead of a native DLL. Game code then runs unmodified across the seam.
 
-`IEaPlatform` below is the shape of that managed implementation layer (one method per native-backed behavior, summarized from the six clusters in docs/10; final signatures come from the wrapper delegate types themselves):
+`IEaPlatform` below is the shape of that managed implementation layer (one method per native-backed behavior, summarized from the six clusters in docs/10. Final signatures come from the wrapper delegate types themselves):
 
 ```csharp
 interface IEaPlatform {
@@ -37,13 +37,13 @@ Phase 1 found the game already has a second, non-arcade server path. That change
 
 ### Option S: KonamiNet mode + front-server shim (first light, recommended)
 
-Run the game with its own `-KONAMINET` switch (OBSERVED: parsed at `ResidentFlow.cs:961`; 92 gate sites). In this mode the game skips kamunity entirely, auto-passes the network boot check, drops PASELI/PCB/PP reporting to no-ops, uses local clock, and talks only to `FrontServerUrl` over plain HTTP (OBSERVED, flow-trace section 9). Konami itself uses this as a dev/QA path (INFERRED from the staging AOG URL and `IsEamDevConnection` default).
+Run the game with its own `-KONAMINET` switch (OBSERVED: parsed at `ResidentFlow.cs:961`. 92 gate sites). In this mode the game skips kamunity entirely, auto-passes the network boot check, drops PASELI/PCB/PP reporting to no-ops, uses local clock, and talks only to `FrontServerUrl` over plain HTTP (OBSERVED, flow-trace section 9). Konami itself uses this as a dev/QA path (INFERRED from the staging AOG URL and `IsEamDevConnection` default).
 
 Work then moves to a shim server (panel backend, any language):
 
-- Implement the 35 front-server endpoints. Request forms are fully derivable from client code (`MFG.GameRequest/*` build the exact POST fields); response XML shapes are enumerable from the parser code in the same classes (INFERRED: parsers show required nodes; server-only validation beyond client checks is the residual risk).
-- Run tables behind `/entry_game`, `/gget`, `/gpost`, `/gchat`, `/end_game`: accept the client's bare intents and emit the exact server command vocabulary (KYOKUSTART with te/yama/dora, TSUMOCHOICES/SUTECHOICES flags, per-seat Scores, SCORERANK, KYOKUEND). The client's own engine (`StructuredHand`, `BlockSet`, `YakuEvaluator`, `MahjongUtility`) ports directly into the shim as the rules/score core (INFERRED: it is complete enough for evaluation; legality flags and wall order are the parts only the server defines).
-- Identity: front server accepts a DataID with `bypass_auth=true` (OBSERVED, `Login.cs:20`); accounts get provisioned/DataID-mapped by the panel (a "card number" can just be a DataID alias; no reader, no PIN RPCs needed in this mode).
+- Implement the 35 front-server endpoints. Request forms are fully derivable from client code (`MFG.GameRequest/*` build the exact POST fields). Response XML shapes are enumerable from the parser code in the same classes (INFERRED: parsers show required nodes. Server-only validation beyond client checks is the residual risk).
+- Run tables behind `/entry_game`, `/gget`, `/gpost`, `/gchat`, `/end_game`: accept the client's bare intents and emit the exact server command vocabulary (KYOKUSTART with te/yama/dora, TSUMOCHOICES/SUTECHOICES flags, per-seat Scores, SCORERANK, KYOKUEND). The client's own engine (`StructuredHand`, `BlockSet`, `YakuEvaluator`, `MahjongUtility`) ports directly into the shim as the rules/score core (INFERRED: it is complete enough for evaluation. Legality flags and wall order are the parts only the server defines).
+- Identity: front server accepts a DataID with `bypass_auth=true` (OBSERVED, `Login.cs:20`). Accounts get provisioned/DataID-mapped by the panel (a "card number" can be a DataID alias. No reader, no PIN RPCs needed in this mode).
 - The game-side re-platforming that Option S still requires: `System.Net.WebRequest` transport must move to UnityWebRequest for WebGL (`RequestCoroutine`/`HttpWebRequestor`/`HttpDownloader`, OBSERVED no WebRequest on WebGL), `dev/raw` backup path to browser persistent storage (IndexedDB), strip streaming/Dx11/execexe classes.
 
 What Option S gives up in v1: real card/PIN authentication, PASELI billing, and the provider's card data. Those stay available through the streaming MVP meanwhile.
@@ -62,12 +62,12 @@ From the census DELETE bucket + mode analysis (census section 6): delete `EXECEX
 
 ## Revised gate sequence
 
-1. **Gate 1 (days): mock first light.** Hosts-file pin `aog03-stg.pvt.mo.konami.net` (and the reconnect template's URL parts, `Reconnect.cs:18`) to a local mock; boot the *current install* with `-KONAMINET` against canned XML for `/appli_info`, `/login`, `/get_menudata`, `/client_state_read`; reaching the lobby proves the seam and the mockability claim before any WebGL or reconstruction work.
-2. **Gate 1b (one night, parallel): Option M capture.** Full provider session with `-netdump` plus HTTP-side packet trace; answers the ServiceUrl/front-server question and seeds Phase 2 wire work if we keep M.
+1. **Gate 1 (days): mock first light.** Hosts-file pin `aog03-stg.pvt.mo.konami.net` (and the reconnect template's URL parts, `Reconnect.cs:18`) to a local mock. Boot the *current install* with `-KONAMINET` against canned XML for `/appli_info`, `/login`, `/get_menudata`, `/client_state_read`. Reaching the lobby proves the seam and the mockability claim before any WebGL or reconstruction work.
+2. **Gate 1b (one night, parallel): Option M capture.** Full provider session with `-netdump` plus HTTP-side packet trace. Answers the ServiceUrl/front-server question and seeds Phase 2 wire work if we keep M.
 3. **Gate 2 (unchanged intent, new cheapest path): desktop editor build reaches lobby** through the shim (S) or real ea3 (M). Kill-switch still lives here.
 4. Gates 3/4 (project reconstruction, WebGL) unchanged from [04-decompilation-plan.md](04-decompilation-plan.md).
 
 ## Decision log additions
 
-- 2026-10-24: Phase 1 complete; port boundary fixed at the kamunity wrapper ABI (docs/10).
-- 2026-10-24: Option S (`-KONAMINET` + front-server shim) proposed as the first-light path; Option M capture session scheduled before committing to eAC3 reimplementation. Owner sign-off pending.
+- 2026-10-24: Phase 1 complete. Port boundary fixed at the kamunity wrapper ABI (docs/10).
+- 2026-10-24: Option S (`-KONAMINET` + front-server shim) proposed as the first-light path. Option M capture session scheduled before committing to eAC3 reimplementation. Owner sign-off pending.

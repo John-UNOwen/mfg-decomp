@@ -12,7 +12,7 @@ No server was started and no lane was staged: everything here drives the engine 
 probe_E, this package's two checks, and the three offline suites that transpile the tree themselves.
 Its whole output is saved as `.audit/stale_offer_replay.out.txt`. `taikyoku.ts` and `handlers/aog.ts`
 in the canonical tree and in `tmp\asphyxia_plugins\mfg@asphyxia` are the same files
-(`ryunet_stage.ps1 -Action status`: `identical to canonical`; `git diff HEAD` in the plugin repo is
+(`ryunet_stage.ps1 -Action status`: `identical to canonical`. `git diff HEAD` in the plugin repo is
 empty), so the commit is the build the numbers were taken from. `handlers/aog.ts` was also typechecked
 with `tsc --noEmit`: the only errors in the tree are the pre-existing `process` / `__dirname` ones in
 `index.ts` and `handlers/utils.ts`, which come from this ad-hoc invocation not loading `@types/node`.
@@ -24,18 +24,18 @@ or not the player touches anything:
 
 - `ExecSuteChoices.cs:74` - the whole cell is skipped unless its `pi` bit for this seat is set. That
   bit is the client's only notion of "this question is for me".
-- `ExecSuteChoices.cs:325-328` - naki-off answers the window with a `Tsugi` the moment it opens;
+- `ExecSuteChoices.cs:325-328` - naki-off answers the window with a `Tsugi` the moment it opens.
   `:390-391` - otherwise the action bar times out and answers it. Observed live on a guest cabinet in
   `docs/16-s3-live-match-report.md:46-48` (windows time out and are auto-passed).
 - `Tsugi.cs` and `Ron.cs` set `Kind` and nothing else, so a decline and a ron name no tile. `Pon`
   (`ExecSuteChoices.cs:142`), `Chi` (`:200`) and `Minkan` (`:219`) are built from the choices cell, so
   they carry the tile being called (`pai_id`, always `suteChoices.Choices.PaiID`) and the hand tile or
-  tiles being spent (`tepai_id`, `tepai_id2`; a minkan names one).
+  tiles being spent (`tepai_id`, `tepai_id2`. A minkan names one).
 - `CommandClient.cs:242-247` - a claim-window answer carries `max(seqNo of every SUTECHOICES in the
   client's buffer) + 1` in `must` slot 6. Not the cell it is answering: the newest one it holds.
 - `MatchingFlow.cs:218` seeds the cell cursor from `entry/next_sno`, and `CommandClient.cs:253-262`
   `Reset()` clears `m_receivedCommands` (so the dedupe at `:126-134` cannot filter a replay) and turns
-  data transmission on; only a kifu `Apply()` (`:286-292`) turns it off.
+  data transmission on. Only a kifu `Apply()` (`:286-292`) turns it off.
 
 `422a975` made `entry/next_sno` the `KYOKUSTART` of the kyoku the table is in, which is what a
 returning client needs to rebuild that kyoku (see `docs/31` L76). It follows that the stream a
@@ -65,7 +65,7 @@ Now: `_answers_live_offer` (`taikyoku.ts:1568-1592`) runs before the reply is re
 `PON`/`CHI`/`MINKAN` whose `pai_id` decodes to a tile other than the live `pending_call.tile`, a `PON`
 naming hand tiles other than the live tile's pair, and any claim-window reply whose `seqNo` names a
 choices cell older than the live window's own cell. `handle_gpost` reads `must` slot 5 and passes it in
-(`handlers/aog.ts:2989`, `:3014`); `on_command` gained the optional eighth argument (`taikyoku.ts:1441`)
+(`handlers/aog.ts:2989`, `:3014`). `on_command` gained the optional eighth argument (`taikyoku.ts:1441`)
 so callers that drive the engine directly leave it unknown rather than guessing `0`.
 
 Refusing is the safe direction because it leaves the window and the seat's offer untouched: the seat
@@ -91,7 +91,7 @@ ties an offer in `sute_choices` to the cell it was published under.
 The log itself is untouched: `this.cells` is what `/gpost` answers from, what the match archive copies
 (`handlers/aog.ts:3126`), and what a kifu replays. The cell stays where the log put it and only stops
 addressing anybody, and the client walks its cells in order either way. `verify.cjs` F4 asserts the log
-is byte-identical to the pre-fix log for the same seeded table; F5 asserts the stream is the pre-fix
+is byte-identical to the pre-fix log for the same seeded table. F5 asserts the stream is the pre-fix
 stream with exactly the resolved offers made inert and nothing else changed.
 
 ## Why probe_D's D4 stays red
@@ -134,10 +134,10 @@ and the table moves on to `5@3`.
 | check | result |
 | --- | --- |
 | `probe_B` (call-window and inter-kyoku gates, honba, resume cursor, CPU-only match) | `checks=25 fails=0` |
-| `probe_D` (the reviewer's probe) | `checks=9 fails=1` - `D7`, `D8`, `D9` now PASS; `D4` red, see above |
+| `probe_D` (the reviewer's probe) | `checks=9 fails=1` - `D7`, `D8`, `D9` now PASS. `D4` red, see above |
 | `probe_E` (a ready answering the next kyoku's wait) | `checks=4 fails=2` - `E3`, `E4` red, unchanged from `071e6bf` |
 | `tmp\stale_offer_fix\verify.cjs` (stream + client walk, head build as control) | `checks=18 fails=0` |
-| `tmp\stale_offer_fix\verify_aog.cjs` through `/gpost` | pre `checks=7 fails=4` → after `checks=7 fails=0` |
+| `tmp\stale_offer_fix\verify_aog.cjs` through `/gpost` | pre `checks=7 fails=4`, after `checks=7 fails=0` |
 | `tmp\seat_liveness\verify.cjs` | `14/14 checks pass` |
 | `tmp\kiken_fix\verify.cjs` | `31/31 checks pass` |
 | `tmp\waitingroom_fix\verify.cjs` | `31/31 checks passed` |
@@ -194,13 +194,13 @@ unchanged. A reply that names tiles - which is every reply a real client posts -
   everybody, so there is no per-reader variant to build and `cells_from` needs no seat argument.
 - A `RON_AGARI` reply names no tile (`Ron.cs`), so the tile check cannot cover it. It is covered by
   the publish rule (the seat is never handed the old question again) and by the seqNo floor. Left as
-  the residual it is; the engine's `_win_result` still has to agree the seat can win on the live tile.
+  the residual it is. The engine's `_win_result` still has to agree the seat can win on the live tile.
 - A reply with no seqNo is accepted on the floor that it is unknown, not provably stale. That is what
   keeps `on_command`'s existing callers working - the CPU paths and `kiken_fix`/`waitingroom_fix`,
   whose `gpost` helper posts `0` in slot 6 - and refusing them would refuse probe_D's legitimate
   decline in the same breath.
-- The seat number that answers is still the one the server assigned at entry (`handlers/aog.ts:3012-3013`);
-  nothing here touches that.
+- The seat number that answers is still the one the server assigned at entry (`handlers/aog.ts:3012-3013`).
+  Nothing here touches that.
 
 ## Left as it is
 
@@ -208,7 +208,7 @@ unchanged. A reply that names tiles - which is every reply a real client posts -
   from one kyoku pre-answers the next kyoku's wait. It fails identically on `071e6bf` and on the fixed
   tree - a different gate, a different fix, its own work package.
 - `_apply_pon` spending fewer tiles than the meld claims, when a reply names no tile ids at all. The
-  narrow guard keeps that path's old behaviour on purpose (see I2e above); closing it properly means
+  narrow guard keeps that path's old behaviour on purpose (see I2e above). Closing it properly means
   deciding what the engine owes a client that names nothing, and probe_B I2e currently rewards not
   deciding.
 - `recon` (`S_RECONNECT(14)`) is still unimplemented on the server, so a rejoiner always re-plays its

@@ -21,7 +21,7 @@ both ends of a run and exit 2 with `NOT LISTENING` when there is nothing to prob
 | `pwsh C:\mfg\scripts\ryunet_stage.ps1 -Action status` | every copy of the plugin in the tree: canonical / identical / diverged, and whether a diverged copy can still boot a server (exit 1 if one can) |
 | `pwsh C:\mfg\scripts\ryunet_stage.ps1 -Action lane [-Lane verify-dist] [-Port 8093]` | wipe and re-derive a verification lane from the canonical tree: current plugin, own empty savedata, its own ports, `LANE_STAMP.json` naming the build it holds |
 | `python .audit/smoke_mfg_endpoints.py` | integrated lane, `http://127.0.0.1:8083/aog/` - the canonical tree's own port |
-| `python .audit/smoke_mfg_endpoints_p7.py [http://127.0.0.1:8093/aog/] [REF]` | same sweep against a staged lane; it prints the build it measured and exits 2 when the lane's stamp no longer matches the canonical tree |
+| `python .audit/smoke_mfg_endpoints_p7.py [http://127.0.0.1:8093/aog/] [REF]` | same sweep against a staged lane. It prints the build it measured and exits 2 when the lane's stamp no longer matches the canonical tree |
 | `node .audit/probe_p7_verify.js [base] [db]` | P7 package: dojo session handling, friend_game served as saved, odekake borrow (default staged lane 8093) |
 | `node .audit/probe_p7_roundtrip.js [base]` | posted player_game against what the read serves back |
 | `node .audit/probe_p7.js [db] [space]` / `node .audit/probe_p7_lenders.js [db] [space]` | profile rows / lender candidacy read straight out of a savedata DB |
@@ -29,7 +29,7 @@ both ends of a run and exit 2 with `NOT LISTENING` when there is nothing to prob
 | `python tmp/p8repro/verify_p8.py [REF]` | content sweep: event kinds, mission schedule, notices and acks, name/sticker screening, `chara_enabled`, `competition_entry`, server-owned state kinds |
 | `node .audit/p8_content_vocab.js [utils.ts]` | the content vocabulary one build actually ships - run it on a snapshot to see the before |
 | `node .audit/p8_content_unit_check.js` / `node .audit/p8_config_unit_check.js` | the shipped content helpers and their config overrides, loaded straight from `dist/.../handlers/utils.ts`: no server, no restart |
-| `python .audit/probe_notice_p8.py [REF]` / `python .audit/probe_odekake_p8.py [LENDER] [BORROWER]` | notice authoring on an account that has never read them; the friend row and the borrow it backs |
+| `python .audit/probe_notice_p8.py [REF]` / `python .audit/probe_odekake_p8.py [LENDER] [BORROWER]` | notice authoring on an account that has never read them, the friend row and the borrow it backs |
 | `pwsh tmp\stale_offer_fix\gate.ps1 -Tag fix` | the engine in process, no server: compiles the canonical tree with the core's own `tsc`, runs probe_B / probe_D / probe_E, the stale-offer checks and the three offline suites. Output: `stale_offer_replay.out.txt` |
 | `smoke_common.py` | the part both sweeps share: liveness, the reserve/play contract, fixture rotation |
 
@@ -56,7 +56,7 @@ gets re-checked, the report is how anyone finds them.
 The shared parts used to be copied into each sweep. The copies drifted and both went wrong
 in the same way, so they live in `smoke_common.py` now - do not paste them back into a sweep.
 
-## One canonical copy; lanes are staged, not kept
+## One canonical copy. Lanes are staged, not kept
 
 `tmp/RyuNET-core/dist/plugins/mfg@asphyxia` is the canonical plugin tree: the only copy that is
 edited, the only copy the core loads. As the fixes landed it is 16 files with `handlers/aog.ts`
@@ -74,7 +74,7 @@ it by `pwsh C:\mfg\scripts\ryunet_stage.ps1` and says so:
   it held and frees the name for a fresh `-Action lane`. `-Action status` is red until a superseded
   lane has been re-staged or retired.
 - `tmp/asphyxia_plugins/mfg@asphyxia` - staging mirror, refreshed *from* the canonical tree
-  (`-Action mirror`), byte-identical. The generators write into the canonical tree now; the
+  (`-Action mirror`), byte-identical. The generators write into the canonical tree now. The
   mirror is not a place to edit.
 - `tmp/RyuNET-core/.frozen-builds/<name>` - read-only build snapshots (see
   [FROZEN.md](../tmp/RyuNET-core/.frozen-builds/FROZEN.md)): plugin TypeScript and run outputs
@@ -114,7 +114,7 @@ Those names are probe residue in `dist/savedata/mfg@asphyxia.db` - one profile d
 attributable by name (`GACHAP4SMOKE*`, `GACHAP7SMOKE*`, `P2REPRO*`, `P8VERIFY*`, `P8V*`,
 `P8NOTICE*`, `P8LENDER*` / `P8BORROW*`, plus older `P2GHOST*` and `MID*` orphans from before the
 session-integrity fix). The `MID*` ones are the three rows `MID00998877` / `MID88000123` /
-`MID88000124`, written through the mid fallback by `probe_live.py` and the P2 probes; they are
+`MID88000124`, written through the mid fallback by `probe_live.py` and the P2 probes. They are
 quarantined now, and `.audit/p9-mid-phantom-report.md` is the record of what that repair did and
 did not do.
 
@@ -122,7 +122,7 @@ Notices are the same trap in a different shape: an ack is permanent per profile
 (`handle_notice_ack` writes the ids, `noticeGameJson` / `receiveOnlyJson` filter them out), so the
 notice assertions in `tmp/p8repro/verify_p8.py` can pass on a given account exactly once. A pinned
 account name turns a re-run into five deterministic `FAIL`s that look like a regression - that is
-what `p8_content_sweep_exhausted.out.txt` records. The sweep's default account name now rotates;
+what `p8_content_sweep_exhausted.out.txt` records. The sweep's default account name now rotates.
 pass one as `argv[1]` only when you mean to reuse that account.
 
 ## What `SMOKE OK` means for the music gacha now

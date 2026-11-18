@@ -5,7 +5,7 @@ lane: every script here either targets a Linux box or scratch paths you point it
 nothing in the kit signals a process it did not record itself, and the core/gate
 refuse to start on a port that already answers (so a running lane is never stepped
 on). The Windows lane (core 8083, gate 8090, probe relay 8091, static front 8095)
-stays untouched by design; the defaults below assume a **separate Linux box** with
+stays untouched by design. The defaults below assume a **separate Linux box** with
 the same port numbers.
 
 Already verified earlier: `assemble_webroot.sh` (the bash port of
@@ -19,37 +19,37 @@ Already verified earlier: `assemble_webroot.sh` (the bash port of
 | `lane_down.sh` | Stops exactly the pids `lane_up.sh` recorded in `PID_DIR`, verifying each pid's `/proc/<pid>/cmdline` before signalling. Never kills by name/pattern/port, never pid 1 or itself, reports every refusal and why. Replaces `hosting_down.ps1`. |
 | `mfg-lane.service`, `mfg-gate.service`, `mfg-tunnel.service` | systemd unit **templates** (`@PLACEHOLDER@` tokens) with `WorkingDirectory`, `EnvironmentFile`, `Restart`, `TimeoutStopSec`, `NoNewPrivileges`, `ProtectSystem=strict` and `ReadWritePaths` lines, each annotated where its path requirement comes from. |
 | `install_systemd.sh` | Substitutes real paths/user into the unit templates, stages the results plus a non-secret `lane.env` into a staging directory, and prints the exact `sudo` commands a human runs. It never invokes sudo itself. Before staging anything it proves on this box every path those units start from (the `ExecStart` binaries, `<core-dir>/dist/AsphyxiaCore.js`, `<webfront-dir>/bin/Release/net8.0/WebFront.dll`, `<webroot>/index.html`, `<sec-dir>/presenter.secret`) and refuses with every missing one named - the printed list ends in `systemctl enable --now`, and a half-populated host cannot start the units it would enable. |
-| `lane_smoke.sh` | Read-only curl acceptance suite against a base URL: COOP/COEP headers, brotli sidecar rule, immutable-vs-TTL caching, `index.html` no-store, FoxNET login page, `/static` assets, anonymous session rejection, `/aog` reaching the core handler, play page `-AUTOSERVE`, and an optional login/logout section (`SMOKE_USER`/`SMOKE_PASS`). Prints PASS/FAIL/SKIP with evidence and a summary count; non-zero exit on any FAIL. |
-| `transfer_build.sh` | Ships the WebGL build over ssh in chunked tars (no rsync), one chunk per top-level directory, resumable only in the "skip complete chunks by sha256" sense, with a manifest and a hard refusal to delete anything remote. A chunk is a name, and the name of the chunk holding the tree's top-level loose files — `_root_files_` — is reserved: a build with a top-level *directory* of that name is refused at the chunk list, in `--dry-run` as well, before anything is staged or sent (the two would be one chunk name, the loop would ask for the loose files twice and never for that directory, and its files would ship in nobody's tar while the published manifest still claimed them — the run converges and `verify_transfer.sh` finds the hole afterwards). Rename the directory or move it out of the top level. A top-level *directory* that holds no files is still a chunk, and the only chunk that can never ship by the sha256 rule: its manifest lines are empty (the manifest is files-only) and the remote of an absent or empty path folds to the same empty-input digest, so the digests match and it skips on every run while the tar that would have created the directory never runs. A real run therefore creates each such directory on the target with one `mkdir -p` (after the existence gate, before the chunk loop) and prints an `EMPTY-DIR` line naming it — otherwise the shipped tree is left permanently without a directory the local tree has, and neither the files-only manifest nor `verify_transfer.sh` would ever show the gap. Every remote observation runs under `bash -c` with `set -o pipefail` and must close with a per-run observation-proof trailer line: a far-side `find`/`sha256sum` failure, or a missing/misplaced/duplicated trailer, refuses the chunk - it is no longer hidden behind a successful `sort`/`sed` and never answers as a skip or send. The done line states its denominator - `… = sent + skipped = N of total chunk(s) enumerated` - and a run that looked at fewer chunks than the enumerated list is a nonzero exit with no done line and no manifest upload (a `1 skipped` truncated run can no longer be read as a converged rerun, the 2026-11-09 promotion-log defect); the done output also always states the surplus - remote files under the observed chunk paths that the manifest does not list, which never block a skip but are `verify_transfer.sh`'s `EXTRA`, so a converged rerun over a tree still holding a dropped name says so. `--dry-run` shows the plan + manifest, including the enumerated chunk total and the exact wrapped far-side command; that enumeration is complete - `MANIFEST_LIMIT` caps the `--dry-run` chunk listing itself (default 20 lines, `0` = every chunk): when the build has more top-level directories than the cap, the plan prints the first `MANIFEST_LIMIT` chunk lines and then a line naming how many more were left out. The `chunks enumerated: N` total printed below the listing is always the full count, and a real transfer is never capped - the limit is a display knob for the plan, not a limit on what ships. Chunk tars in `STAGE_DIR` are deleted as soon as their send is confirmed, and a run that completes sweeps the `chunk__*.tar*` leftovers earlier runs left behind (a chunk that now skips, or a top-level name the build renamed or dropped) — a promotion no longer leaves a second full copy of the tree in `STAGE_DIR`, the peak is one chunk. A mid-transfer failure is not a no-op: extraction replaces each file it reaches as the stream arrives, so a run that dies mid-chunk leaves `REMOTE_DIR` a **mixed tree** (reached files hold this build's bytes — the previous bytes are destroyed, no delete needed; the member being written is truncated; everything not yet reached is still the old tree), still served if the path is live — the failure line says so and names the only two recoveries: complete a full transfer into the same `REMOTE_DIR`, or restore the operator's aside of the previous tree. The failed chunk's tar is kept for the documented rerun; `--keep-tars` / `KEEP_TARS=1` opts out of all deleting for forensics. `manifest.tsv` is never swept, and it is what `verify_transfer.sh` and `swap_webroot.sh` read — and the readers after the run (the KB delta procedure included) can never see a half-written one: the upload lands in `.lane_transfer/manifest.tsv.tmp`, is measured on the target (`wc -c` + `sha256sum` under `bash -c` with `set -o pipefail`), and is renamed onto `manifest.tsv` only when bytes and sha256 equal the local file — the manifest path is never truncated or streamed into, so a cut upload (transport exit 0 included) refuses with the previous manifest still published. `chunk_hashes.tsv` is never swept either but is read by nothing — it is the what-was-sent history, one line per confirmed send as `<run-tag>` TAB `<tar sha256>` TAB `<tar name>`: the line is appended only after the chunk's tar finished streaming **and** the remote ledger append of that same line succeeded, so a chunk whose stream died mid-tar is never recorded as sent, and the file is never truncated — runs stack up, each line tagged with its UTC run tag, so a rerun adds to the record instead of replacing it. A real run first passes a **capacity gate**: it reads the free space of the local filesystem holding `STAGE_DIR` and of the remote filesystem holding `REMOTE_DIR` (or, on a first transfer with no `REMOTE_DIR` yet, that path's nearest existing ancestor — same filesystem) via `df -B1 --output=avail`, and refuses **before the first byte moves**, both numbers in the line, when either filesystem holds less than the manifest total (tree bytes — an upper bound: skipped chunks and gzip make what actually streams smaller). The failure mode the gate exists to prevent is a tar write that fills the filesystem mid-chunk and leaves the destination a half-new, half-old mix (2026-11-10: 1.2 GB free hit mid-promotion of a 9 GB build on the filesystem the gate serves); an unreadable or not-a-number answer is a refusal for the same reason — guessing at capacity is what filled the disk. `--skip-space-check` / `SKIP_SPACE_CHECK=1` opts out for the operator who measured the fit themselves (e.g. a converged rerun that sends 0 bytes over a nearly-full target), and `--dry-run` prints the exact probe a real run will issue. Every read-only transport call — the `.lane_transfer` mkdir, the observations, the free-space and manifest-tmp probes, the manifest rename — runs with its stdin held shut, and only the three calls handed a payload keep it (the tar send, the sent-ledger and manifest pipes). That is what lets a `while read …; done < build-list` promotion wrapper run every line: a transport that behaves like ssh reads the stdin it inherits, so one read-only call left holding it ate the rest of the list under a clean exit 0 (2026-11-09 promotion, `9761a3b`). The destination also has to be the tree the operator meant: before its first write a real run asks the target whether `REMOTE_DIR` is a directory, and an absent one — or no answer at all from the transport — is a refusal. The bookkeeping `mkdir` is `mkdir -p`, so before that gate a plausible typo was silently *created* by the run that meant to fill the real tree, shipped into, and `verify_transfer.sh` agreed about the seconds-old result, with no line in the log saying the destination had been made. `--create` / `CREATE_REMOTE_DIR=1` opts in to creating a first-transfer destination, printing a loud `CREATION:` line that names the path before the `mkdir`; a rerun once the tree exists needs neither (and since `BOOKKEEPING_DIR` moved the bookkeeping out of the tree, the `mkdir` it runs for the bookkeeping can no longer create `REMOTE_DIR` at all - the destination gets its own `mkdir`, behind that `CREATION:` line). The manifest publish and the remote sent-ledger go to `BOOKKEEPING_DIR`, which defaults outside `REMOTE_DIR` as its leading-dot sibling and is refused whenever it normalises to the served tree or a path inside it (see the section above). |
-| `verify_transfer.sh` | Compares the manifest against the remote tree: missing / extra / size-or-hash mismatched files plus file and byte totals, so a 5.47 GB transfer is confirmed, not assumed. Its interface is env-driven and takes **no positional arguments** — `-h`/`--help` prints the invocation line and every variable: the manifest comes from `MANIFEST` (default `$STAGE_DIR/manifest.tsv`) and the two remote listings are fetched by the script itself into `STAGE_DIR` and deleted after the comparison, so passing three paths on the command line is an `unknown argument` refusal ahead of any listing — a hand-passed manifest or listing could describe another tree, another run, or another day. Both remote listings use the same `bash -c` + `set -o pipefail` + trailer wrapping as `transfer_build.sh`: a failed or unproven observation is a refusal, never a `MISSING`/`HASH` verdict computed from a half-read tree. `REMOTE_DIR` is required, absolute, and guarded with the identical block `transfer_build.sh` applies: normalised lexically first (`//` collapsed, `./`/`../` resolved, trailing `/` removed — both values printed when they differ) and then refused before any listing runs when it normalises to `/`, to a system directory, to or inside one, or holds a single quote. Both scripts accept exactly the same `REMOTE_DIR` values, so a typo can never turn the verification into a `/proc` walk, a `cd` into the invisible ssh login cwd, or an `agree` about a tree `transfer_build.sh` would never have written. Both listings also run with their stdin held shut: the script reads nothing from stdin, and a transport that behaves like ssh forwards whatever it inherits — left open, the first listing ate the work list of a `while read` wrapper around this script and the wrapper ran one tree of three, under exit 0. Exit 0 is the only `agree` a caller may act on: a refused comparison and a compared-but-not-equal tree both exit 1 and both mean *do not serve this tree*, and the `MISSING`/`SIZE`/`HASH`/`EXTRA` verdict names print capped at `REPORT_MAX` (default 40 per class, `0` prints every name). `BOOKKEEPING_DIR` is taken with the same default (`REMOTE_DIR`'s leading-dot sibling) and the same refusals as `transfer_build.sh` - a value that lands inside the served tree is refused before any listing runs - and the listings still exclude an in-tree `.lane_transfer/` leftover so a pre-move tree does not read as `EXTRA`. |
-| `swap_webroot.sh` | Promotes a staged webroot over the live one with two renames, but only after the whole staged tree has been counted against the manifest of the transfer that shipped it (file count + per-file size: `MISSING`, size-mismatch, `EXTRA`, both totals printed). `chown` runs while the gate is still up; `SERVICES` (default `mfg-gate`) are stopped only for the renames; the new root is then proven by polling `/build_stamp.txt` for the expected stamp, and any failure after the first rename — a signal included — puts the renames back and restarts the services. The previous root is kept as the undo handle and never deleted. `--dry-run` runs the verification and prints the plan. |
+| `lane_smoke.sh` | Read-only curl acceptance suite against a base URL: COOP/COEP headers, brotli sidecar rule, immutable-vs-TTL caching, `index.html` no-store, FoxNET login page, `/static` assets, anonymous session rejection, `/aog` reaching the core handler, play page `-AUTOSERVE`, and an optional login/logout section (`SMOKE_USER`/`SMOKE_PASS`). Prints PASS/FAIL/SKIP with evidence and a summary count. Non-zero exit on any FAIL. |
+| `transfer_build.sh` | Ships the WebGL build over ssh in chunked tars (no rsync), one chunk per top-level directory, resumable only in the "skip complete chunks by sha256" sense, with a manifest and a hard refusal to delete anything remote. A chunk is a name, and the name of the chunk holding the tree's top-level loose files, `_root_files_`, is reserved: a build with a top-level *directory* of that name is refused at the chunk list, in `--dry-run` as well, before anything is staged or sent (the two would be one chunk name, the loop would ask for the loose files twice and never for that directory, and its files would ship in nobody's tar while the published manifest still claimed them. The run converges and `verify_transfer.sh` finds the hole afterwards). Rename the directory or move it out of the top level. A top-level *directory* that holds no files is still a chunk, and the only chunk that can never ship by the sha256 rule: its manifest lines are empty (the manifest is files-only) and the remote of an absent or empty path folds to the same empty-input digest, so the digests match and it skips on every run while the tar that would have created the directory never runs. A real run therefore creates each such directory on the target with one `mkdir -p` (after the existence gate, before the chunk loop) and prints an `EMPTY-DIR` line naming it. Otherwise the shipped tree is left permanently without a directory the local tree has, and neither the files-only manifest nor `verify_transfer.sh` would ever show the gap. Every remote observation runs under `bash -c` with `set -o pipefail` and must close with a per-run observation-proof trailer line: a far-side `find`/`sha256sum` failure, or a missing/misplaced/duplicated trailer, refuses the chunk - it is no longer hidden behind a successful `sort`/`sed` and never answers as a skip or send. The done line states its denominator - `… = sent + skipped = N of total chunk(s) enumerated` - and a run that looked at fewer chunks than the enumerated list is a nonzero exit with no done line and no manifest upload (a `1 skipped` truncated run can no longer be read as a converged rerun, the 2026-11-09 promotion-log defect). The done output also always states the surplus - remote files under the observed chunk paths that the manifest does not list, which never block a skip but are `verify_transfer.sh`'s `EXTRA`, so a converged rerun over a tree still holding a dropped name says so. `--dry-run` shows the plan + manifest, including the enumerated chunk total and the exact wrapped far-side command. That enumeration is complete - `MANIFEST_LIMIT` caps the `--dry-run` chunk listing itself (default 20 lines, `0` = every chunk): when the build has more top-level directories than the cap, the plan prints the first `MANIFEST_LIMIT` chunk lines and then a line naming how many more were left out. The `chunks enumerated: N` total printed below the listing is always the full count, and a real transfer is never capped - the limit is a display knob for the plan, not a limit on what ships. Chunk tars in `STAGE_DIR` are deleted as soon as their send is confirmed, and a run that completes sweeps the `chunk__*.tar*` leftovers earlier runs left behind (a chunk that now skips, or a top-level name the build renamed or dropped), so a promotion no longer leaves a second full copy of the tree in `STAGE_DIR`, the peak is one chunk. A mid-transfer failure is not a no-op: extraction replaces each file it reaches as the stream arrives, so a run that dies mid-chunk leaves `REMOTE_DIR` a **mixed tree** (reached files hold this build's bytes. The previous bytes are destroyed, no delete needed. The member being written is truncated. Everything not yet reached is still the old tree), still served if the path is live. The failure line says so and names the only two recoveries: complete a full transfer into the same `REMOTE_DIR`, or restore the operator's aside of the previous tree. The failed chunk's tar is kept for the documented rerun. `--keep-tars` / `KEEP_TARS=1` opts out of all deleting for forensics. `manifest.tsv` is never swept, and it is what `verify_transfer.sh` and `swap_webroot.sh` read. And the readers after the run (the KB delta procedure included) can never see a half-written one: the upload lands in `.lane_transfer/manifest.tsv.tmp`, is measured on the target (`wc -c` + `sha256sum` under `bash -c` with `set -o pipefail`), and is renamed onto `manifest.tsv` only when bytes and sha256 equal the local file. The manifest path is never truncated or streamed into, so a cut upload (transport exit 0 included) refuses with the previous manifest still published. `chunk_hashes.tsv` is never swept either but is read by nothing. It is the what-was-sent history, one line per confirmed send as `<run-tag>` TAB `<tar sha256>` TAB `<tar name>`: the line is appended only after the chunk's tar finished streaming **and** the remote ledger append of that same line succeeded, so a chunk whose stream died mid-tar is never recorded as sent, and the file is never truncated. Runs stack up, each line tagged with its UTC run tag, so a rerun adds to the record instead of replacing it. A real run first passes a **capacity gate**: it reads the free space of the local filesystem holding `STAGE_DIR` and of the remote filesystem holding `REMOTE_DIR` (or, on a first transfer with no `REMOTE_DIR` yet, that path's nearest existing ancestor, same filesystem) via `df -B1 --output=avail`, and refuses **before the first byte moves**, both numbers in the line, when either filesystem holds less than the manifest total (tree bytes, an upper bound: skipped chunks and gzip make what actually streams smaller). The failure mode the gate exists to prevent is a tar write that fills the filesystem mid-chunk and leaves the destination a half-new, half-old mix (2026-11-10: 1.2 GB free hit mid-promotion of a 9 GB build on the filesystem the gate serves). An unreadable or not-a-number answer is a refusal for the same reason: guessing at capacity is what filled the disk. `--skip-space-check` / `SKIP_SPACE_CHECK=1` opts out for the operator who measured the fit themselves (for example a converged rerun that sends 0 bytes over a nearly-full target), and `--dry-run` prints the exact probe a real run will issue. Every read-only transport call (the `.lane_transfer` mkdir, the observations, the free-space and manifest-tmp probes, the manifest rename) runs with its stdin held shut, and only the three calls handed a payload keep it (the tar send, the sent-ledger and manifest pipes). That is what lets a `while read …; done < build-list` promotion wrapper run every line: a transport that behaves like ssh reads the stdin it inherits, so one read-only call left holding it ate the rest of the list under a clean exit 0 (2026-11-09 promotion, `9761a3b`). The destination also has to be the tree the operator meant: before its first write a real run asks the target whether `REMOTE_DIR` is a directory, and an absent one, or no answer at all from the transport, is a refusal. The bookkeeping `mkdir` is `mkdir -p`, so before that gate a plausible typo was silently *created* by the run that meant to fill the real tree, shipped into, and `verify_transfer.sh` agreed about the seconds-old result, with no line in the log saying the destination had been made. `--create` / `CREATE_REMOTE_DIR=1` opts in to creating a first-transfer destination, printing a loud `CREATION:` line that names the path before the `mkdir`. A rerun once the tree exists needs neither (and since `BOOKKEEPING_DIR` moved the bookkeeping out of the tree, the `mkdir` it runs for the bookkeeping can no longer create `REMOTE_DIR` at all - the destination gets its own `mkdir`, behind that `CREATION:` line). The manifest publish and the remote sent-ledger go to `BOOKKEEPING_DIR`, which defaults outside `REMOTE_DIR` as its leading-dot sibling and is refused whenever it normalises to the served tree or a path inside it (see the section above). |
+| `verify_transfer.sh` | Compares the manifest against the remote tree: missing / extra / size-or-hash mismatched files plus file and byte totals, so a 5.47 GB transfer is confirmed, not assumed. Its interface is env-driven and takes **no positional arguments**. `-h`/`--help` prints the invocation line and every variable: the manifest comes from `MANIFEST` (default `$STAGE_DIR/manifest.tsv`) and the two remote listings are fetched by the script itself into `STAGE_DIR` and deleted after the comparison, so passing three paths on the command line is an `unknown argument` refusal ahead of any listing: a hand-passed manifest or listing could describe another tree, another run, or another day. Both remote listings use the same `bash -c` + `set -o pipefail` + trailer wrapping as `transfer_build.sh`: a failed or unproven observation is a refusal, never a `MISSING`/`HASH` verdict computed from a half-read tree. `REMOTE_DIR` is required, absolute, and guarded with the identical block `transfer_build.sh` applies: normalised lexically first (`//` collapsed, `./`/`../` resolved, trailing `/` removed, both values printed when they differ) and then refused before any listing runs when it normalises to `/`, to a system directory, to or inside one, or holds a single quote. Both scripts accept exactly the same `REMOTE_DIR` values, so a typo can never turn the verification into a `/proc` walk, a `cd` into the invisible ssh login cwd, or an `agree` about a tree `transfer_build.sh` would never have written. Both listings also run with their stdin held shut: the script reads nothing from stdin, and a transport that behaves like ssh forwards whatever it inherits. Left open, the first listing ate the work list of a `while read` wrapper around this script and the wrapper ran one tree of three, under exit 0. Exit 0 is the only `agree` a caller may act on: a refused comparison and a compared-but-not-equal tree both exit 1 and both mean *do not serve this tree*, and the `MISSING`/`SIZE`/`HASH`/`EXTRA` verdict names print capped at `REPORT_MAX` (default 40 per class, `0` prints every name). `BOOKKEEPING_DIR` is taken with the same default (`REMOTE_DIR`'s leading-dot sibling) and the same refusals as `transfer_build.sh` - a value that lands inside the served tree is refused before any listing runs - and the listings still exclude an in-tree `.lane_transfer/` leftover so a pre-move tree does not read as `EXTRA`. |
+| `swap_webroot.sh` | Promotes a staged webroot over the live one with two renames, but only after the whole staged tree has been counted against the manifest of the transfer that shipped it (file count + per-file size: `MISSING`, size-mismatch, `EXTRA`, both totals printed). `chown` runs while the gate is still up. `SERVICES` (default `mfg-gate`) are stopped only for the renames. The new root is then proven by polling `/build_stamp.txt` for the expected stamp, and any failure after the first rename, a signal included, puts the renames back and restarts the services. The previous root is kept as the undo handle and never deleted. `--dry-run` runs the verification and prints the plan. |
 
 ## Run order for a parallel install (Windows lane keeps serving)
 
-Do all of this **on the Linux box**; the Windows lane is not involved at any step.
+Do all of this **on the Linux box**. The Windows lane is not involved at any step.
 
-1. `transfer_build.sh --dry-run` -> review chunks/manifest (the plan is written under `.dry-run` names, so a
+1. `transfer_build.sh --dry-run` to review chunks/manifest (the plan is written under `.dry-run` names, so a
    dry run never replaces `STAGE_DIR/manifest.tsv` - the record of what the last real run shipped, which
-   `verify_transfer.sh` and `swap_webroot.sh` read by default); then real run (disk accounting: it refuses
+   `verify_transfer.sh` and `swap_webroot.sh` read by default). Then real run (disk accounting: it refuses
    up front unless both its `STAGE_DIR` filesystem and `REMOTE_DIR`'s filesystem have the manifest
    total free - roughly the tree size, so a full-size promotion wants that much free beside the
    staged webroot, `--skip-space-check` when you have measured the fit, which means `df` and never
    `du`: for a delta refresh into a `cp -al` staged tree the manifest total over-counts what lands,
    because most of those bytes are already resident under `REMOTE_DIR` (see "Disk accounting:
-   account a hardlink handle with df before and after, never du" in the swap section); and a
+   account a hardlink handle with df before and after, never du" in the swap section). And a
    `REMOTE_DIR` that does not exist on the target is refused before anything is created - a first
    transfer to a fresh path
    takes `--create` / `CREATE_REMOTE_DIR=1`, which prints a loud `CREATION:` line naming the path
-   it is about to make); then `verify_transfer.sh` until it reports agreement, and step 2 does not
+   it is about to make). Then `verify_transfer.sh` until it reports agreement, and step 2 does not
    start before it has: agreement is the proof that closes a transfer, never an optional extra look -
-   only exit 0 says it (zero missing, zero `EXTRA`, zero size/hash mismatches; verdict names print
+   only exit 0 says it (zero missing, zero `EXTRA`, zero size/hash mismatches. Verdict names print
    capped at `REPORT_MAX`, default 40 per class, `0` prints every name). `transfer_build.sh`'s done
    line states which chunks this run looked at, not that the tree is whole - nothing assembles
    (step 2), brings up (steps 3-6) or promotes (step 7) on a done line alone.
 2. `assemble_webroot.sh` on the Linux box (assembles the lane webroot from the
-   transferred build; needs the brotli sidecar tool + a .NET 8 runtime).
-3. `lane_up.sh --dry-run` -> sanity-check paths/env/ports; then `lane_up.sh`.
-4. `lane_smoke.sh` -> the acceptance suite. With credentials:
+   transferred build. Needs the brotli sidecar tool + a .NET 8 runtime).
+3. `lane_up.sh --dry-run` to sanity-check paths/env/ports. Then `lane_up.sh`.
+4. `lane_smoke.sh`, the acceptance suite. With credentials:
    `SMOKE_USER=... SMOKE_PASS=... lane_smoke.sh`.
 5. `lane_down.sh` whenever the lane has to move.
 6. Optional permanent form: `install_systemd.sh /path/to/repo --user <svcuser>`,
@@ -72,7 +72,7 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
    refused with both candidate homes printed. Its printed `core.env` recipe runs
    `sudo -u <svcuser>` - the service must own what it reads at mode 600. Re-running into the
    same staging directory is the normal dev loop: every unit is rewritten from its template
-   with that run's paths and user, and the run says so; a unit that run does not stage - an
+   with that run's paths and user, and the run says so. A unit that run does not stage - an
    earlier `--tunnel` run's `mfg-tunnel.service` after a plain run - is removed from the
    staging directory rather than left there installable and unnamed.
 7. Updating the webroot a live lane serves (a refresh, not a fresh install): stage the incoming
@@ -80,7 +80,7 @@ Do all of this **on the Linux box**; the Windows lane is not involved at any ste
    shares every inode with the live root and grows only by what the delta rewrites), budget that
    handle with df before and after, never du - `du -sh` says a full tree for it, and the swap
    section's disk accounting has the numbers - then ship the delta into it with `transfer_build.sh`
-   (`REMOTE_DIR=<staged>`), `verify_transfer.sh` it to agreement (exit 0; `swap_webroot.sh` re-runs
+   (`REMOTE_DIR=<staged>`), `verify_transfer.sh` it to agreement (exit 0. `swap_webroot.sh` re-runs
    this count against the staged tree itself and refuses the swap on any `MISSING`, size mismatch or
    `EXTRA`), then `WEBROOT=... STAMP=<stamp> swap_webroot.sh` - see the next section. The live root is
    swapped through that script, never through hand-run renames.
@@ -94,10 +94,10 @@ sent-ledger. Their location is `BOOKKEEPING_DIR` - and it must not be inside `RE
 (`$REMOTE_DIR/.lane_transfer/`): a GET of `/.lane_transfer/manifest.tsv` on the live lane answered
 `200` with 13 MB - the full 58,809-path production asset inventory, hashes included - until the
 directory was moved off the live tree by hand. `BOOKKEEPING_DIR` now defaults **outside** the
-served tree, to `REMOTE_DIR`'s leading-dot sibling (`/srv/mfg/webroot` ->
+served tree, to `REMOTE_DIR`'s leading-dot sibling (`/srv/mfg/webroot` to
 `/srv/mfg/.webroot.lane_transfer`), and any value that normalises to `REMOTE_DIR` itself or to a
 path inside it - the old location included - is refused before anything is staged or sent. The
-dot-name hides the dir from plain listings; it is **not** the protection (`verify_transfer.sh`
+dot-name hides the dir from plain listings. It is **not** the protection (`verify_transfer.sh`
 takes the same name, the same default and the same refusals, and keeps excluding the in-tree
 `.lane_transfer/` leftovers of trees shipped before the move from its listings, so a legacy dir
 never reads as `EXTRA`). The dot-sibling also keeps each destination tree's bookkeeping apart:
@@ -109,7 +109,7 @@ tree's - the two never overwrite each other.
 > or 403) but never rejects a request whose path segments start with `.`, so anything that does
 > land inside a served root under a dot name is served like any other file - which is exactly how
 > `/.lane_transfer/manifest.tsv` was reachable. A one-line gate rejecting dot-prefixed path
-> segments would close that class server-side; it is a webfront change, not a kit change, and it
+> segments would close that class server-side. It is a webfront change, not a kit change, and it
 > waits on the owner's sign-off.
 
 Note the same name means one thing more than once, by design: in `swap_webroot.sh`, `BOOKKEEPING_DIR`
@@ -125,9 +125,9 @@ swap reads its manifest from `$BOOKKEEPING_DIR/manifest.tsv`.
 `manifest.tsv` (what shipped), `chunks.txt` and `_rootfiles.txt` (the chunk lists it shipped in). Both readers
 after a transfer take `manifest.tsv` by default - `verify_transfer.sh` through `MANIFEST=$STAGE_DIR/manifest.tsv`,
 and `swap_webroot.sh` through `MANIFEST=$BOOKKEEPING_DIR/manifest.tsv` with `BOOKKEEPING_DIR` defaulting to that
-same `STAGE_DIR`. A `--dry-run` computes the very same manifest, so it writes its plan - manifest plus the two
+same `STAGE_DIR`. A `--dry-run` computes the same manifest, so it writes its plan - manifest plus the two
 chunk lists - to those names with `.dry-run` appended (`manifest.tsv.dry-run`, `chunks.txt.dry-run`,
-`_rootfiles.txt.dry-run`) and says so in its own output; the three record files are not opened. Before that, one
+`_rootfiles.txt.dry-run`) and says so in its own output. The three record files are not opened. Before that, one
 dry run between a transfer and a verification replaced the record with a plan of a tree nobody shipped, and the
 next default reader judged the served tree by bytes that had never gone over a wire: `MISSING ./Build/b2.js` +
 `MISMATCH` over a destination that still matched the published manifest exactly (fixture case C96, transport shims
@@ -140,16 +140,16 @@ plan by itself, and a real run never writes it.
 The production webroot swap, productized out of the one-off script the 2026-11-10 promotion ran:
 two renames, with the checks that script did not have. That one-off (`C:\mfgtmp\promote_swap.sh`) is
 kept as a historical artifact of a swap that could print a matching stamp over a truncated play page
-and exit 0 - it is not a recipe; live-root promotions run this script.
+and exit 0 - it is not a recipe. Live-root promotions run this script.
 
 ```
 WEBROOT=/srv/mfg/webroot STAMP=D759A911DF0C scripts/linux/swap_webroot.sh [--dry-run]
 ```
 
-Order, and why it is the order: verify the staged tree against the manifest -> `chown` the
-incoming tree -> stop `SERVICES` -> rename the live root aside -> rename the staged tree in ->
-start `SERVICES` -> ask the front for `/build_stamp.txt` until it answers `STAMP`. Everything
-left of the first rename is reversible by construction; right of it an exit trap puts the renames
+Order, and why it is the order: verify the staged tree against the manifest, then `chown` the
+incoming tree, then stop `SERVICES`, then rename the live root aside, then rename the staged tree in, then
+start `SERVICES`, then ask the front for `/build_stamp.txt` until it answers `STAMP`. Everything
+left of the first rename is reversible by construction. Right of it an exit trap puts the renames
 back and restarts what it stopped, and every line it prints says which path holds what.
 
 **An interrupt is a failed swap.** Ctrl-C, `kill`, or a dropped ssh session (`SIGHUP`) inside the
@@ -163,17 +163,17 @@ exit 143 to show for it. `SIGKILL` - an OOM kill - is still uncatchable: the las
 
 | Name | Default | What it is |
 |---|---|---|
-| `WEBROOT` | required | the live root the front serves. Absolute; refused when it normalises to `/` or to/inside a system directory, because the first rename moves whatever stands there |
+| `WEBROOT` | required | the live root the front serves. Absolute. Refused when it normalises to `/` or to/inside a system directory, because the first rename moves whatever stands there |
 | `STAMP` | required | the stamp the staged tree must carry, and the answer the front must give afterwards |
-| `STAGED` | `<WEBROOT>.new-<STAMP>` | the tree to promote; refused when it is or nests inside `WEBROOT`. The refresh flow leaves it a `cp -al` handle of the live root, which costs the delta, not a tree - what it costs is a `df` question, never a `du` one (see Disk accounting below) |
+| `STAGED` | `<WEBROOT>.new-<STAMP>` | the tree to promote. Refused when it is or nests inside `WEBROOT`. The refresh flow leaves it a `cp -al` handle of the live root, which costs the delta, not a tree - what it costs is a `df` question, never a `du` one (see Disk accounting below) |
 | `SERVICES` | `mfg-gate` | space-separated units to stop before the renames and start after them (`'mfg-gate mfg-lane'` when the core is a unit too). Empty = the front is stopped some other way, and the HTTP proof is then the only net |
 | `CHOWN_TO` | `mfg:mfg` | `owner:group` the incoming tree is `chown -R`'d to **before the stop** - an `-R` over 58,809 files is work the gate does not need to be down for. Empty = skip |
-| `BOOKKEEPING_DIR` | `$HOME/mfgtmp/transfer_stage` | where the bookkeeping of the transfer run that shipped this tree lives **on this box**: `transfer_build.sh`'s `STAGE_DIR`, holding the local `manifest.tsv`. Same name as the transfer scripts' remote bookkeeping dir (see the note above); this one is local and sits outside every webroot on purpose |
+| `BOOKKEEPING_DIR` | `$HOME/mfgtmp/transfer_stage` | where the bookkeeping of the transfer run that shipped this tree lives **on this box**: `transfer_build.sh`'s `STAGE_DIR`, holding the local `manifest.tsv`. Same name as the transfer scripts' remote bookkeeping dir (see the note above). This one is local and sits outside every webroot on purpose |
 | `MANIFEST` | `$BOOKKEEPING_DIR/manifest.tsv` | the manifest the staged tree is counted against (a `transfer_build.sh --dry-run` cannot overwrite it: its plan is written under `.dry-run` names) |
 | `GATE_PORT` / `PROOF_HOST` | `8090` / `127.0.0.1` | where the proof asks `/build_stamp.txt` |
-| `PROOF_TRIES` / `PROOF_SLEEP` | `60` / `0.5` | how long the proof polls; raise them when `SERVICES` names `mfg-lane` (the core needs ~20 s to bind) |
+| `PROOF_TRIES` / `PROOF_SLEEP` | `60` / `0.5` | how long the proof polls. Raise them when `SERVICES` names `mfg-lane` (the core needs ~20 s to bind) |
 | `REPORT_MAX` | `20` | how many `MISSING` / size-mismatch / `EXTRA` names to print per class (`0` = all) |
-| `STAGED_VERIFY_CMD` | empty | extra check, run as `bash -c "$cmd" swap_webroot <STAGED>` before the down window; a non-zero exit refuses the swap |
+| `STAGED_VERIFY_CMD` | empty | extra check, run as `bash -c "$cmd" swap_webroot <STAGED>` before the down window. A non-zero exit refuses the swap |
 
 **The pre-check is the whole tree, not the stamp.** Every file the manifest lists must be in the
 staged tree at the size it lists, and no file the manifest does not list may be there. Both
@@ -197,7 +197,7 @@ before the transfer scripts' `BOOKKEEPING_DIR` move, its `.lane_transfer/` - man
 resolves inside `WEBROOT` is refused for that reason. `transfer_build.sh` tolerates leftover names
 in the remote tree because it issues no deletions - it states the surplus count it observed in its
 own done output (`surplus: N remote file(s) …`) and the names themselves go to
-`verify_transfer.sh` as `EXTRA`; the swap refuses them in the tree it is about to promote.
+`verify_transfer.sh` as `EXTRA`. The swap refuses them in the tree it is about to promote.
 
 **Proof, not a curl that prints nothing.** The answer is compared with `STAMP` over a bounded
 poll, the same raw-socket probe `assemble_webroot.sh` uses (`build_stamp.txt` has no trailing
@@ -247,8 +247,8 @@ line prints its path with the `rm -rf` to run once it has, and the same accounti
   nvm/tarball installs), and `install_systemd.sh` refuses to stage if that path is not an
   executable file: Ubuntu 24.04's apt node is 18.x, so the node a lane box actually runs is
   usually not `/usr/bin/node`.
-- **.NET 8 runtime** (`dotnet` on PATH) - `webfront/webfront.csproj` targets `net8.0`;
-  the gate runs as `dotnet WebFront.dll` (the `WebFront.exe` apphost from
+- **.NET 8 runtime** (`dotnet` on PATH) - `webfront/webfront.csproj` targets `net8.0`.
+  The gate runs as `dotnet WebFront.dll` (the `WebFront.exe` apphost from
   `hosting_up.ps1:77` is Windows-only). The unit execs an absolute path too (default
   `/usr/bin/dotnet`, `--dotnet-bin`).
 - **cloudflared** with the named tunnel already installed in the account
@@ -258,11 +258,11 @@ line prints its path with the `rm -rf` to run once it has, and the same accounti
 - GNU-ish coreutils for the transfer scripts: `tar`, GNU `find` (`-printf`,
   `-print0`), `xargs -0`, `sha256sum`, `awk`, `df` (`-B1 --output=avail`, read on both ends
   by `transfer_build.sh`'s capacity gate - the far side needs it too). `zstd` only if `COMPRESS=zstd`.
-- Secrets under `~/.mfg-web` at mode **600**: `presenter.secret` (required;
+- Secrets under `~/.mfg-web` at mode **600**: `presenter.secret` (required.
   `hosting_up.ps1:19-21` - both `lane_up.sh:322-324` and `install_systemd.sh` refuse to start or
   stage without it, and the gate would otherwise read an absent `WEBFRONT_PRESENTER_SECRET_FILE`
   as no secret at all, `Program.cs:57`), `access.code` (optional, access-code lobby,
-  `hosting_up.ps1:73-74`; the systemd installer notes it and carries on). For the systemd path also `~/.mfg-web/core.env`
+  `hosting_up.ps1:73-74`). The systemd installer notes it and carries on). For the systemd path also `~/.mfg-web/core.env`
   (mode 600, carries `VFG_PRESENTER_SECRET=` for the core unit) - under the
   *service user's* home and owned by them: the units `EnvironmentFile=` it as that user,
   and a caller-owned 600 file is skipped with no error. `core.env` only arms the presenter while
@@ -274,18 +274,18 @@ line prints its path with the `rm -rf` to run once it has, and the same accounti
 
 Core (`node AsphyxiaCore.js` + the `mfg@asphyxia` plugin):
 
-- `VFG_PRESENTER_SECRET` - plugin `handlers/utils.ts:1623-1624` (`presenterSecret` -> `configString`,
+- `VFG_PRESENTER_SECRET` - plugin `handlers/utils.ts:1623-1624` (`presenterSecret` to `configString`,
   `utils.ts:1516-1522`): a **non-empty `config.ini` `[mfg@asphyxia]` key of the same name wins and the
   environment is only read when that key is absent or empty** (`U.GetConfig` serves the parsed ini,
   `ExternalPluginLoader.ts:170-176`). The key is empty in the current lane, so there the exported env
-  var is what arms the presenter; on a host whose key was filled in once (the WebUI config page
+  var is what arms the presenter. On a host whose key was filled in once (the WebUI config page
   persists it via `SaveConfig`, `ArgConfig.ts:334-340`) the env export is silently ignored and the gate
   and core end up on different secrets. `install_systemd.sh` reads `<core-dir>/dist/config.ini` and
   refuses to stage a `core.env` that would be silently ignored by a different ini value.
 - `mfg_http_bind` / `mfg_http_port` - env beats `config.ini`
   (`index.ts:296-304`: env, then `U.GetConfig`, then directKnob).
 - `WEB_SECURE_COOKIE` - `src/webui/index.ts:65`, accepts `1` or `true`
-  (case-insensitive); only meaningful when the lane really terminates https.
+  (case-insensitive). Only meaningful when the lane actually terminates https.
 - `hosting_up.ps1:12-15` clears 16 inherited names before starting (the kit mirrors
   that, and keeps `WEBFRONT_PUBLIC_URL` like `:11` does). Note the plugin also reads
   other `VFG_*` names from env (`VFG_GACHA_ALL`, `VFG_GACHA_SAFE`,
@@ -303,8 +303,8 @@ Gate (`webfront/Program.cs`):
   `WEBFRONT_PRESENTER_SECRET_FILE` (:52-59), `WEBFRONT_ACCESS_CODE` or
   `WEBFRONT_ACCESS_CODE_FILE` (:65-74), `WEBFRONT_BIND` (:343-344, `any` serves all
   interfaces, anything else is loopback).
-- Hard refusals at startup: `WEBFRONT_GATE=1` without `WEBFRONT_AUTH` (:345-352);
-  `WEBFRONT_GATE=1` without `WEBFRONT_UPSTREAM` (:353-360); gate-off relay with an
+- Hard refusals at startup: `WEBFRONT_GATE=1` without `WEBFRONT_AUTH` (:345-352),
+  `WEBFRONT_GATE=1` without `WEBFRONT_UPSTREAM` (:353-360), gate-off relay with an
   armed presenter secret and `WEBFRONT_BIND=any` (:361-368). `lane_up.sh` always
   sets AUTH + UPSTREAM (gate mode is the hosted shape).
 - **Leave `WEBFRONT_PAGE_FRONTURL` at its default `/aog` on a hosted lane.** The client
@@ -315,7 +315,7 @@ Gate (`webfront/Program.cs`):
   ScopeClose`. `lane_up.sh` only exports it when the caller sets `WEBFRONT_PUBLIC_URL`, so
   leave that unset unless you know exactly why you need it. Measured on the VPS lane
   2026-11-05: with `WEBFRONT_PUBLIC_URL=http://127.0.0.1:18090/aog` the play page ran
-  `Title -> ScopeClose`; with it unset the splice serves `-FRONTURL "/aog"` and the chain
+  `Title -> ScopeClose`. With it unset the splice serves `-FRONTURL "/aog"` and the chain
   proceeds.
 
 Core `dist/config.ini` keys the lane cares about (current values):
@@ -356,8 +356,8 @@ sets it), plus the `VFG_*` toggles left blank/`false`.
    `require`/asset paths are exact too. `AsphyxiaCore.js`, `WebFront.dll`,
    `build_stamp.txt`, the `aa/WebGL/<hash>.bundle` names - a case-mangled copy of
    the webroot or of `dist` 404s or fails to load. (The gate's own
-   `StartsWith`/`Equals` routing comparisons are case-insensitive on purpose;
-   the file opens are not.)
+   `StartsWith`/`Equals` routing comparisons are case-insensitive on purpose.
+   The file opens are not.)
 
 ## Process identity: the cwd rule matters
 
@@ -375,12 +375,12 @@ port ownership are still never used.
 
 Verified on the Windows dev box with Git bash (`C:\Program Files\Git\bin\bash.exe`)
 against scratch trees under `C:\mfgtmp\lane_kit_test` (scratch stub core listens on
-18083/18421; scratch gate is a self-built net8.0 stub dll on 18090 - the live lane
+18083/18421. Scratch gate is a self-built net8.0 stub dll on 18090 - the live lane
 ports 8083/8090/8091/8095 were never targeted):
 
-- `bash -n` on every shell file; zero CR bytes in every kit file.
+- `bash -n` on every shell file. Zero CR bytes in every kit file.
 - `lane_up.sh --dry-run`: full command + environment plan printed, secret contents
-  never printed; variants `CLOUDFLARED=0` and `WEBFRONT_PUBLIC_URL` passthrough.
+  never printed. Variants `CLOUDFLARED=0` and `WEBFRONT_PUBLIC_URL` passthrough.
 - `lane_up.sh` real run against the scratch stubs: port probes pass, `config.ini`
   timestamped copy kept the old `mfg_http_bind=0.0.0.0` while the live file shows
   `127.0.0.1`, pid files written, both children up and port-verified. Guard refusals
@@ -391,17 +391,17 @@ ports 8083/8090/8091/8095 were never targeted):
   by the real `lane_up` run stopped via SIGTERM with pid files cleaned.
 - `install_systemd.sh --staging`: three units + `lane.env` staged, every placeholder
   substituted, nothing written outside the staging dir, no sudo executed.
-- `lane_smoke.sh`: `--help`; 16 PASS / 0 FAIL / exit 0 against a scratch mimic
-  server (authenticated section included); 8 FAIL / 3 PASS / 1 SKIP / exit 1 against
+- `lane_smoke.sh`: `--help`. 16 PASS / 0 FAIL / exit 0 against a scratch mimic
+  server (authenticated section included). 8 FAIL / 3 PASS / 1 SKIP / exit 1 against
   a bare anti-fixture server.
-- `transfer_build.sh`: `--dry-run` plan + manifest; a full offline run via a transport
-  shim (no ssh at any point); re-run skipped all four chunks with 0 bytes sent - each skip an
+- `transfer_build.sh`: `--dry-run` plan + manifest. A full offline run via a transport
+  shim (no ssh at any point). Re-run skipped all four chunks with 0 bytes sent - each skip an
   observation of the remote tree (the chunk's payload digest folded from a live remote listing of
   the files its manifest lists), never a reading of the `.lane_transfer` sent-ledger, which records
-  what was sent and decides nothing (the skip read that ledger when this bullet was first written;
-  the 2026-11-08 remote-observation rewrite retired it - the 2026-11-10 fixture bullets below are
+  what was sent and decides nothing (the skip read that ledger when this bullet was first written.
+  The 2026-11-08 remote-observation rewrite retired it - the 2026-11-10 fixture bullets below are
   what the skip rests on today).
-  `verify_transfer.sh`: agreement run exit 0; a deliberately corrupted remote tree
+  `verify_transfer.sh`: agreement run exit 0. A deliberately corrupted remote tree
   (one delete, one same-size content change, one added file) reported MISSING + HASH
   + EXTRA with exit 1.
 - Observation integrity (2026-11-10, fixture cases C54-C59 in `tmp/linux_fix/fixture/run_all.sh`,
@@ -412,10 +412,10 @@ ports 8083/8090/8091/8095 were never targeted):
   same trees observed cleanly still skip all chunks and still report agreement.
 - Promotion denominator (2026-11-10, fixture cases C60-C62, transport shims only): the done line states
   `sent + skipped = N of total chunk(s) enumerated` on the first run and on the converged rerun, and the
-  `--dry-run` plan prints the same enumerated total; a run that passes a chunk through the loop without
+  `--dry-run` plan prints the same enumerated total. A run that passes a chunk through the loop without
   looking at it (a byte-for-byte copy of the script with one chunk bypassed) is refused with both counts
   named, no `transfer done` line and no manifest upload - the truncated-loop `0 sent, 1 skipped` shape can
-  no longer be mistaken for a converged rerun; and a remote still holding `./Build/webgl.oldname.wasm`,
+  no longer be mistaken for a converged rerun, and a remote still holding `./Build/webgl.oldname.wasm`,
   a name the build dropped, still skips every chunk (surplus must not block the skip) while the done
   output states `surplus: 1 remote file(s)` - the same tree reads `EXTRA` + MISMATCH, exit 1, from
   `verify_transfer.sh`.
@@ -449,21 +449,21 @@ ports 8083/8090/8091/8095 were never targeted):
   bookkeeping `mkdir` is `mkdir -p` - proven to create the destination tree itself, exit 0, the mechanism that
   turned a plausible typo into a seconds-old tree the verifier would later agree about. Against the tracked
   script, a run at an absent `REMOTE_DIR` refuses before the first write, names the path and `--create`, creates
-  nothing (the typoed path is still absent after the whole run), and prints no send/skip/CREATION/done line;
+  nothing (the typoed path is still absent after the whole run), and prints no send/skip/CREATION/done line.
   `--create` and `CREATE_REMOTE_DIR=1` each ship a first transfer to a fresh (flag) or fresh nested (env) path
   behind a loud `CREATION:` line naming the path and preceding the first send, the tree lands complete with its
-  manifest, `verify_transfer.sh` agrees, and the convergence rerun needs no flag and prints no CREATION line;
-  an existing tree without the flag still ships untouched, no over-refusal; and a transport that fails only the
+  manifest, `verify_transfer.sh` agrees, and the convergence rerun needs no flag and prints no CREATION line.
+  an existing tree without the flag still ships untouched, no over-refusal, and a transport that fails only the
   read-only existence test is its own refusal - the target is not guessed absent, no bookkeeping dir appears,
   nothing streams. The `--dry-run` plan prints the existence gate, the exact `if test -d …` probe, and `--create`
-  as the opt-in; the `--help` usage line carries `[--create]`.
+  as the opt-in. The `--help` usage line carries `[--create]`.
 - Bookkeeping outside the served tree (fixture case C87, transport shims only): with `BOOKKEEPING_DIR`
   unset, a full transfer publishes `manifest.tsv` byte-for-byte (and appends its `chunk_hashes` ledger) into
   `REMOTE_DIR`'s leading-dot sibling, while `REMOTE_DIR` itself ends the run holding zero files named
   `manifest.tsv`/`chunk_hashes` and no `.lane_transfer` dir - the served tree never sees the bookkeeping -
   and `verify_transfer.sh`, deriving the same default from the same `REMOTE_DIR`, agrees (exit 0) through
   that layout while a planted legacy in-tree `.lane_transfer/` leftover still stays excluded. An explicit
-  `BOOKKEEPING_DIR=` is honoured by both scripts; a value that equals `REMOTE_DIR` or normalises inside it
+  `BOOKKEEPING_DIR=` is honoured by both scripts. A value that equals `REMOTE_DIR` or normalises inside it
   (the old `$REMOTE_DIR/.lane_transfer` location included), a relative one and a single-quoted one are
   refused before a single transport command runs (the echo transport logs zero commands), in both scripts,
   with the default path named in the refusal. `--create` behind the move still ships the whole tree: the
@@ -471,7 +471,7 @@ ports 8083/8090/8091/8095 were never targeted):
 - Hardlink-handle disk accounting (2026-11-10, fixture case C88, offline, no transport): the rule - price
   a `cp -al` handle with `df` before and after, never `du` - is in the step 1 capacity note, the step 7
   refresh flow, the swap section, `swap_webroot.sh`'s header and `transfer_build.sh`'s capacity-gate block
-  and `SKIP_SPACE_CHECK` doc; the swap's aside line carries it too, on a run whose staged tree was built with
+  and `SKIP_SPACE_CHECK` doc. The swap's aside line carries it too, on a run whose staged tree was built with
   `cp -al` (RC=0, proven stamp, aside still named with its `rm -rf`). Against the numbers: a 50 MB tree plus a
   1 MB delta, `cp -al` - `du` says 51 MB and 51 MB one tree per call and 51 MB and 0 in one call, while `df`
   says the `cp -al` cost 0 bytes, the delta cost 1,048,576, and `rm -rf` of the handle returned 40 KB (0 bytes
@@ -502,11 +502,11 @@ ports 8083/8090/8091/8095 were never targeted):
    `tmp/linux_fix/c96_case_check.sh` (the red/green pair above, plain shell instead of `chk`).
 
 On the real box (Ubuntu 24.04 LTS, the owner's VPS lane, 2026-11-05): the shipped copies
-matched the repo by sha256 with zero CR bytes and `bash -n` clean; `lane_up.sh` started core
+matched the repo by sha256 with zero CR bytes and `bash -n` clean. `lane_up.sh` started core
 and gate with port probes, the timestamped `config.ini` copy and both pid files, refusing a
-second core while `127.0.0.1:8083` was still answering; `lane_down.sh` stopped both children
-with the cwd rule; the batch transfer moved 9,026,296,654 bytes across 58,809 files in 24
-batches with 0 missing, 0 extra, 0 size mismatch and 0 hash mismatch against the manifest;
+second core while `127.0.0.1:8083` was still answering. `lane_down.sh` stopped both children
+with the cwd rule. The batch transfer moved 9,026,296,654 bytes across 58,809 files in 24
+batches with 0 missing, 0 extra, 0 size mismatch and 0 hash mismatch against the manifest.
 `lane_smoke.sh` ran 15 PASS / 0 FAIL / 1 SKIP against the live gate and core, the single SKIP
 being the anonymous play page, which gate mode answers with a 302 to `/login?next=%2F` by
 design and which the splice test covers instead.

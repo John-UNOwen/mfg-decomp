@@ -1,4 +1,4 @@
-# Report 1 — legacy MID phantom profiles (corrected record)
+# Report 1: legacy MID phantom profiles (corrected record)
 
 This replaces the evidence section of the Report 1 that closed the round-3 problem
 "`PHANTOM_REFID_RE` matches only the exactly-8-digit spelling". The fix itself stands. Two of its
@@ -11,26 +11,26 @@ core still running (no restart, no live probes).
 
 | Claim in the last report | Measured | Verdict |
 |---|---|---|
-| "the documents the fork actually left are `MID1793446050`-shaped ... and `/^MID\d{8}$/` does not match them" | 118 profile documents, 3 MID-prefixed: `MID00998877`, `MID88000123`, `MID88000124`. All are MID + exactly 8 digits. Rows missed by `/^MID\d{8}$/`: **0** | false on this host — no document of that length exists (and `MID1793446050` is 13 characters, not 11) |
-| "Those docs are still live read identities, write targets, adoptable by `/login`" | The 3 real rows were refused by `/login` **before** this fix (`out_pre.txt:26` → `code=770`, guard at the old exactly-8 pattern). `getProfileByRefid(MID00998877)` did resolve pre-fix (a read identity), so "read identity" was right and "adoptable by /login" was not | half true, and true of the wrong digit counts |
-| "profile docs 121, MID-prefixed 6" | 121 = 118 real + 3 inserted by the harness (`tmp/p9repro/seed_lane.cjs:10`, `repro.cjs` seeds `1793446050`, `1793447266`, `123456789`); 6 = 3 real + 3 synthesized | fixture numbers presented as deployment numbers |
+| "the documents the fork actually left are `MID1793446050`-shaped ... and `/^MID\d{8}$/` does not match them" | 118 profile documents, 3 MID-prefixed: `MID00998877`, `MID88000123`, `MID88000124`. All are MID + exactly 8 digits. Rows missed by `/^MID\d{8}$/`: **0** | false on this host. No document of that length exists (and `MID1793446050` is 13 characters, not 11) |
+| "Those docs are still live read identities, write targets, adoptable by `/login`" | The 3 real rows were refused by `/login` **before** this fix (`out_pre.txt:26` shows `code=770`, guard at the old exactly-8 pattern). `getProfileByRefid(MID00998877)` did resolve pre-fix (a read identity), so "read identity" was right and "adoptable by /login" was not | half true, and true of the wrong digit counts |
+| "profile docs 121, MID-prefixed 6" | 121 = 118 real + 3 inserted by the harness (`tmp/p9repro/seed_lane.cjs:10`, `repro.cjs` seeds `1793446050`, `1793447266`, `123456789`). 6 = 3 real + 3 synthesized | fixture numbers presented as deployment numbers |
 
 Where the invented rows came from, in the harness's own words: `seed_lane.cjs`
 "`const shape = (mid) => 'MID' + String(mid).padStart(8, '0')`" plus an `INSERT`, and `repro.cjs`'s
 header used to say "the documents the removed saveState fork produced for the mids that are
-actually in this savedata" — the sentence that let a synthesized row be reported as a found one.
+actually in this savedata", the sentence that let a synthesized row be reported as a found one.
 
 ## Root cause
 
 **Code (unchanged from the last report, still correct).** Identity resolution read the stored
 refid against `/^MID\d{8}$/`, and the fork's shape was `'MID' + String(mid).padStart(8, '0')`.
 `padStart` pads, it never truncates, so a 9- or 10-digit mid yields a longer refid that the pattern
-does not name. That formula is recorded from the earlier analysis (`docs/18` §5; the removal itself
-is documented at `handlers/utils.ts:788-792`), and no code in the tree implements it any more —
+does not name. That formula is recorded from the earlier analysis (`docs/18` §5. The removal itself
+is documented at `handlers/utils.ts:788-792`), and no code in the tree implements it any more,
 which is why the mint-path evidence below does not rest on it.
 `playerIdFromRefid` is `parseInt(refid[0:8], 16) & 0x7fffffff`, and this server's
-accounts produce 10-digit mids from that (`6AE5D0A2F7B97EB7` → `1793446050`), so the wider family
-is a live possibility, just not a stored one.
+accounts produce 10-digit mids from that (`6AE5D0A2F7B97EB7` giving `1793446050`), so the wider family
+is a live possibility, not a stored one.
 
 Where the hole actually bites is the **mint path**, and it did not need fabricated rows to prove
 it. Run the pre-fix build against a copy of the deployment's own savedata with nothing added
@@ -70,14 +70,14 @@ Provenance of the 3 real rows, from the payloads the repair saved (`tmp/p9repair
 `MID00998877` carries `states.audit_plain` (`mid=998877` posted by `.audit/probe_live.py:105`), and
 `MID88000123` / `MID88000124` carry `states.audit_probe1` with markers `GHOST` and `NOPCUID`. So
 they are MID-shaped orphans that this project's own probes minted through the same fallback the
-fork used, from 6- and 8-digit mids — not fossils of the fork era.
+fork used, from 6- and 8-digit mids, not fossils of the fork era.
 
 ## What is in the code and the savedata
 
 Code (runtime copy `tmp/RyuNET-core/dist/plugins/mfg@asphyxia`, staging mirror byte-identical):
 
-- `handlers/utils.ts:571` `PHANTOM_REFID_RE = /^MID\d{8,}$/` — recognises MID + 8 or more digits.
-- `handlers/utils.ts:575` `MINT_FORBIDDEN_REFID_RE = /^MID\d/` — MID + digits at any length, so the
+- `handlers/utils.ts:571` `PHANTOM_REFID_RE = /^MID\d{8,}$/`: recognises MID + 8 or more digits.
+- `handlers/utils.ts:575` `MINT_FORBIDDEN_REFID_RE = /^MID\d/`: MID + digits at any length, so the
   near-miss `MID1234567` is covered too. A real DataID is hex, so no legitimate refid is inside it.
 - Refusal at every resolver: `getProfileByRefid` (utils.ts:299), `getProfileBySession` (:342, :610),
   `getProfileByPlayerId` (:424-441), `sessionProfile`.
@@ -103,7 +103,7 @@ quarantined   : 3
 ```
 
 `.audit/p9_db_fingerprint.js` before/after the repair: 3 rows changed out of 138. Fingerprint of the
-live file now vs. right after the repair: 0 differences — nothing else has moved.
+live file now vs. right after the repair: 0 differences. Nothing else has moved.
 
 ## Verification, labelled by where it was measured
 
@@ -131,7 +131,7 @@ the probes against a fixture with nothing added.
    same savedata before the repair): `MID00998877` resolved as a read identity, `/login` minted
    `MID123456789` and `MID1793446050` from posted user_ids, `ensureProfile` minted `MID1234567` and
    `MID1793449999`, and `quarantinePhantomProfiles` did not exist in that build.
-3. **Harness-seeded lane, fixed build** (`out_deploy_post_seeded.txt`) — the only run where
+3. **Harness-seeded lane, fixed build** (`out_deploy_post_seeded.txt`), the only run where
    `121 documents / 6 MID-prefixed` is a true statement, and it says so on its header line:
    ```
    harness seeds  : MID1793446050, MID1793447266, MID123456789 (synthesized here from the fork
@@ -169,11 +169,11 @@ node tmp\p9repro\repro.cjs deploy_post_seeded   'C:/mfg/tmp/RyuNET-core/dist/plu
   `phantom_quarantine`, `states` kept for audit). Deleting them is a different decision and the
   undo file (`tmp/p9repair/undo-1793528093912.json`) is the way back.
 - core.db still holds the 3 `refid_alias` rows. They are the lightweight alias that satisfies the
-  core's upsert guard, not an account; nothing in the plugin will resolve them now. Cleaning them
+  core's upsert guard, not an account. Nothing in the plugin will resolve them now. Cleaning them
   means a core-side delete, which is not the plugin's to make.
 - The running core is still a pre-fix process: `AsphyxiaCore.js` pid 30244, started 2026-11-01
   01:35:54, against plugin files last written 05:43 (`node .audit\server_status.ps1`). The data half
-  happened (rows repaired offline); the code half arms on the central restart. Until then a live
+  happened (rows repaired offline). The code half arms on the central restart. Until then a live
   `/login` on that process can still mint a MID-shaped account.
 - `MIDGUESS0001` is a normal profile document that happens to start with `MID`. It is outside the
   family (`MID` + digits), is not refused, and was left alone.

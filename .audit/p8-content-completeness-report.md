@@ -1,4 +1,4 @@
-# Content completeness (P8) — what was actually implemented, and how to re-check it
+# Content completeness (P8): what was actually implemented, and how to re-check it
 
 P8 ("implement, don't just document") shipped code and data files but no report: `.audit/`
 held `p6-match-lifecycle-report.md` and probe scripts, and a glob over `**/*p8*.md` in the repo
@@ -16,20 +16,20 @@ protocol in `mock/` (`Program.cs`, `specs/*.xml`). Nothing is committed.
 |---|---|---|
 | (a) event vocabulary | 35 | `appli_info` events carried only the server's own 116-name table |
 | (b) mission schedule | 54 | 7 hardcoded categories instead of the client's 103 |
-| (c) notices | 18 (with 25) | no notice content ever served; acks written but nothing to ack |
+| (c) notices | 18 (with 25) | no notice content ever served. Acks written but nothing to ack |
 | (d) name / chat screening | 17, 53 | `TABOO_WORDS: string[] = []` - every name and sticker passed |
 | (e) chara_enabled | 12, 33, 49 | fields wrapped in `<chara_enabled>` the client never looks inside |
 | (f) competition_entry | 9, 34, 43 | `<competition><entry_result>` - a shape the parser ignores |
 | (g) server-owned states | 25 (with 24) | kinds the client can load but no client `Save` posts were never authored |
 
 The package window is visible in the snapshots: `tmp/RyuNET-core/verify-dist` (build as of
-01:06) has none of the content code; `tmp/RyuNET-core/check-p7` (build as of 01:19) has all of it,
+01:06) has none of the content code. `tmp/RyuNET-core/check-p7` (build as of 01:19) has all of it,
 with `data/notices.json` and `data/taboowords.json` created 01:13 and `data/event_kinds.json` /
 `data/mission_categories.json` 01:17. "Before" line numbers below refer to the 01:06 snapshot.
 Both snapshots are kept for exactly this diff, under `tmp/RyuNET-core/.frozen-builds/`: the 01:19
 build as `check-p7`, and the 01:06 build as `repro-p7-old` (the byte-identical copy that
 `verify-dist` held before that lane was re-staged from the current tree). Their build hashes are in
-`.frozen-builds/FROZEN.md`; they carry no core and no `config.ini`, so they cannot be mistaken for
+`.frozen-builds/FROZEN.md`. They carry no core and no `config.ini`, so they cannot be mistaken for
 a lane or probed by accident.
 
 ## How the build under review runs
@@ -41,7 +41,7 @@ takes effect only on the next start:
 cd C:\mfg\tmp\RyuNET-core\dist; node AsphyxiaCore.js     # AOG 127.0.0.1:8083, native 22421
 ```
 
-The core answering 8083 now (`pwsh C:\mfg\.audit\server_status.ps1` → pid 30244, started
+The core answering 8083 now (`pwsh C:\mfg\.audit\server_status.ps1` reports pid 30244, started
 2026-11-01 01:35:54) predates `handlers/aog.ts` (02:08), `handlers/utils.ts` (02:31) and
 `index.ts` (02:29) - it is not the shipped build. Proof that does not need a restart: the
 `config.ini` that core wrote at start-up lists `VFG_MISSION_ACTIVE` but not
@@ -63,8 +63,8 @@ never switch on: `EventStatus.IsActive(...)` stays false for it whatever the con
 
 **Server side, before.** `ACTIVE_EVENTS` (01:06 snapshot, `utils.ts:1609`) was the server's own
 table - 116 names - and `eventsJson` emitted exactly those, all active. The 35 names the audit
-listed (`YellCampaign` → `YellGameData.cs:89-96`, `YakuBingo` / `YakuBingo3` →
-`GameDataManager.cs:531-539` and `MissionFlow.cs:267-274`, `StoryAdditionShiori` →
+listed (`YellCampaign` in `YellGameData.cs:89-96`, `YakuBingo` / `YakuBingo3` in
+`GameDataManager.cs:531-539` and `MissionFlow.cs:267-274`, `StoryAdditionShiori` in
 `GameDataManager.cs:592-599`, plus `TenshiGowan`, `QRLogin`, `PaseliPointCampaign`, ...) were not
 in it, so the yell campaign, the bingo event and its missions, and Shiori's story block could
 never run.
@@ -87,7 +87,7 @@ snapshot) was seven pairs with the comment "Event/dated categories are intention
 other 96 categories were never named at all.
 
 Now `data/mission_categories.json` holds all 103 entries of `Category.cs` in enum order
-(`_source` records that; `scripts/gen_mission_categories.py` regenerates it), `missionsJson()`
+(`_source` records that. `scripts/gen_mission_categories.py` regenerates it), `missionsJson()`
 (utils.ts:1974-1984) emits `Category` ints matching the enum order plus `category` names,
 `active`, `begin`, `end`, `param`, and `missionRowActive()` (utils.ts:1965-1972) applies
 `VFG_MISSION_ACTIVE` (`all` / `none` / a name list that adds to the defaults). `handle_mission_date`
@@ -120,7 +120,7 @@ aog.ts:2902-2903.
 Measured on a never-used account (`.audit/probe_notice_p8.py P8NOTICE0001`, no acks posted):
 `notice_game` ids `[1, 2, 3]`, `receive_only.ImportantNotices` `[1, 2]`, and the stored documents
 in `dist/savedata/mfg@asphyxia.db` match (`.audit/p8_peek_profile_state.js`). After
-`notice_done 1,2` the list is `[3]`; after acking 3 it is `[]`, and the empty list is what a later
+`notice_done 1,2` the list is `[3]`. After acking 3 it is `[]`, and the empty list is what a later
 read serves.
 
 ## (d) Name and sticker screening runs off a real list
@@ -130,23 +130,23 @@ read serves.
 available" and `NewRegistrationFlow.cs:243-259` accepts.
 
 Now `data/taboowords.json` (37 entries) is loaded by `TABOO_WORDS` (utils.ts:1922-1935), which
-also appends `VFG_TABOO_EXTRA` and logs loudly if the file comes up empty; `isTabooText()`
+also appends `VFG_TABOO_EXTRA` and logs loudly if the file comes up empty. `isTabooText()`
 (utils.ts:1937-1942) is a case-insensitive substring test on the trimmed value. It is applied on
 all three paths a bad string reaches the server through: `/chk_tabooword` (aog.ts:2848-2853),
 table stamps posted by `gchat` (aog.ts:2112-2121 - name and sticker screened, the sticker is
 dropped and the name blanked rather than the request failing), and the second stamp path
 `gget_stamp_info` (aog.ts:2143-2151). Matching is a substring test, so the file deliberately
 carries only entries long enough not to catch an ordinary word (`MeldBonus`, `TableSticker001`
-pass clean; `死ね` is screened too).
+pass clean. `死ね` is screened too).
 
 ## (e) chara_enabled answers where the client reads
 
-`CharaEnabledSend.cs:34-37` reads `is_gacha_enabled` and `end_date` off `<root>`; the old answer
+`CharaEnabledSend.cs:34-37` reads `is_gacha_enabled` and `end_date` off `<root>`. The old answer
 wrapped them in `<chara_enabled>` (01:06 snapshot, `aog.ts:2591-2598`), `Element()` returned null,
 the parse fell through the bare catch at `CharaEnabledSend.cs:39-41`, and
 `GachaSelectFlow.cs:912` never opened the pickup-gacha notice. The gate value itself was already
 computed from the banner schedule (`pickupGachaGateActive()`, utils.ts:1277 - on exactly when an
-advertised banner has a Pickup pool behind it); what changed is that the answer arrives where the
+advertised banner has a Pickup pool behind it). What changed is that the answer arrives where the
 client looks. Now the two fields are emitted at the root (aog.ts:2963-2976) and `end_date` is the
 schedule window in the `YYYY-MM-DD HH:MM:SS` shape `DateTimeOffsetManager.GetJSTFromString` parses,
 not the `2099-12-31T23:59:59+09:00` the old handler sent.
@@ -179,21 +179,21 @@ on client defaults forever.
 
 Now `SERVER_OWNED_STATE_KINDS` (utils.ts:1886-1893) names them, `serverOwnedStateJson()`
 (utils.ts:1895-1911) authors them (`receive_only` with the penalty flag, the campaign info and the
-important notices; the four competition records as empty account records for a server that runs no
+important notices, the four competition records as empty account records for a server that runs no
 competition), and `seedServerOwnedState()` (aog.ts:818-833) rebuilds them on each read, writing
 only on change. `music_gacha`, `present_box_game` and `friend_game` have their own authoring paths
 in `aog.ts` and belong to the gacha / present-box packages (what the music gacha asserts is written
 up in `.audit/README.md`). `friend_game` used
-to be thrown away on read and replaced by a synthesized list that marked every entry usable;
-now `seedFriendGameState` (aog.ts:1456) seeds once and then keeps the stored document, and the
+to be thrown away on read and replaced by a synthesized list that marked every entry usable.
+Now `seedFriendGameState` (aog.ts:1456) seeds once and then keeps the stored document, and the
 rows come from `borrowableLender()` (aog.ts:1394-1430) - the same test the borrow endpoint applies
 - so an `IsUsable` row is a servable borrow. `EnableOdekake` is back in `BASE_EVENTS`
-(utils.ts:2148-2155; it was commented out at `utils.ts:1592` in the 01:06 snapshot), without which
+(utils.ts:2148-2155. It was commented out at `utils.ts:1592` in the 01:06 snapshot), without which
 `MyRoomMainWindow.cs:102` never shows the Friend page at all.
 
 Writes to kinds the server owns are refused rather than believed: `client_state_write` answers
 `serv_st 803` (`StatusCode.DataError`) for `receive_only` (aog.ts:1648) and `music_gacha`
-(aog.ts:1634); the client's own `Save` call sites catch that and flag `IsDataSaveFailed`
+(aog.ts:1634). The client's own `Save` call sites catch that and flag `IsDataSaveFailed`
 (`PlayerGameData.cs:440-444`), so nothing is acknowledged that did not land.
 
 ---
@@ -245,10 +245,10 @@ Before / after on the vocabulary, `node .audit/p8_content_vocab.js <snapshot>` (
 Config overrides, `node .audit/p8_config_unit_check.js` (output
 `.audit/p8_config_unit_check.out.txt`): **13 checks, all pass** - `VFG_MISSION_ACTIVE` adds dated
 categories on top of the defaults and leaves the rest off, `VFG_EVENTS_ACTIVE` switches a kind on
-and carries `=param` through (`BombTakuEvent` → `Rank=2`), a name that is not a `GameEventType`
+and carries `=param` through (`BombTakuEvent` to `Rank=2`), a name that is not a `GameEventType`
 member is not emitted, `VFG_EVENTS_OFF` wins over the built-in set, `VFG_TABOO_EXTRA` blocks
 `zzzq` and does not block an ordinary name. `tmp/p8repro/verify_p8_config.py` asserts the same
-things over HTTP and needs those keys in `config.ini` plus a restart; the unit version exercises
+things over HTTP and needs those keys in `config.ini` plus a restart. The unit version exercises
 the same `configList()` path (`utils.ts:1747-1755` falls back to the environment) without
 touching the running core.
 
@@ -302,7 +302,7 @@ account (`tmp/p8repro/verify_p8.py`, header) and pins one only when you pass it 
 - **`competition_entry` answers "request ok, not entered".** The server runs no competition, and
   `competition_game` is authored as the empty record that says so. `CompetitionEntryWindow.cs:148-152`
   stores `IsEntried` straight from `is_entry`, so `is_entry 0` is the honest answer for a server with
-  nothing to enter; the `IsEntried = false` at `:157` is only the communication-failure branch.
+  nothing to enter. The `IsEntried = false` at `:157` is only the communication-failure branch.
 - **Notice acks are permanent** (`notice_done_ids` / `important_notice_done_ids` on the profile,
   capped at 400 entries, aog.ts:2835). There is no expiry, no read-state sync across accounts, and
   a notice id reused later stays invisible to accounts that already read it.
@@ -310,16 +310,16 @@ account (`tmp/p8repro/verify_p8.py`, header) and pins one only when you pass it 
   `NoticeInfo.IsDisplayHomeBanner` (NoticeInfo.cs:57-64) drives a forced modal and a carousel asset
   this client build must actually have. Plain list entries only.
 - **Taboo matching is a substring test on the trimmed lowercase value**, applied to names and to
-  table stamps; entries are chosen so ordinary words survive. Blank, not reject, is what a stamped
+  table stamps. Entries are chosen so ordinary words survive. Blank, not reject, is what a stamped
   message gets (`gchat` keeps the row, drops the sticker and blanks the name).
 - **77 `CostumeAdditionN` kinds are active by default** so every costume in the client master can
-  appear in My Room; unlocking still costs fight spirits client-side.
+  appear in My Room. Unlocking still costs fight spirits client-side.
 
 ## Left as it is
 
 - **The core answering 8083 is not the shipped build** (pid 30244 started 01:35:54, files staged
   02:08 / 02:29 / 02:31). Nothing here restarts it. Until the central restart happens, live probes
-  on 8083 measure the earlier build; the unit checks in this file are the ones that pin the shipped
+  on 8083 measure the earlier build. The unit checks in this file are the ones that pin the shipped
   files.
 - **`tmp/asphyxia_plugins/mfg@asphyxia` was stale** (last staged 01:19) while `dist` moved on, and
   both generators wrote to the stale tree: `scripts/gen_event_kinds.py` and
@@ -333,13 +333,13 @@ account (`tmp/p8repro/verify_p8.py`, header) and pins one only when you pass it 
 - The friend list is derived from every profile (capped at 20 rows, `friendRowsForViewer`,
   aog.ts:1434-1448) - there are no real friendships or block lists. Audit residue shows up in it:
   the borrow probe saw 12 candidate lenders, 10 of them old probe accounts named ゲスト.
-- `chara_enabled` answers the gate from the banner schedule; it does not report which character was
+- `chara_enabled` answers the gate from the banner schedule. It does not report which character was
   unlocked, and `enabled_chara` is logged, not used.
 - Notices are static content: no schedule, no image assets, no per-language text.
 - Probe residue now in `dist/savedata/mfg@asphyxia.db`: `P8VERIFY00001`, `P8VERIFY0001`,
   `P8VERIFY00002`, `P8NOTICE0001`, `P8LENDER0001`, `P8BORROW0001`, `P8PLACEHOLDER1` and the
   `P8V<timestamp>` accounts the sweep creates per run, plus stamps left on tid 90731 by the sweep's
-  sticker checks. All attributable by name; say the word and they get cleared.
+  sticker checks. All attributable by name. Say the word and they get cleared.
 
 ## Files
 

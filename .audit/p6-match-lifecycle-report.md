@@ -1,4 +1,4 @@
-# Match lifecycle and records (P6) — root cause, fix, verification
+# Match lifecycle and records (P6): root cause, fix, verification
 
 Scope: the self-hosted plugin `tmp/asphyxia_plugins/mfg@asphyxia`. "client" means the
 decompiled game under `api/recovered/Assembly-CSharp`, cross-checked against the request
@@ -24,7 +24,7 @@ plus the read-only DB peeks `.audit/inspect_archive_rows.py` and `.audit/peek_ma
 ## (a) The match endpoints ignored the table the client addressed
 
 **Client side.** Every match request names its table. `GGet.cs:30` sends
-`must = AppVersion/AppSessionID/TakuID/PlayerIndex/PlayerID/nextSeqNo` — six segments, the
+`must = AppVersion/AppSessionID/TakuID/PlayerIndex/PlayerID/nextSeqNo`, six segments, the
 third being the table id. `GPost.cs:44` repeats `ver/pcuid/tid/pindex/mid/seqNo/kind/...`.
 `EndGame.cs:22` and `KikenGame.cs:22` post `web_id&area_id&pcuid&tid&pindex&mid&version`.
 
@@ -33,19 +33,19 @@ session only, and when the session had no seat it invented one (tid 1, pindex 0)
 answered a normal mwait. `handle_gpost` answered `<game></game>` with code 0 for a tid with
 no table behind it. `handle_end_or_kiken` settled a table that did not exist by calling
 `mgresultXml(null, { gmode: 1 })`, whose null-table branch fabricated four seat rows from
-`GMODE_TENBO[gmode] || 25000` — the 4x25000 settlement. `PLAYER_SEAT` and `SHARED_TABLES`
+`GMODE_TENBO[gmode] || 25000`: the 4x25000 settlement. `PLAYER_SEAT` and `SHARED_TABLES`
 are process memory, so this is exactly what a client sitting in a match does after a server
 restart: it keeps polling a table that is gone, and the server keeps pretending otherwise.
 
 **Fix.** `addressedSeat()` (aog.ts:338) resolves the seat from the session *and* the
 addressed tid, logs the mismatch it saw, and returns null when nothing is seated at that
-tid; `gget`, `gpost`, `end_game`, `kiken_game` answer `SERV_ST_NO_TABLE = 770`
+tid. `gget`, `gpost`, `end_game`, `kiken_game` answer `SERV_ST_NO_TABLE = 770`
 (utils.ts:81) instead. 770 is the code the client already has a path for:
 `RequestApiBase.ParseResultStatusCode` throws `NetworkResponseException` on any non-zero
 code (`RequestApiBase.cs:111`), and these four endpoints are sent with
-`enableErrorScreenTransition: true` (`CommandClient.cs:123,178,187`; `MatchingFlow.cs:216`),
+`enableErrorScreenTransition: true` (`CommandClient.cs:123,178,187`, `MatchingFlow.cs:216`),
 so the client leaves the match rather than staring at a phantom table. A seated player
-polling its own tid is untouched; a claimed `pindex` that is not the seat the account holds
+polling its own tid is untouched. A claimed `pindex` that is not the seat the account holds
 is answered with the real seat (logged, not rejected).
 
 ## (b) Archive tids collided across restarts, and any account could read any kifu
@@ -56,7 +56,7 @@ DB showed tid 1001 carried three different archives, and a second pre-fix probe 
 restart reused 1005 and 1006 on top of the matches already stored under those numbers.
 `get_haifu_data`, `get_haifu_list` and `player_record` all key on tid, so a kifu lookup
 answered a different match. `get_haifu_data` filtered nothing: any logged-in session could
-pull any tid, and `player_record`/`get_haifu_list` matched rows on `mid` alone — with
+pull any tid, and `player_record`/`get_haifu_list` matched rows on `mid` alone, with
 `entry_game` stamping `mid = profile?.player_id || 1` onto every seat (aog.ts, pre-fix), an
 anonymous guest match landed in the records of whoever legitimately holds mid 1.
 
@@ -66,8 +66,8 @@ writes the high-water mark back to the DB on each allocation. Nothing is awaited
 reading the counter and writing it, so two matches opened in the same tick still differ.
 Attribution lives in one place: `ViewerIdentity`, `archiveParticipantMatches`,
 `archiveParticipantSeat` (utils.ts:569-609) behind `myArchives()` (aog.ts:2374), used by all
-three record endpoints. `refid` is authoritative; a row without one is accepted only on a
-mid above 1; a row that recorded guest-ness opposite to the viewer's is rejected.
+three record endpoints. `refid` is authoritative. A row without one is accepted only on a
+mid above 1. A row that recorded guest-ness opposite to the viewer's is rejected.
 `get_haifu_data` serves only a participating archive of that tid and returns an empty body
 otherwise. Archives now record `refid`, `guest` and mode per seat (aog.ts:1864-1884).
 
@@ -79,7 +79,7 @@ Entry now resolves the mode once (`resolveGmode`, gmode 0 is not a valid entry v
 carries it on the seat, on the table (`ensureSharedTable(..., { gmode, taku_class, scramble
 })`), into the settlement (`mgresultXml(table)` reports the recorded mode), into the archive
 (`gmode`, `taku_class`) and into the record window, where matches are filed by
-`recordKindOf(seats)` → Yonma / Sanma / Nima (`RecordKind.cs`).
+`recordKindOf(seats)` returning Yonma / Sanma / Nima (`RecordKind.cs`).
 
 ## (d) entry_game limits were millisecond-shaped
 
@@ -90,7 +90,7 @@ and `ValueInt`, and `MatchingFlow.cs:223-227` feeds `last_time` straight into
 `ENTRY_LIMIT_SECONDS` (aog.ts) now emits 20/15/20/15/15/30/30/30 seconds with
 `last_time 60`, which is also the interval after which a waiting lobby is forced into a
 table, so the client's matching countdown and the server agree. One `entryXml()` builder
-now serves both `entry_game` and `reconnect` (the duplicated inline copy is gone;
+now serves both `entry_game` and `reconnect` (the duplicated inline copy is gone.
 `Reconnect.cs:26` parses the same `entry` block).
 
 ## (e) player_record had no total and no scramble counts
@@ -99,7 +99,7 @@ now serves both `entry_game` and `reconnect` (the duplicated inline copy is gone
 reads `g2_scramble` per `info`, `PlayerTotalRecordInfo.cs:15-25` reads
 `total>g2_scramble>history>{belong,win_nr}`. The server emitted neither. `g2ScrambleXml()`
 (aog.ts:2400) now emits the block in `<total>` and in every `<info>`, always, so the trophy
-panel reads a real 0 instead of a missing record; each `<info>` also always carries
+panel reads a real 0 instead of a missing record. Each `<info>` also always carries
 `<histories>` (`PlayerRecordInfo.cs:50-52` dereferences it without a guard).
 
 A scramble match is only counted when it was designated as one: the client says
@@ -108,7 +108,7 @@ the client's data maps a character to a school (`CharaProfile.SchoolID` comes fr
 data the server does not have). So designation needs the operator's event setting
 `VFG_SCRAMBLE_SCHOOL` (School001..School010, `SchoolID.cs`) declared in `index.ts`, empty by
 default. `mend>g2event>e>id=1` is then announced for designated matches
-(`MatchingData.cs:87-104` → `IsScrambleMatch`), `mgresult>g2result>r>{id,sub_cate,win}`
+(`MatchingData.cs:87-104`, `IsScrambleMatch`), `mgresult>g2result>r>{id,sub_cate,win}`
 carries the school and this player's own result taken from the real settlement rank
 (`MahjongResultInfo.cs:168-181`), and each archive row keeps `scramble {belong, win}`. With
 the setting empty, nothing about a match changes.
@@ -119,9 +119,9 @@ the setting empty, nothing about a match changes.
 `GGet.cs:30` sends six must segments, so segment 6 was always absent, the cursor was always
 0, and every poll re-sent the whole stamp backlog. `handle_gpost` passed a cursor of
 1000000000 (deliver nothing) and `handle_gchat` passed 0 (deliver everything, again).
-The client keeps its own position — `StampData.cs:29` takes `SeqID` from the row's `idx`
+The client keeps its own position: `StampData.cs:29` takes `SeqID` from the row's `idx`
 attribute, and `MatchingFlow.cs:549,560` draws only rows above `_stampPosition` then advances
-it — so the server has to remember it per seat: `STAMP_CURSOR` keyed on `tid|pcuid` with
+it, so the server has to remember it per seat: `STAMP_CURSOR` keyed on `tid|pcuid` with
 `stampCursor` / `stampCursorMark` (utils.ts:504-516), used by `gget`, `gpost` and `gchat`.
 `gget_stamp_info` is unchanged: `GGetStampInfo.cs:25` posts `stamp_info=RoomID,SeqID` and the
 server honours that cursor.
@@ -168,10 +168,10 @@ PASS own list has tid 1024; MFGTESTGUEST1 and P6PEEPING lists do not contain it
 PASS sanma (gmode 3): settlement gmode 3, 3 rows, archive gmode 3 seats 3
 ```
 
-Restart collision, separate run: `probe_match_multi.py tid` — archived max and counter both
-1014 after a restart, new match got **1015**, unique; counter document in the DB is
+Restart collision, separate run: `probe_match_multi.py tid`. Archived max and counter both
+1014 after a restart, new match got **1015**, unique. Counter document in the DB is
 `{collection: match_meta, kind: tid_counter, last_tid: 1015}`. A second restart repeated it
-(1021 → 1022). Legacy duplicates 1001/1005/1006 are still in the DB as data; no new
+(1021 to 1022). Legacy duplicates 1001/1005/1006 are still in the DB as data. No new
 allocation collides.
 
 No-new-problems checks, all green on the same build:
@@ -197,10 +197,10 @@ Type check: `.audit/ts_check_plugin.js` reports `ok` for all six plugin sources,
 ## Judgement calls worth knowing about
 
 - **770 (DataNotFound)** was chosen for a table that no longer exists. Any non-zero code
-  produces the same client outcome (leave the match); 770 is the semantically right one and
+  produces the same client outcome (leave the match). 770 is the semantically right one and
   the only thing it changes is what the log and the client's error text say. 630 and 930 were
   the alternatives.
-- **mid is not an addressing key.** The session (`pcuid`) decides whose seat this is; the
+- **mid is not an addressing key.** The session (`pcuid`) decides whose seat this is. The
   mid a request claims is ignored, and the archive takes the mid the seat actually has.
 - **Legacy archives.** Rows written before a seat recorded its refid are matched on mid > 1
   only. A genuine mid-1 legacy row can now be missing from that account's list. That is
@@ -215,10 +215,10 @@ Type check: `.audit/ts_check_plugin.js` reports `ok` for all six plugin sources,
   gchat with `enableErrorScreenTransition: false` (`MatchingFlow.cs:500,516`) with the
   failure caught, so guarding it needs a decision about what the sender should see.
 - `SHARED_TABLES`, `STAMPS`, `STAMP_CURSOR` and `MATCH_LOBBY` grow per tid and are never
-  pruned; a finished table stays in memory for the life of the process.
-- `RecordKind` also has `Tournament` and `ScrambleMatch` tabs; the server emits none.
+  pruned. A finished table stays in memory for the life of the process.
+- `RecordKind` also has `Tournament` and `ScrambleMatch` tabs. The server emits none.
 - `get_haifu_list` caps at 50 rows.
-- A lobby with four real humans was not exercised — one probe client, so the four-human
+- A lobby with four real humans was not exercised: one probe client, so the four-human
   match path is untested beyond two humans plus CPU fill.
 - The probe left test accounts and archives (`P6NIMA`, `P6SANMA`, `P6LOBBYA/B`,
   `P6REPLAY`, ...) in `tmp/RyuNET-core/dist/savedata/mfg@asphyxia.db`. Say the word and they

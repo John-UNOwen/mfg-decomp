@@ -8,7 +8,7 @@ Every THEIRS range in docs/17 was written against the pre-takeover baseline: aog
 (`6DD99D10210D…`), utils.ts 2,314 (`5F310FCE40FE…`), index.ts 263 (`C195EB805163…`). The phantom /
 takeover round grew aog.ts to 3,568 (`84D9FA3AA182…`) and utils.ts to 3,182 (`D4B775D0DBE3…`),
 +457 and +868 lines, so each range below the insertion points moved by a different amount. Only
-three cites in row 396 were repaired in that round; the ranges around them, and every other row,
+three cites in row 396 were repaired in that round. The ranges around them, and every other row,
 stayed on the baseline.
 
 That these are baseline offsets and not typos is measurable. A same-length copy of the old utils.ts
@@ -23,7 +23,7 @@ header the row names. Baseline A's aog.ts is not on disk anywhere (`tmp/` is git
 
 Audit over the whole doc: 324 THEIRS cites checked, 140 already correct, 180 needing a new range,
 4 where the sentence itself contradicts the code, 0 pointing at code that no longer exists. The
-`taikyoku.ts` and `mahjong.ts` cites all hold; neither file changed.
+`taikyoku.ts` and `mahjong.ts` cites all hold. Neither file changed.
 
 ## What I changed in docs/17
 
@@ -60,24 +60,24 @@ now reads, verbatim:
 > were re-anchored, and `taikyoku.ts` / `mahjong.ts` are unchanged since the first pass, so their
 > cites stand. The pre-takeover baseline older notes quote (`6DD99D10210D…`, 3,111 lines) is off disk.
 
-**3. Fixed the four rows whose claim, not just the range, was wrong.**
+**3. Fixed the four rows whose claim itself was wrong.**
 
-- 392: `PresentID 91000000+YYYYMMDD` → `91000000+YYMMDD` (aog.ts:1130 builds it from
+- 392: `PresentID 91000000+YYYYMMDD` becomes `91000000+YYMMDD` (aog.ts:1130 builds it from
   `today.slice(2)`, so the year is two digits).
-- 407: "its `end_date` is `2099-12-31 00:00:00`" → "`EVENT_END` = `2099/12/31 23:59:59`
-  (utils.ts:3074)" — both the separator and the time were wrong.
-- 409: "`logout` is a pure ack" and "after `logout` alone the old pcuid still resolves" → logout
+- 407: "its `end_date` is `2099-12-31 00:00:00`" becomes "`EVENT_END` = `2099/12/31 23:59:59`
+  (utils.ts:3074)". Both the separator and the time were wrong.
+- 409: "`logout` is a pure ack" and "after `logout` alone the old pcuid still resolves" are wrong. Logout
   calls `tombstoneSessionOnProfile` and clears `session_id` (aog.ts:1155-1174), which is what lets a
   cleanly ended lane log straight back in instead of waiting out `VFG_SESSION_TAKEOVER_GRACE`
   (`loginGate`, utils.ts:1498-1536).
-- 411: "id = lender **refid string**" → the id is the integer grant ticket the read issued for that
-  lender (`odekakeGrantTicket`, utils.ts:928-937; looked up in the viewer's own `odekake_grants` at
-  :941-951; echoed at aog.ts:3407). Ours answers a constant `900001`.
+- 411: "id = lender **refid string**". The id is the integer grant ticket the read issued for that
+  lender (`odekakeGrantTicket`, utils.ts:928-937, looked up in the viewer's own `odekake_grants` at
+  :941-951, echoed at aog.ts:3407). Ours answers a constant `900001`.
 
 **4. `.audit/p9-mid-phantom-report.md` provenance.** Lines 48-49 quoted `session=c7bf2a5e…` and
 `session=ada31fbd…` as readings from `tmp/p9repro/out_deploy_pre_unseeded.txt`. That file records
 `session=270c07d1…` (line 31) and `session=6a06fe04…` (line 33). Both lines now match the artifact
-character for character; codes, mids and mint flags already matched.
+character for character. Codes, mids and mint flags already matched.
 
 ## Verification
 
@@ -118,7 +118,7 @@ aog.ts    dist=84D9FA3AA182 staging=84D9FA3AA182 match=True
 utils.ts  dist=D4B775D0DBE3  staging=D4B775D0DBE3  match=True
 ```
 
-AsphyxiaCore was not restarted; nothing in this round talks to a running lane. Diff evidence:
+AsphyxiaCore was not restarted. Nothing in this round talks to a running lane. Diff evidence:
 `git -C C:\mfg --no-pager diff --stat -- docs/17-ryunet-comparison.md` reports 250 insertions / 158
 deletions (was 249 / 157 before this round), status ` M`. `.audit/` is untracked, so the
 audit-report fix is recorded by the snapshot `C:\mfg\tmp\p9report_before.md` plus the two-line diff

@@ -2,12 +2,12 @@
 
 Facts for two live defects, gathered 2026-11-08 from the reconstruction source, the served
 webroot, the live/staging/Windows lanes, and the original installed game on the share.
-Defect 1 (waiting room) is mid-reproduction; its runtime section is marked and will carry
+Defect 1 (waiting room) is mid-reproduction. Its runtime section is marked and will carry
 console evidence. Defect 2 (leg animation) is inventory only - no fix attempted.
 
 ## Defect 1 - waiting room: only two of four characters reveal, screen frozen until the game loads
 
-Owner report: solo + 3 CPUs loads two characters (player included); also reproduces with four
+Owner report: solo + 3 CPUs loads two characters (player included), also reproduces with four
 real players queued together. The casting/waiting screen then sits half-drawn until the game
 scene switches in regardless.
 
@@ -26,11 +26,11 @@ scene switches in regardless.
    `GotoNextScene("MahjongPlay")` (`:256-277`). A seat whose reveal died still holds its flag,
    so the scene advances on schedule with that seat blank - "frozen until the actual game loads".
 3. **The reveal is a long await chain with many ways to stop before the slot is drawn.**
-   `StartCharaMatchingAnime` (`:310-426`): `m_charaManager.Load(costume, parent2D)` (`:321`) →
-   `m_standingCharaParent3D.Find($"{costumeItemID}/Camera")` (`:322`) → per-seat light disable
-   (`:329`) → `Parts_SetDispAllOff/Parts_SetExclusiveDisp(i, ...)` (`:334-338`) →
-   `MatchCutinSetup` (cutin/BG/trophy assets, `:340`) → `MatchingScreenPlayerSetup` (`:341`) →
-   `ProCompSet` (`:342`) → `ResetNext` + `SetTrigger("Next")` (`:347-349`) - only at `:349` does
+   `StartCharaMatchingAnime` (`:310-426`): `m_charaManager.Load(costume, parent2D)` (`:321`), then
+   `m_standingCharaParent3D.Find($"{costumeItemID}/Camera")` (`:322`), then per-seat light disable
+   (`:329`), then `Parts_SetDispAllOff/Parts_SetExclusiveDisp(i, ...)` (`:334-338`), then
+   `MatchCutinSetup` (cutin/BG/trophy assets, `:340`), then `MatchingScreenPlayerSetup` (`:341`), then
+   `ProCompSet` (`:342`), then `ResetNext` + `SetTrigger("Next")` (`:347-349`) - only at `:349` does
    the slot actually start appearing. Any throw or never-resolving await before `:349`, swallowed
    by the `Forget()`, leaves the seat permanently blank while the flag is already true.
 4. **StandingCharaManager.Load caches by ItemID alone**
@@ -39,7 +39,7 @@ scene switches in regardless.
    nothing under the new seat's parent (`:240`, `:263`) - the second seat would render nothing,
    and the later `Parts_SetDispAllOff(i)` indexes `_instances` by seat index, so a skipped add
    shifts it onto the wrong model. **The Matching scene has `AllowDuplicatesInstance: 1`**
-   (`Assets/MFG/Scenes/Matching/Matching.unity:39889`), so every Load instantiates; duplicates
+   (`Assets/MFG/Scenes/Matching/Matching.unity:39889`), so every Load instantiates. Duplicates
    instead collide in name-space: two instances under `m_standingCharaParent3D` named
    `ToString()` of the same ItemID, and `Find("{itemID}/Camera")` (`MatchingFlow:322`) returns
    the FIRST one for both seats - the second seat disables the first seat's camera and light
@@ -47,49 +47,49 @@ scene switches in regardless.
    matters at the re-enable loop (`:413-416`, enables `m_standingCharaCamera[0..i]`).
 5. **Server side, seat data is honest for the solo case.** CPU seats are announced
    `ptype="3"` with distinct characters: the pick `(tid + seat*7) % 19 + 1` skips every human
-   `SelectChara` and every earlier CPU pick (`aog.ts:306-330`); the client synthesizes their
+   `SelectChara` and every earlier CPU pick (`aog.ts:306-330`). The client synthesizes their
    costume as the character's default (`PlayerInfo.cs:166` via
    `CostumeItemMaster.GetDefaultEquipItemID`, a complete Chara01-21 table) and their character
    OID parses cleanly for 1-19 (`CharaTypeExtentions.cs:16-27`, falls back to Chara01 with a
    console error only for unparseable OIDs - the server never emits those). Distinct characters
    mean distinct default costumes, so the duplicate-instance theory does NOT explain the solo
-   3-CPU case by itself; it remains a live candidate for the multiplayer case (two humans with
+   3-CPU case by itself. It remains a live candidate for the multiplayer case (two humans with
    the same character + costume is legal and unguarded).
 6. **Fix history.** Round 1+2 (2026-11-05, `0d808e5` in the plugins repo, KB
    `matching-waiting-room-seat-authority`) rewrote seat authority server-side: honest pnum,
    CPU seats announced `ptype=3`, lobby pruning, reconnect re-seating. Those fixes are why the
-   answer is now internally consistent; they deliberately never touched the client, and the KB
+   answer is now internally consistent. They deliberately never touched the client, and the KB
    already recorded the open question: "Why a reveal half-fails still needs one WebGL console
    capture from the client that shows the empty seats."
 
 ### Candidate failure points, ranked for the console capture to discriminate
 
 - `Standing CharaManager: Loaded ItemID ...` logs one line per completed Load (`:249`): four
-  lines ⇒ death is after Load; two ⇒ two Loads failed/hung.
-- `ParseFromMatchingEndNode Error` (`PlayerInfo.cs:148`) ⇒ a CPU seat's synthesis threw.
-- `ToCharaType ... 変換できませんでした` (`CharaTypeExtentions.cs:24`) ⇒ OID problem (not
+  lines mean death is after Load. Two mean two Loads failed/hung.
+- `ParseFromMatchingEndNode Error` (`PlayerInfo.cs:148`) means a CPU seat's synthesis threw.
+- `ToCharaType ... 変換できませんでした` (`CharaTypeExtentions.cs:24`) means an OID problem (not
   expected per 5).
-- A WebGL `Failed to load`/Addressables error naming a bundle ⇒ asset miss for that costume/BG.
-- An unhandled exception stack before `SetTrigger("Next")` ⇒ the named call is the root cause.
-- Four loads + no exceptions ⇒ the camera-index race in 4; then the capture should show the
+- A WebGL `Failed to load`/Addressables error naming a bundle means an asset miss for that costume/BG.
+- An unhandled exception stack before `SetTrigger("Next")` means the named call is the root cause.
+- Four loads + no exceptions means the camera-index race in 4. Then the capture should show the
   reveal order (`Loaded ItemID` timestamps) not matching seat order.
 
 ### Runtime reproduction - complete, with the console evidence the table predicted
 
 Lane facts first. The repro needs valid accounts: two of the four lane accounts had silently
-wrong bcrypt hashes (CRLF-polluted signup lines); until they were verified offline against the
+wrong bcrypt hashes (CRLF-polluted signup lines). Until they were verified offline against the
 core's own hashes, every "browser can't log in" chase was chasing a wrong password. Registered
 state can be injected server-side (`states.player_game` on the profile doc, with the core down so
 its in-memory copy can't overwrite it) - the resume rule at `GameDataManager.cs:178` then skips
 NewRegistration. (Side observation, separate defect: in the deployed webroot the NewRegistration
-scene loads and its 99 s name-timer never advances - Unity's loop alive, no console output; the
+scene loads and its 99 s name-timer never advances - Unity's loop alive, no console output. The
 injection sidesteps it, so it does not block the repro.)
 
-With four accounts on one table (gate lobby → card flow → Login → Home → AUTOSERVE queue):
+With four accounts on one table (gate lobby, then card flow, then Login, then Home, then AUTOSERVE queue):
 matching, seating, entry, and play are healthy - the core logs each seat fill, every client reaches
 MahjongPlay, and matches run to Result. The failure is entirely client-side reveal:
 
-- **Host clients reveal 4/4 seats. Non-host clients revealed 1/4** — only the first completed
+- **Host clients reveal 4/4 seats. Non-host clients revealed 1/4**: only the first completed
   `StartCharaMatchingAnime` - and the one that completed was the host's girl, not their own.
   Owner's "only two of four load" is the same failure with a different survivor count.
 - The missing seats print **no `Loaded ItemID` line and no console error**. The established flag is
@@ -104,7 +104,7 @@ MahjongPlay, and matches run to Result. The failure is entirely client-side reve
   however long the surviving chains keep the room open). p3 timeline: Matching 173 s, one reveal
   178 s, exit 205 s - a 32 s room with three blank seats.
 - Reveal timing is client-local (elapsed accumulation, no server clock): the same table staggered
-  17–26 s apart on one client and collapsed to near-simultaneous on another - which seat survives
+  17-26 s apart on one client and collapsed to near-simultaneous on another - which seat survives
   is nondeterministic per client, matching "sometimes two, sometimes different ones".
 - The same-costume variant of the run (four accounts injected with one donor profile) revealed
   **four loads everywhere, all `Costume03_001`** - four same-named instances under
@@ -112,7 +112,7 @@ MahjongPlay, and matches run to Result. The failure is entirely client-side reve
   resolves to whichever instance completed first: the camera race from section 4, live on screen.
 
 Why the two fix rounds did not change the symptom: they targeted duplicate-instance allowance and
-seat liveness; the failure path observed here is a reveal chain that never returns, invoked
+seat liveness. The failure path observed here is a reveal chain that never returns, invoked
 fire-and-forget after its seat flag is already true - nothing in the current design notices, waits,
 or logs. The next discriminator needs the client: wrap the `:321` call (or log inside
 `StandingCharaManager.Load` before/after each await) so the swallowed failure names itself -
@@ -130,20 +130,20 @@ logged. **Zero `RevealDiag ... FAILED` lines in all four logs: nothing threw.**
 
 p3's Matching instance (seats fired at the 2 s gates, seat 0 first):
 
-- seat 0 (`Costume01_001`): `semaphore acquired` 166 s → every `CharaModel.Load` step (MotionLoad,
-  Load3D, Load2D, Load3DStory, RT.Create, CameraRewire, Yield1/2) completed → `Loaded ItemID` →
+- seat 0 (`Costume01_001`): `semaphore acquired` 166 s, then every `CharaModel.Load` step (MotionLoad,
+  Load3D, Load2D, Load3DStory, RT.Create, CameraRewire, Yield1/2) completed, then `Loaded ItemID`, then
   `semaphore released` 168 s.
 - seat 1 (`Costume05_001`): `semaphore wait` 168 s - parked while seat 0 still held the semaphore -
   and **never `acquired`**.
 - seat 2 (`Costume08_001`) 171 s and seat 3 (`Costume11_001`) 184 s: same, parked behind seat 1.
 - `LoadScene-->MahjongPlay` 197 s (the room exits on schedule - flags were set at `:299`). The three
-  parked `Load`s never resumed for the rest of the client's life (12+ min; later acquires in the log
+  parked `Load`s never resumed for the rest of the client's life (12+ min. Later acquires in the log
   at 316 s belong to the Continue scene's fresh `StandingCharaManager`, a different instance).
 
-Control group: the three healthy clients ran 12/12 `semaphore wait`→`acquired` handoffs in the same
-second - **no waiter ever queued**. Reveals fire 2 s apart and loads take 1–3 s, so contention exists
+Control group: the three healthy clients ran 12/12 `semaphore wait` to `acquired` handoffs in the same
+second - **no waiter ever queued**. Reveals fire 2 s apart and loads take 1-3 s, so contention exists
 only when a load crosses the next seat's 2 s gate. That crossing is the whole per-client
-nondeterminism (owner: "sometimes two, sometimes different ones"; morning run: two clients failed,
+nondeterminism (owner: "sometimes two, sometimes different ones". Morning run: two clients failed,
 this run: one).
 
 Named failure: `_loadSemaphore` (`StandingCharaManager.cs:197`) is `System.Threading.SemaphoreSlim(1,1)`
@@ -156,7 +156,7 @@ step logs to the release complete), not a catalog miss - **semaphore handoff dea
 `SemaphoreSlim.WaitAsync`**.
 Fix candidates for the next round: a PlayerLoop-native await handoff instead of SemaphoreSlim
 (UniTaskSemaphore or an in-house `UniTaskCompletionSource` queue), or dropping the serialization for
-the reveal path (reveals are already gated 2 s apart); a bounded timeout fallback per the
+the reveal path (reveals are already gated 2 s apart). A bounded timeout fallback per the
 ResidentFlow boot-hook trap family (`ResidentFlow.cs:219`) is belt-and-braces, not the cause.
 
 ### Fix and two green batches - defect 1 closed (2026-11-08 late PM)
@@ -164,7 +164,7 @@ ResidentFlow boot-hook trap family (`ResidentFlow.cs:219`) is belt-and-braces, n
 Named cause, fixed in `StandingCharaManager`: `_loadSemaphore` became the in-house `LoggedSem` -
 a `UniTaskCompletionSource` queue that hands the permit off on the Unity main loop, the same
 shape as the 2026-11-03 SoundManager fix (unity-project `0f6bf645`). (This paragraph also
-claimed cancel-safety properties; that part was false as shipped - see the correction below,
+claimed cancel-safety properties. That part was false as shipped - see the correction below,
 which records what the code now provides.) The success line `Standing CharaManager: Loaded
 ItemID` is untouched - the harness verdict counts it.
 
@@ -182,7 +182,7 @@ Verification on the instrumented+fixed build (stamp `D6884B37E808`, then `92242D
 - 14:07:11: the core (pid 9760) died silently mid-batch. `AsphyxiaCore.js:126` registers
   `process.stdin.on('data', process.exit.bind(process, 0))` - one stdin byte exits it cleanly:
   no stderr, no crash event, gate answers 502, WebGL clients fall to ErrorMode. The lane
-  restart script now redirects core stdin from an empty file; `scripts/hosting_up.ps1`/`.bat`
+  restart script now redirects core stdin from an empty file. `scripts/hosting_up.ps1`/`.bat`
   still launch with stdin live (open defect, launcher-side).
 - Lane fixes: `WR_STAGGER=10` (arrival spread ~30 s < 60 s), and an AutoServe mode pin -
   every Home poll forces `MahjongGameData.TakuType/EventType` back to Tonpu/None on
@@ -205,14 +205,14 @@ stamps `D6884B37E808`/`92242DF355CC`) and killed the removed paragraph's cancel-
 `WaitAsync` took no `CancellationToken` and nothing ever cancelled the queued
 `UniTaskCompletionSource`s, so `semGot` was always true, `Load`'s
 `if (!semGot) throw new OperationCanceledException` was unreachable, and the shipped
-"cancel-with-permit → re-hand" branch could never run - the four delivered lane logs contain
-zero `SEM cancelled`/`cancel-with-permit` lines. That branch was dead *structurally*, not just
+"cancel-with-permit, then re-hand" branch could never run - the four delivered lane logs contain
+zero `SEM cancelled`/`cancel-with-permit` lines. That branch was dead *structurally*, not merely
 untested: completion sources complete once, so a waiter that accepted the grant can never
 afterwards observe cancellation.
 
 Follow-up (unity-project `8605788b25`, test `967762efda`):
 
-- `WaitAsync(who, token)` — optional token; while a waiter is queued a registration calls
+- `WaitAsync(who, token)` - optional token. While a waiter is queued a registration calls
   `TrySetCanceled` on its completion source (with a pre-acquire `IsCancellationRequested`
   short-circuit), so a cancelled acquirer returns `false` and `Load`'s throw is live.
 - `Release` pops waiters until one **accepts** the grant: a waiter cancelled after being popped
@@ -243,17 +243,17 @@ batch. Batch design fixed (both on stamp `D33DFEFDA262` - full content+player bu
 UTF-8 marker scan green incl. the `062835b74b` warn strings):
 
 - `wr_inject_pg.py` takes `WR_SEL` - a comma-separated SelectChara list per lane
-  (default `0,4,7,10` = the distinct regression batch; `4,4,4,4` = all four seats on one
+  (default `0,4,7,10` = the distinct regression batch. `4,4,4,4` = all four seats on one
   ItemID `Costume05_001`). Injection still runs core-down + `wr_core_restart.ps1`.
 - `wr_census.sh` gates each lane mechanically: ≥4 `Loaded ItemID` lines, a `[verdict]`
   `entered with 4 standing chara loads` line, exactly 4 `RevealDiag camera bound seat=`
-  lines with ALL instanceIDs distinct, 0 error-level `RevealDiag ... FAILED`; and reports
+  lines with ALL instanceIDs distinct, 0 error-level `RevealDiag ... FAILED`, and reports
   the queued-handoff counts.
 
 Results - 8/8 lanes PASS:
 
 - Batch A (distinct `01/05/08/11_001`, 03:00): 4/4 verdicts, 4 binds per lane with 4
-  distinct instanceIDs, zero FAILED; p3 hit the contended reveal handoff again
+  distinct instanceIDs, zero FAILED. p3 hit the contended reveal handoff again
   (1 queued grant + 1 handed-off release, surviving - the defect-1 shape, observed healthy
   on the cancellation-wired build).
 - Batch B (same costume, all `Costume05_001`, 03:24): every client revealed FOUR duplicate
@@ -262,9 +262,9 @@ Results - 8/8 lanes PASS:
   fix's duplicate-ItemID path exercised by design, 16 seats of it.
 - Honest contention census: batch B queued ZERO reveal-handoff grants - with the shared
   asset set warm from the self-preview load, four same-costume loads each take ~1-2 s and
-  the 2 s seat stagger keeps them serialized; same costume makes loads FASTER, not slower.
+  the 2 s seat stagger keeps them serialized. Same costume makes loads FASTER, not slower.
   Contended reveal handoffs stay event-driven (1 per ~8-lane sample: 2026-11-08 p3,
-  batch A p3); the sound semaphore runs 16-21 handed-off releases per lane continuously.
+  batch A p3). The sound semaphore runs 16-21 handed-off releases per lane continuously.
   The same-costume batch guarantees the duplicate-binding coverage, not the queueing.
 - Lane smoke on `D33DFEFDA262`: 17 PASS / 0 FAIL / 3 SKIP. Previous batch logs archive to
   `wr_archive/<ts>` (keep 3) at every `wr_four.sh` launch, so both batches survive.
@@ -279,21 +279,21 @@ controls leg movement in both trees. Facts only.
 
 **What animates the legs at a table seat**
 - The seated idle is ONE full-body Generic clip. `CharaMotion01_Game.controller` base-layer
-  default state `Wait0` → `Assets/MFG/Characters/Character1/3D/Animations/Motion/Default/HiyoriWait.anim`
+  default state `Wait0` maps to `Assets/MFG/Characters/Character1/3D/Animations/Motion/Default/HiyoriWait.anim`
   (636,292 B, 2.0 s loop): quaternion rotation curves on `Hips`, `Hips/Thigh_L`,
   `.../Shin_L`, `.../Foot_L`, `.../Toe_L(+_end)`, `.../Knee_L(+_end)`, `.../ThighTwist_L`,
   `.../ShinTwist_L`, `.../HipWeight_L(+_end)` and all `_R` mirrors, plus a Hips y-bob in
   `m_PositionCurves` (y≈0.9314). Verified identically leg-curved in Chara9 `PineWait.anim`
-  (628,336 B); per-costume idle variants exist (`Motion/SwimWear/…`, `Motion/Toho/…_newjoint_toho.anim`).
+  (628,336 B). Per-costume idle variants exist (`Motion/SwimWear/…`, `Motion/Toho/…_newjoint_toho.anim`).
 - Controller layering: Base Layer (`m_IKPass:1`) + Face Layer (override, `m_DefaultWeight:1`,
   carries only face clips `Face_*.anim`). **No AvatarMask asset exists anywhere in the project**
   (grep `^AvatarMask:` = 0 hits) and both layers serialize `m_Mask: {fileID: 0}` - the Face
   layer overrides whatever weights the dump lost. **`Write Defaults` is not serialized in any
-  dumped `.controller`** (the asset-dump tool dropped the per-state flag; Unity runtime default
+  dumped `.controller`** (the asset-dump tool dropped the per-state flag. Unity runtime default
   is ON) - this is exactly the flag that decides "a state that does not touch the legs resets
-  them to bind pose", i.e. a reset candidate invisible in the dump.
+  them to bind pose", that is, a reset candidate invisible in the dump.
 - Rig: Generic avatar (`Hiyori_01Avatar.asset`: `m_Human` block empty, 249-node skeleton,
-  paths `Reference/Hips/Thigh_R/Shin_R/...`); clips bind relative (`Hips/Thigh_L...`) so the
+  paths `Reference/Hips/Thigh_R/Shin_R/...`). Clips bind relative (`Hips/Thigh_L...`) so the
   Animator root is the `Reference` node. The `CharaModel.prefab` Animator serializes
   `m_Avatar: {fileID: 0}` (avatar re-attached at runtime by `ModelManager.Init`),
   `m_ApplyRootMotion: 0`, `m_CullingMode: 0` (AlwaysAnimate).
@@ -302,16 +302,16 @@ controls leg movement in both trees. Facts only.
   1 `SpringManager` (node "Chara"), ~78 `SpringBone`-class components on **hair/skirt/breast/
   necktie chains only**, 49 bare pivot components, and 3 `SpringCapsuleCollider`s
   (`Spine2CapsuleCollider`, `Thigh_LCapsuleCollider`, `Thigh_RCapsuleCollider`) - the thighs
-  exist only as SKIRT colliders; no SpringBone drives leg bones. Everything else per-frame is
+  exist only as SKIRT colliders. No SpringBone drives leg bones. Everything else per-frame is
   shader floats (Face/Eye/Mouth LateUpdate) or cameras (`StandingCharaFPSAdjuster`,
   `MahjongPlayCameraManager` adulation look - `CameraAdulationList` empty for Chara1).
-  **No C# writes leg bone rotations; no `OnAnimatorIK` attached (`IKTest.cs` is dead code);
-  no constraints; no re-parenting.** So the Animator is the only leg writer.
+  **No C# writes leg bone rotations, no `OnAnimatorIK` attached (`IKTest.cs` is dead code),
+  no constraints, no re-parenting.** So the Animator is the only leg writer.
 - Seat wiring (`MahjongPlay.unity` + `MahjongPlayFlow.cs`): seat parents Player1..4 authored at
-  yaw 0/+90/180/-90; model instantiated under `m_chara3DParent[cha]` with per-seat render layers
-  (`Chara3DLeft/Right/Center`, `CharacterModelController.cs:58-67`); `SetOffset` composes
-  `_orgRotation + rotationOffset` once (`:53/73`); per-character `CharaOffsetParam` (all zero for
-  Chara1) + `MahjongHeightOffsetParam`; the Animator gets `LookDirection` = seat-vs-own wind int
+  yaw 0/+90/180/-90. Model instantiated under `m_chara3DParent[cha]` with per-seat render layers
+  (`Chara3DLeft/Right/Center`, `CharacterModelController.cs:58-67`). `SetOffset` composes
+  `_orgRotation + rotationOffset` once (`:53/73`). Per-character `CharaOffsetParam` (all zero for
+  Chara1) + `MahjongHeightOffsetParam`. The Animator gets `LookDirection` = seat-vs-own wind int
   on every `PlayMotionMahjong`, which wraps `SetTrigger` between two forced `animator.Update(0f)`
   calls (`ModelManager.cs:57-88`). `PlayCrossFadeInFixedTimeInMahjong` takes a `layerID` arg.
 - The matching/casting view is a different stack: `StandingCharaManager` + Story controller +
@@ -327,11 +327,11 @@ skirt-vs-thigh collider dynamics (affects the skirt, not the legs themselves).
   (`Managed/Assembly-CSharp.dll` 4,291,072 B) and ships the **byte-identical**
   `Springbone.Runtime.dll` (91,136 B) - the physics side is unchanged from original.
 - All original animation assets are BINARY: `StreamingAssets/aa/catalog.json` (46.9 MB) +
-  `aa/StandaloneWindows64/` = 28,292 hashed `.bundle` files; catalog addresses match the
+  `aa/StandaloneWindows64/` = 28,292 hashed `.bundle` files. Catalog addresses match the
   reconstruction tree 1:1 (`.../CharaMotion01_Game.controller`, `.../Default/HiyoriWait.anim`,
   `Standing3D.prefab` all verified by name). `level0-61` + `sharedassets0-61(+.resS)` are the
   scenes (MahjongPlay seat transforms live there). `src/` contains only the spice2x source
-  tarball; no decompiled original C# exists anywhere; BepInEx `plugins/` holds only S1Freeze
+  tarball. No decompiled original C# exists anywhere. BepInEx `plugins/` holds only S1Freeze
   (timer freeze, from this repo) - nothing patches animation.
 - Therefore curve-level facts about the ORIGINAL's clips/controller (per-state Write Defaults,
   any AvatarMasks the dump dropped, the original `Animator.m_Avatar` link) needed tooling:
@@ -340,19 +340,19 @@ skirt-vs-thigh collider dynamics (affects the skirt, not the legs themselves).
 
 ### C. What this inventory means for the symptom (mechanism classes, all evidenced)
 
-Given "Animator is the only leg writer", "swivel → snap back → repeat" can only be produced by:
-1. **A clip/controller transition that lands the legs at a different pose periodically** - e.g.
+Given "Animator is the only leg writer", "swivel, snap back, repeat" can only be produced by:
+1. **A clip/controller transition that lands the legs at a different pose periodically** - for example
    a state-entry crossfade re-driving the leg curves, or Write Defaults ON in a legless override
-   state snapping legs to bind pose; the `Update(0f)`-flushed `SetTrigger` pattern in
+   state snapping legs to bind pose. The `Update(0f)`-flushed `SetTrigger` pattern in
    `ModelManager.PlayMotionMahjong` forces synchronous state evaluation twice per event.
 2. **The Face/override layer masks the base** - masks would live in the lost `.controller` data
-   (dump never carried masks; no AvatarMask asset exists to assign).
+   (dump never carried masks. No AvatarMask asset exists to assign).
 3. **Clip import differences** (loop time/blend curve, rotation interpolation of the quaternion
    curves vs the original) between the dumped clip and the original bundle clip - only the
    bundle export (B) can show it.
 Why only side seats: seat yaw ±90 itself has no animation branch - but `LookDirection` (seat
 wind int) selects transition conditions in the controller (parameter exists and is fed per
-seat); if a side-seat condition routes through a different state or exit-time than the front
+seat). If a side-seat condition routes through a different state or exit-time than the front
 seat, the "reset" pose enters periodically only there. Whether the original controller's
 conditions/exit-times survived the dump is again a (B)-tooling question.
 
@@ -374,7 +374,7 @@ AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controll
   Avatar, GameObject, Timeline, …). **`UnityEngine.AvatarMask` is not among them.**
 - Object census (`obj.type`, no filtering) over `globalgamemanagers`, `globalgamemanagers.assets`,
   `resources.assets`: 0 AvatarMask.
-- Type-table census over all 124 scene files (`level0`–`level61` + `sharedassets0`–`sharedassets61.assets`):
+- Type-table census over all 124 scene files (`level0` to `level61` + `sharedassets0` to `sharedassets61.assets`):
   0 AvatarMask (level18/sharedassets18 printed in full in `C:\mfgtmp\scene18.json`, `census2.json`).
 - ~350 bundles opened one-by-one, 0 AvatarMask: all 68 dependency bundles of
   `Standing3D/Motion/Chara01/Game.controller` (incl. the controller's own bundle
@@ -389,16 +389,16 @@ AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controll
   mask: `bodyMask` is the all-ones full-body triple (`[0xFFFFFFFF,0xFFFFFFFF,0x0007FFFF]`) on
   both layers and the per-transform skeletonMask array has **0 entries**, for all four sampled
   characters (Chara01/02/09/21). The original Face Layer is an override layer with NO mask.
-- Not every one of the 28,292 bundles was opened; the sets above are exactly where a mask used
-  at a seat could be serialized (catalog type table excludes addressable masks; scene tables
+- Not every one of the 28,292 bundles was opened. The sets above are exactly where a mask used
+  at a seat could be serialized (catalog type table excludes addressable masks. Scene tables
   exclude scene-embedded masks).
 
 #### E.2 Write Defaults: serialized per state inside the blob, value TRUE on every state
 
 - `AnimatorController` serializes as `m_Name` + `m_ControllerSize` + an opaque ControllerConstant
-  blob + `m_TOS` (name→offset table) + `m_AnimationClips` + `m_StateMachineBehaviourVectorDescription`
+  blob + `m_TOS` (name-to-offset table) + `m_AnimationClips` + `m_StateMachineBehaviourVectorDescription`
   + `m_StateMachineBehaviours` + `m_MultiThreadedStateMachine`. State flags are NOT a named
-  TypeTree field; they are 4 packed bools (`ikOnFeet`, `writeDefaultValues`, `loop`, `mirror`) in
+  TypeTree field. They are 4 packed bools (`ikOnFeet`, `writeDefaultValues`, `loop`, `mirror`) in
   each `StateConstant` inside the blob (AssetStudio name: `m_WriteDefaultValues`, bit after
   `m_IKOnFeet`). The dump tooling's "Write Defaults not serialized" is a tool limitation, not a
   Unity fact - the values ARE there.
@@ -410,8 +410,8 @@ AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controll
   10 (T,F,T) - states with `ikOnFeet` OFF exist (13), WDX OFF: none.
 - Idle states specifically: `Base Layer.Wait0` / `Base Layer.Wait1` / `Face Layer.Wait0` /
   `Face Layer.Wait1` all loop=true, ikOnFeet=true, wdx=true. Layers: layer 0 base state machine,
-  `ikPass = true`, serialized defaultWeight read 0.0; layer 1 "Face Layer", blend mode Override(0),
-  defaultWeight 1.0, `ikPass = false`. Both layers weight 1 by default ⇒ the Face override layer
+  `ikPass = true`, serialized defaultWeight read 0.0. Layer 1 "Face Layer", blend mode Override(0),
+  defaultWeight 1.0, `ikPass = false`. Both layers weight 1 by default, so the Face override layer
   fully replaces base animation on its (unmasked) bones while active.
 - 36 parameters: 33 triggers (Wait0/Wait1/Away1-7/Emotion1-7/EyeContact/Reach0/Reach1/ResultPlus0/1/
   ResultMinus0/1/ResultCritical0/1/Think/Yose/Shy/Anger/Surprise…), `IsReach` bool, `LookDirection`
@@ -422,29 +422,29 @@ AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controll
 
 #### E.3 The original seated idle clip vs the reconstruction
 
-- Table controller address `Standing3D/Motion/Chara01/Game.controller` → bundle file
+- Table controller address `Standing3D/Motion/Chara01/Game.controller` maps to bundle file
   `00cfdf051286211456a5f38389143582.bundle`, `m_Name = CharaMotion01_Game`, 103 clip PPtrs,
-  88 MonoBehaviours + 1 MonoScript (all `UniRx.Triggers.ObservableStateMachineTrigger`;
+  88 MonoBehaviours + 1 MonoScript (all `UniRx.Triggers.ObservableStateMachineTrigger`.
   `m_StateMachineBehaviourVectorDescription` maps 88 states to behaviours). Costume variants:
   `Game_SwimWear/_Toho/_RaceQueen.overrideController` + `Humanoid_Game.overrideController`
-  (AnimatorOverrideControllers, bundles `15395bd0…`/`db837788…`); `ModelManager.MotionPathResolver`
+  (AnimatorOverrideControllers, bundles `15395bd0…`/`db837788…`). `ModelManager.MotionPathResolver`
   selects them per costume (`ModelManager.cs:206-351` in the ilspy dump).
 - Default seated idle asset: `Assets/MFG/Characters/Character1/3D/Animations/Motion/Default/HiyoriWait.anim`
   (internal id), catalog address `Assets/MFG/Characters/Character1/3D/Animations/HiyoriWait.anim`
-  → bundle `c19fb16c562398c57a94ea378bd322f5.bundle` (24,658 B). In a player build the clip's
-  readable curve lists are empty; the data is `m_MuscleClip` (`ClipMuscleConstant`, 37,192 B) +
+  maps to bundle `c19fb16c562398c57a94ea378bd322f5.bundle` (24,658 B). In a player build the clip's
+  readable curve lists are empty. The data is `m_MuscleClip` (`ClipMuscleConstant`, 37,192 B) +
   `m_ClipBindingConstant` with **503 `GenericBinding`s** keyed by 32-bit path hashes: attr 1 ×192
   (position, incl. root), attr 2 ×192 (rotation, incl. root), attr 3 ×119 (scale). The path hash
-  is `crc32(path)`; all 192 hashes decode against the reconstruction's bone names (`C:\mfgtmp\hiyoriwait_decoded.json`).
-- Decoded leg-chain bindings (attrs): `Hips` (1,2,3); L/R `Thigh` (1,2,3); `ThighTwist` (1,2);
-  `HipWeight`+`_end`; `Shin` (1,2,3); `ShinTwist` (1,2); `Knee`+`_end` (Knee 1,2,3); `Foot`
-  (1,2,3); `Toe` (1,2,3); `Toe_end` (1,2,3). Full chain position+rotation(+scale on the main
+  is `crc32(path)`. All 192 hashes decode against the reconstruction's bone names (`C:\mfgtmp\hiyoriwait_decoded.json`).
+- Decoded leg-chain bindings (attrs): `Hips` (1,2,3), L/R `Thigh` (1,2,3), `ThighTwist` (1,2),
+  `HipWeight`+`_end`, `Shin` (1,2,3), `ShinTwist` (1,2), `Knee`+`_end` (Knee 1,2,3), `Foot`
+  (1,2,3), `Toe` (1,2,3), `Toe_end` (1,2,3). Full chain position+rotation(+scale on the main
   bones) - the claim "the whole leg chain is animated" holds for the ORIGINAL asset. Plus Hips
   translation (root: `m_HasGenericRootTransform = true`) and 165 non-leg bones (hair/skirt/breast/
-  necktie/arms/twists). SampleRate 60; `m_LoopTime = true`; `m_StartTime = 0`, `m_StopTime = 2.0`
+  necktie/arms/twists). SampleRate 60. `m_LoopTime = true`. `m_StartTime = 0`, `m_StopTime = 2.0`
   (also on the Swim and Toho variants).
 - Count cross-check: reconstruction `…\Motion\Default\HiyoriWait.anim` has 191 position +
-  191 euler-rotation + 119 scale curves; the original binds 192 + 192 + 119 including root. Same set.
+  191 euler-rotation + 119 scale curves. The original binds 192 + 192 + 119 including root. Same set.
 - Costume variants of the seated idle exist and differ: `3D/Animations/Swim/HiyoriWait.anim`
   (`da622f43…`, 312 bindings: legs rotation+scale but NO leg position curves, Hips 1,2,3) and
   `3D/Animations/Motion/Toho/HiyoriWait_newjoint_toho.anim` (`6f3989de…`, 141 bindings, zero leg
@@ -463,26 +463,26 @@ AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controll
   `SetTrigger` (`ModelManager.PlayMotionMahjong`, `ModelManager.cs:137-145`),
   `SetFloat` ×2 (`ModelManager.cs` AwaySpeed), `CrossFadeInFixedTime` (`PlayCrossFadeInFixedTimeInMahjong`
   `:157-164` + `CharacterModelController.cs`), `animator.Update(0)` flush (×4 in ModelManager) -
-  identical to section A. No per-seat weight/mask/IK calls; seat differentiation is only the
+  identical to section A. No per-seat weight/mask/IK calls. Seat differentiation is only the
   `LookDirection` int parameter consumed by controller transition conditions.
 - Seated model prefab `CharaModel.prefab` (address `Standing3D/Costume01_001_Model.prefab`,
   bundle `5005fb018f625f3651ca4ac49779b9fc.bundle`, root GO `CharaModel`, 310 GameObjects):
   1 Animator (m_Avatar = 0, m_Controller = PPtr external FileID 10 - assigned for real at
-  runtime by `ModelManager.Init` → `animator.runtimeAnimatorController = controller`,
+  runtime by `ModelManager.Init`, which sets `animator.runtimeAnimatorController = controller`,
   `ModelManager.cs:121`), `ModelManager`, `UTJ.SpringManager`, and spring components.
 - Spring bones are a **separate assembly**: `Managed\Springbone.Runtime.dll` (UTJ package -
   `UTJ.SpringBone/SpringManager/SpringBonePivot/SpringCapsuleCollider/SpringSphereCollider/
-  SpringPanelCollider/WindVolume/ForceVolume/HighLeg`); this is why they never appear in the
+  SpringPanelCollider/WindVolume/ForceVolume/HighLeg`). This is why they never appear in the
   Assembly-CSharp decompile. Instances on the seated prefab (read from `5005fb01…`):
   `SpringManager` on root `Chara` with `automaticUpdates=1, isPaused=0, simulationFrameRate=60,
   dynamicRatio=0.5, gravity=(0,-10,0), enableAngleLimits/enableCollision/enableLengthLimits=1,
-  collideWithGround=0`, array of 78 SpringBones; **SpringBone ×78 all on hair/skirt/breast/
+  collideWithGround=0`, array of 78 SpringBones. **SpringBone ×78 all on hair/skirt/breast/
   necktie bones** (Yokogami/Maegami/Momi/HairFly/Pony/Ushirogami/Ahoge/Skirt_*/Breast_*/BrestTie/
-  NeckTie_*) - zero on Thigh/Shin/Foot/Spine; 49 SpringBonePivots; 3 SpringCapsuleColliders
+  NeckTie_*) - zero on Thigh/Shin/Foot/Spine. 49 SpringBonePivots. 3 SpringCapsuleColliders
   (`Spine2CapsuleCollider`, `Thigh_LCapsuleCollider`, `Thigh_RCapsuleCollider`, r=0.09,
   h≈0.197) - colliders that stop skirt/hair from penetrating the seated thighs, they do not
   drive the legs. `UTJ.SpringManager.LateUpdate → UpdateDynamics` runs on its own every frame
-  because `automaticUpdates=1`; Assembly-CSharp only ever calls
+  because `automaticUpdates=1`. Assembly-CSharp only ever calls
   `RefleshInitialPositionAndRotation` (`StandingCharaManager.cs:253-257`, standing characters).
   Nothing anywhere calls `UpdateBoneIsAnimatedStates`/`dynamicRatio`/`isPaused` for seat characters.
 - So the original's leg motion at the seat is: (1) keyframed leg curves in the 2 s idle clip,
@@ -495,23 +495,23 @@ AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controll
 - `Hiyori_01Avatar` in `d7359c0b36888bc21890a4b155995999.bundle` (sub-asset of the
   `…/Character1/3D/C001/Fbxs/Hiyori_01.fbx` bundle group): `m_AvatarSize = 28276`,
   `m_HumanDescription.m_Human = []` (empty), skeleton TOS 249 nodes with `Reference/Hips/…`
-  paths, `m_GlobalScale = 1.0`, `m_HasExtraRoot = true`; muscle fields (ArmTwist/LegTwist 0.5,
+  paths, `m_GlobalScale = 1.0`, `m_HasExtraRoot = true`. Muscle fields (ArmTwist/LegTwist 0.5,
   Leg/ArmStretch 0.05) are the unmodified import defaults on an unused humanoid block. Generic.
-  The model Animator in the same bundle references this avatar by pathID; the root Animator's
+  The model Animator in the same bundle references this avatar by pathID. The root Animator's
   m_Avatar stays 0 (avatar reached via child Animator in the prefab hierarchy).
 
 #### E.6 MahjongPlay scene wiring: seats are transform anchors, characters instantiated at runtime
 
-- Build scene list (from `globalgamemanagers` → `BuildSettings`): index 18 =
-  `Assets/MFG/Scenes/MahjongPlay/MahjongPlay.unity` → `level18` (23,802,940 B) +
+- Build scene list (from `globalgamemanagers` to `BuildSettings`): index 18 =
+  `Assets/MFG/Scenes/MahjongPlay/MahjongPlay.unity` maps to `level18` (23,802,940 B) +
   `sharedassets18.assets` (50 AnimatorControllers, 138 AnimationClips, **0 Avatar, 0 AvatarMask**).
 - `level18` census (`C:\mfgtmp\scene18.json`): seat anchors `PlayerZi`, `PlayerKami`,
   `PlayerToi`, `PlayerShimo` (+ `Players`), `Character/3DChara`, `MyChara`, `OtherCharacters*`,
   `PlayerAccessoryParent*`, `CharaSpotLight{Zi,Kami,Toi,Shimo,All}`, `CharaReactionManager`.
   1,228 Animator components in the scene - **every one has `m_Avatar = 0`** (UI/tile/prop
-  controllers, several `m_Controller = 0`); no seat has a baked Animator/Avatar/IK component.
+  controllers, several `m_Controller = 0`). No seat has a baked Animator/Avatar/IK component.
   Characters appear as `CharaModel.prefab` instances with the controller assigned by
-  `ModelManager.Init`; seat identity only feeds `LookDirection`.
+  `ModelManager.Init`. Seat identity only feeds `LookDirection`.
 - `StreamingAssets\Characters\Chara1..Chara21\` are `.webm` movie folders only
   (Appearance/GachaSelect/News videos) - no bundles, no 3D content there.
 
@@ -521,14 +521,14 @@ AssetStudio/aelurum `AnimatorController.cs` and unity-rs-core `animator_controll
   "Wait0's motion is HiyoriWait" was not re-derived from the original controller bytes
   (state name and clip address match the reconstruction's mapping, which was catalog-verified).
 - The CharaModel Animator's serialized `m_Controller` PPtr (FileID 10, external CAB) was not
-  resolved to a bundle name; the closure contains `CharaMotion01_Story` (`e36943ca…`) but the
+  resolved to a bundle name. The closure contains `CharaMotion01_Story` (`e36943ca…`) but the
   Game controller lives in `00cfdf05…` outside that closure. Runtime assignment
   (`ModelManager.cs:121`) is the effective wiring either way.
-- 3 MonoBehaviours in `5005fb01…` have their MonoScript reference in another file; class names
+- 3 MonoBehaviours in `5005fb01…` have their MonoScript reference in another file. Class names
   unresolved.
 - Original editor-side clip import metadata (loop-time flags in .meta) does not exist in a
-  player build; the serialized `ClipMuscleConstant` flags (loop=true, 2.0 s) were used instead.
-- ~350 of 28,292 bundles were opened (sets enumerated in E.1); a mask packed in some unrelated
+  player build. The serialized `ClipMuscleConstant` flags (loop=true, 2.0 s) were used instead.
+- ~350 of 28,292 bundles were opened (sets enumerated in E.1). A mask packed in some unrelated
   bundle outside all sampled dependency closures would not have been seen, but nothing in the
   catalog type table, scene tables, or any controller's resolved layer mask indicates one exists.
 
